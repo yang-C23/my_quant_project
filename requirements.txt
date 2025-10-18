@@ -1,0 +1,7 @@
+pandas>=2.3.3
+numpy>=2.2.6
+tushare>=1.4.24
+backtrader>=1.9.78.123
+scikit-learn>=1.7.2
+joblib>=1.5.2
+matplotlib>=3.9

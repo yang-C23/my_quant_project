@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+data/
+models/
+backtest_results/
+.env
+*.log
