@@ -1,391 +1,408 @@
 """
-Batch downloader for Tushare Pro daily bars.
+股票日线数据下载器 (基于 StockTradebyZ/fetch_kline.py)
 
-This script mirrors the workflow used in ``StockTradebyZ/fetch_kline.py`` but is
-tailored for the current project layout. It supports three common sourcing
-patterns:
+从 stocklist.csv 读取股票池，使用 Tushare Pro API 批量下载日线数据。
+支持前复权(qfq)、后复权(hfq)和不复权(none)三种模式。
 
-1. Purely automated — query the full A-share universe via ``stock_basic``.
-2. Semi-automated — pass a curated stock list (CSV with ``ts_code``/``symbol``).
-3. Manual — provide a text file or CLI list of specific tickers and indices.
+特性:
+- 自动限流检测和重试
+- 多线程并发下载
+- 断点续传支持 (不覆盖已存在文件)
+- 板块过滤 (创业板/科创板/北交所)
 
-The script only uses the Pro endpoints (`pro.stock_basic`, `ts.pro_bar`,
-`pro.daily`, `pro.index_daily`) and applies back-off / retry logic to handle
-transient rate limits. All credentials must be supplied through the
-environment (``TUSHARE_TOKEN``) or the ``--token`` CLI flag.
+使用示例:
+    # 基础用法
+    TUSHARE_TOKEN=your_token python data_downloader.py \\
+        --stocklist stocklist.csv \\
+        --start 20050101 \\
+        --workers 3
 
-Example
--------
-Download the first 100 symbols from the stock universe plus CSI 300 / CSI 1000:
-
-.. code-block:: bash
-
-    python data_downloader.py \\
-        --start-date 20100101 --adjust qfq --limit 100 \\
-        --index-symbols 000300.SH 000852.SH
-
+    # 排除创业板和科创板
+    TUSHARE_TOKEN=your_token python data_downloader.py \\
+        --stocklist stocklist.csv \\
+        --start 20240101 \\
+        --exclude-boards gem star \\
+        --workers 6
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import logging
-import os
+import random
 import sys
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import List, Optional
+import os
 
 import pandas as pd
+import tushare as ts
+from tqdm import tqdm
 
-try:
-    import tushare as ts
-except ImportError as exc:  # pragma: no cover - handles missing dependency at runtime
-    raise SystemExit(
-        "tushare package is required. Install it inside your project environment:\n"
-        "  pip install tushare"
-    ) from exc
+warnings.filterwarnings("ignore")
 
+# --------------------------- 全局配置 --------------------------- #
 PROJECT_ROOT = Path(__file__).resolve().parent
-LOGGER = logging.getLogger("data_downloader")
-DEFAULT_FIELDS = ["trade_date", "open", "high", "low", "close", "vol"]
+LOG_FILE = PROJECT_ROOT / "download.log"
 
-RETRY_ATTEMPTS = 4
-RETRY_BACKOFF = 8  # seconds
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8"),
+    ],
+)
+logger = logging.getLogger("download_kline")
 
-
-def configure_logging() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
-
-
-def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Download A-share daily data via Tushare Pro.")
-    parser.add_argument("--token", help="Tushare API token (else read from TUSHARE_TOKEN env).")
-    parser.add_argument("--start-date", default="20050101", help="YYYYMMDD inclusive start date.")
-    parser.add_argument("--end-date", default="", help="YYYYMMDD inclusive end date (blank = latest).")
-    parser.add_argument(
-        "--adjust",
-        default="qfq",
-        choices=("qfq", "hfq", "none"),
-        help="Price adjustment (qfq=前复权, hfq=后复权, none=raw prices).",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=PROJECT_ROOT / "data",
-        help="Directory for the generated CSV files (default: project data dir).",
-    )
-    parser.add_argument("--overwrite", action="store_true", help="Overwrite existing CSV files.")
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=0,
-        help="Maximum number of equity symbols to download (0 = all).",
-    )
-    parser.add_argument(
-        "--symbols",
-        nargs="*",
-        help="Manual list of ts_codes to download (e.g. 000001.SZ 600000.SH).",
-    )
-    parser.add_argument(
-        "--symbols-file",
-        type=Path,
-        help="Text file with one code per line (ts_code or raw 6-digit symbol).",
-    )
-    parser.add_argument(
-        "--stocklist",
-        type=Path,
-        help="CSV file containing `ts_code` or `symbol` columns (e.g. StockTradebyZ/stocklist.csv).",
-    )
-    parser.add_argument(
-        "--index-symbols",
-        nargs="*",
-        help="List of index ts_codes (e.g. 000300.SH) fetched via `pro.index_daily`.",
-    )
-    parser.add_argument(
-        "--index-symbols-file",
-        type=Path,
-        help="Text file with index ts_codes (one per line).",
-    )
-    parser.add_argument(
-        "--max-workers",
-        type=int,
-        default=4,
-        help="Number of parallel download workers (default: 4).",
-    )
-    parser.add_argument(
-        "--cooldown",
-        type=float,
-        default=0.8,
-        help="Sleep seconds between sequential API calls (used when max_workers=1).",
-    )
-    return parser.parse_args(argv)
+# --------------------------- 限流/封禁处理配置 --------------------------- #
+COOLDOWN_SECS = 600
+BAN_PATTERNS = (
+    "访问频繁", "请稍后", "超过频率", "频繁访问",
+    "too many requests", "429",
+    "forbidden", "403",
+    "max retries exceeded"
+)
 
 
-def resolve_token(cli_token: str | None) -> str:
-    token = cli_token or os.getenv("TUSHARE_TOKEN")
-    if not token:
-        raise SystemExit("Missing Tushare token. Provide `--token` or set TUSHARE_TOKEN.")
-    return token
+def _looks_like_ip_ban(exc: Exception) -> bool:
+    """检测是否为限流/封禁错误"""
+    msg = (str(exc) or "").lower()
+    return any(pat in msg for pat in BAN_PATTERNS)
 
 
-def symbol_to_ts_code(symbol: str) -> str:
-    bare = symbol.strip().upper()
-    if bare.endswith((".SH", ".SZ", ".BJ")):
-        return bare
-    code = bare.zfill(6)
+class RateLimitError(RuntimeError):
+    """表示命中限流/封禁，需要长时间冷却后重试。"""
+    pass
+
+
+def _cool_sleep(base_seconds: int) -> None:
+    """带抖动的睡眠，避免多线程同时唤醒"""
+    jitter = random.uniform(0.9, 1.2)
+    sleep_s = max(1, int(base_seconds * jitter))
+    logger.warning("⚠️  疑似被限流/封禁，进入冷却期 %d 秒...", sleep_s)
+    time.sleep(sleep_s)
+
+
+# --------------------------- Tushare API 封装 --------------------------- #
+pro: Optional[ts.pro_api] = None  # 模块级API会话
+
+
+def set_api(session) -> None:
+    """由外部注入已创建好的 ts.pro_api() 会话"""
+    global pro
+    pro = session
+
+
+def _to_ts_code(code: str) -> str:
+    """
+    将6位股票代码转换为Tushare标准格式
+    
+    规则:
+    - 60/68/9开头 -> .SH (上交所)
+    - 4/8开头 -> .BJ (北交所)
+    - 其他 -> .SZ (深交所)
+    """
+    code = str(code).zfill(6)
     if code.startswith(("60", "68", "9")):
         return f"{code}.SH"
-    if code.startswith(("4", "8")):
+    elif code.startswith(("4", "8")):
         return f"{code}.BJ"
-    return f"{code}.SZ"
-
-
-def read_symbol_file(path: Path) -> List[str]:
-    return [
-        symbol_to_ts_code(line)
-        for line in path.read_text().splitlines()
-        if line.strip()
-    ]
-
-
-def load_symbols_from_stocklist(stocklist: Path) -> List[str]:
-    df = pd.read_csv(stocklist)
-    if "ts_code" in df.columns:
-        series = df["ts_code"].dropna().astype(str)
-    elif "symbol" in df.columns:
-        series = df["symbol"].dropna().astype(str)
     else:
-        raise SystemExit(f"`{stocklist}` must include a `ts_code` or `symbol` column.")
-    return list(dict.fromkeys(series.map(symbol_to_ts_code)))
+        return f"{code}.SZ"
 
 
-def gather_symbols(pro: "ts.pro_api", args: argparse.Namespace) -> tuple[list[str], set[str]]:
-    manual: list[str] = []
-    if args.symbols_file:
-        if not args.symbols_file.exists():
-            raise SystemExit(f"Symbols file not found: {args.symbols_file}")
-        manual.extend(read_symbol_file(args.symbols_file))
-    if args.symbols:
-        manual.extend(symbol_to_ts_code(code) for code in args.symbols)
-    if args.stocklist:
-        if not args.stocklist.exists():
-            raise SystemExit(f"Stock list not found: {args.stocklist}")
-        manual.extend(load_symbols_from_stocklist(args.stocklist))
+def _get_kline_tushare(
+    code: str,
+    start: str,
+    end: str,
+    adjust: str = "qfq"
+) -> pd.DataFrame:
+    """
+    获取单只股票的K线数据
+    
+    关键：第91行的 None 检查非常重要！
+    Tushare API 有时会返回 None 而不是空 DataFrame
+    """
+    ts_code = _to_ts_code(code)
+    try:
+        df = ts.pro_bar(
+            ts_code=ts_code,
+            adj=adjust,
+            start_date=start,
+            end_date=end,
+            freq="D",
+            api=pro
+        )
+    except Exception as e:
+        if _looks_like_ip_ban(e):
+            raise RateLimitError(str(e)) from e
+        raise
 
-    index_codes: list[str] = []
-    if args.index_symbols_file:
-        if not args.index_symbols_file.exists():
-            raise SystemExit(f"Index symbols file not found: {args.index_symbols_file}")
-        index_codes.extend(read_symbol_file(args.index_symbols_file))
-    if args.index_symbols:
-        index_codes.extend(symbol_to_ts_code(code) for code in args.index_symbols)
-
-    index_set = set(index_codes)
-    manual.extend(index_codes)
-
-    if manual:
-        ordered = list(dict.fromkeys(manual))
-        if args.limit:
-            ordered = ordered[: args.limit]
-        return ordered, index_set
-
-    LOGGER.info("Querying active stock universe via pro.stock_basic() ...")
-    stocks = pro.stock_basic(exchange="", list_status="L", fields="ts_code")
-    if stocks.empty:
-        raise SystemExit("No instruments returned from stock_basic; check account permissions.")
-    symbols = stocks["ts_code"].tolist()
-    if args.limit:
-        symbols = symbols[: args.limit]
-    return symbols, index_set
-
-
-def normalize_frame(df: pd.DataFrame, rename: dict[str, str]) -> pd.DataFrame:
-    if df is None or df.empty:
+    # ⚠️ 关键检查：API可能返回None或其他非DataFrame类型
+    if df is None or not isinstance(df, pd.DataFrame):
         return pd.DataFrame()
-    frame = df.rename(columns=rename).copy()
-    required = ["trade_date", "open", "high", "low", "close", "volume"]
-    missing = [col for col in required if col not in frame.columns]
-    if missing:
-        raise ValueError(f"Missing columns {missing} in returned dataframe")
-    frame["trade_date"] = pd.to_datetime(frame["trade_date"])
-    for column in ["open", "high", "low", "close", "volume"]:
-        frame[column] = pd.to_numeric(frame[column], errors="coerce")
-    frame.dropna(subset=["trade_date"], inplace=True)
-    return frame.sort_values("trade_date").reset_index(drop=True)
-
-
-def fetch_equity_bars(
-    pro: "ts.pro_api",
-    ts_code: str,
-    start_date: str,
-    end_date: str,
-    adjust: str,
-) -> pd.DataFrame:
-    rename_map = {"vol": "volume"}
-    last_error: Exception | None = None
-    for attempt in range(1, RETRY_ATTEMPTS + 1):
-        try:
-            if adjust == "none":
-                df = pro.daily(ts_code=ts_code, start_date=start_date, end_date=end_date, fields=",".join(DEFAULT_FIELDS))
-            else:
-                df = ts.pro_bar(
-                    ts_code=ts_code,
-                    adj=adjust,
-                    start_date=start_date,
-                    end_date=end_date,
-                    freq="D",
-                    factors=False,
-                    api=pro,
-                )
-            return normalize_frame(df, rename_map)
-        except Exception as exc:  # pragma: no cover - depends on remote API state
-            last_error = exc
-            sleep_for = RETRY_BACKOFF * attempt
-            LOGGER.warning("Retrying %s (attempt %d/%d) after error: %s", ts_code, attempt, RETRY_ATTEMPTS, exc)
-            time.sleep(sleep_for)
-    raise RuntimeError(f"Failed to fetch {ts_code} after {RETRY_ATTEMPTS} attempts") from last_error
-
-
-def fetch_index_bars(
-    pro: "ts.pro_api",
-    ts_code: str,
-    start_date: str,
-    end_date: str,
-) -> pd.DataFrame:
-    rename_map = {"vol": "volume"}
-    last_error: Exception | None = None
-    for attempt in range(1, RETRY_ATTEMPTS + 1):
-        try:
-            df = pro.index_daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
-            return normalize_frame(df, rename_map)
-        except Exception as exc:  # pragma: no cover
-            last_error = exc
-            sleep_for = RETRY_BACKOFF * attempt
-            LOGGER.warning("Retrying index %s (attempt %d/%d) after error: %s", ts_code, attempt, RETRY_ATTEMPTS, exc)
-            time.sleep(sleep_for)
-    raise RuntimeError(f"Failed to fetch index {ts_code} after {RETRY_ATTEMPTS} attempts") from last_error
-
-
-def download_symbol(
-    pro: "ts.pro_api",
-    ts_code: str,
-    output_dir: Path,
-    start_date: str,
-    end_date: str,
-    adjust: str,
-    is_index: bool,
-    overwrite: bool,
-) -> tuple[str, bool, str | None]:
-    target_file = output_dir / f"{ts_code}.csv"
-    if target_file.exists() and not overwrite:
-        return ts_code, True, None
-
-    if is_index:
-        df = fetch_index_bars(pro, ts_code, start_date, end_date)
-    else:
-        df = fetch_equity_bars(pro, ts_code, start_date, end_date, adjust)
-
+    
     if df.empty:
-        message = "no data returned"
-        LOGGER.info("Skipping %s (%s).", ts_code, message)
-        return ts_code, False, message
+        return pd.DataFrame()
 
-    df["trade_date"] = df["trade_date"].dt.strftime("%Y%m%d")
-    df.to_csv(target_file, index=False)
-    LOGGER.info("Saved %s rows for %s -> %s", len(df), ts_code, target_file.name)
-    return ts_code, False, None
-
-
-def run_batch_download(
-    pro: "ts.pro_api",
-    symbols: Sequence[str],
-    index_set: set[str],
-    output_dir: Path,
-    start_date: str,
-    end_date: str,
-    adjust: str,
-    overwrite: bool,
-    max_workers: int,
-    cooldown: float,
-) -> None:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    total = len(symbols)
-    LOGGER.info("Starting download for %d symbols (adjust=%s).", total, adjust)
-
-    if max_workers <= 1:
-        for idx, ts_code in enumerate(symbols, start=1):
-            LOGGER.info("[%d/%d] Fetching %s", idx, total, ts_code)
-            download_symbol(
-                pro=pro,
-                ts_code=ts_code,
-                output_dir=output_dir,
-                start_date=start_date,
-                end_date=end_date,
-                adjust=adjust,
-                is_index=ts_code in index_set,
-                overwrite=overwrite,
-            )
-            time.sleep(cooldown)
-        return
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_map = {
-            executor.submit(
-                download_symbol,
-                pro,
-                ts_code,
-                output_dir,
-                start_date,
-                end_date,
-                adjust,
-                ts_code in index_set,
-                overwrite,
-            ): ts_code
-            for ts_code in symbols
-        }
-
-        for idx, future in enumerate(as_completed(future_map), start=1):
-            ts_code = future_map[future]
-            try:
-                code, skipped, message = future.result()
-                status = "skipped" if skipped else "done"
-                extra = f" ({message})" if message else ""
-                LOGGER.info("[%d/%d] %s %s%s", idx, total, code, status, extra)
-            except Exception as exc:  # pragma: no cover - depends on network conditions
-                LOGGER.error("[%d/%d] %s failed: %s", idx, total, ts_code, exc)
+    # 标准化列名和数据类型
+    df = df.rename(columns={"trade_date": "date", "vol": "volume"})[
+        ["date", "open", "close", "high", "low", "volume"]
+    ].copy()
+    df["date"] = pd.to_datetime(df["date"])
+    for c in ["open", "close", "high", "low", "volume"]:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df.sort_values("date").reset_index(drop=True)
 
 
-def main(argv: Iterable[str] | None = None) -> None:
-    configure_logging()
-    args = parse_args(argv)
-    token = resolve_token(args.token)
+def validate(df: pd.DataFrame) -> pd.DataFrame:
+    """数据验证：去重、检查日期"""
+    if df is None or df.empty:
+        return df
+    df = df.drop_duplicates(subset="date").sort_values("date").reset_index(drop=True)
+    if df["date"].isna().any():
+        raise ValueError("存在缺失日期！")
+    if (df["date"] > pd.Timestamp.today()).any():
+        raise ValueError("数据包含未来日期，可能抓取错误！")
+    return df
 
-    os.environ.setdefault("NO_PROXY", "api.waditu.com,.waditu.com,waditu.com")
-    os.environ.setdefault("no_proxy", os.environ["NO_PROXY"])
-    ts.set_token(token)
 
-    pro = ts.pro_api()
-    symbols, index_set = gather_symbols(pro, args)
+# --------------------------- 读取 stocklist.csv & 过滤板块 --------------------------- #
 
-    run_batch_download(
-        pro=pro,
-        symbols=symbols,
-        index_set=index_set,
-        output_dir=args.output_dir,
-        start_date=args.start_date,
-        end_date=args.end_date,
-        adjust=args.adjust,
-        overwrite=args.overwrite,
-        max_workers=args.max_workers,
-        cooldown=args.cooldown,
+def _filter_by_boards_stocklist(
+    df: pd.DataFrame,
+    exclude_boards: set[str]
+) -> pd.DataFrame:
+    """
+    根据板块过滤股票
+    
+    exclude_boards 可选值：
+    - gem  : 创业板 300/301 (.SZ)
+    - star : 科创板 688 (.SH)
+    - bj   : 北交所 (.BJ 或 4/8开头)
+    """
+    code = df["symbol"].astype(str)
+    ts_code = df["ts_code"].astype(str).str.upper()
+    mask = pd.Series(True, index=df.index)
+
+    if "gem" in exclude_boards:
+        mask &= ~code.str.startswith(("300", "301"))
+    if "star" in exclude_boards:
+        mask &= ~code.str.startswith(("688",))
+    if "bj" in exclude_boards:
+        mask &= ~(ts_code.str.endswith(".BJ") | code.str.startswith(("4", "8")))
+
+    return df[mask].copy()
+
+
+def load_codes_from_stocklist(
+    stocklist_csv: Path,
+    exclude_boards: set[str]
+) -> List[str]:
+    """从 stocklist.csv 加载股票代码列表"""
+    df = pd.read_csv(stocklist_csv)
+    df = _filter_by_boards_stocklist(df, exclude_boards)
+    codes = df["symbol"].astype(str).str.zfill(6).tolist()
+    codes = list(dict.fromkeys(codes))  # 去重保持顺序
+    logger.info("从 %s 读取到 %d 只股票 (排除板块: %s)",
+                stocklist_csv, len(codes),
+                ",".join(sorted(exclude_boards)) or "无")
+    return codes
+
+
+# --------------------------- 单只股票抓取 --------------------------- #
+
+def fetch_one(
+    code: str,
+    start: str,
+    end: str,
+    out_dir: Path,
+    adjust: str = "qfq",
+    overwrite: bool = False,
+) -> tuple[str, bool]:
+    """
+    抓取单只股票数据
+    
+    返回:
+        (code, success): 股票代码和是否成功
+    """
+    csv_path = out_dir / f"{code}.csv"
+    
+    # 跳过已存在的文件（除非设置了overwrite）
+    if csv_path.exists() and not overwrite:
+        logger.debug("%s 文件已存在，跳过", code)
+        return code, True
+
+    for attempt in range(1, 4):
+        try:
+            new_df = _get_kline_tushare(code, start, end, adjust)
+            if new_df.empty:
+                logger.debug("%s 无数据，生成空表", code)
+                new_df = pd.DataFrame(columns=["date", "open", "close", "high", "low", "volume"])
+            new_df = validate(new_df)
+            new_df.to_csv(csv_path, index=False)
+            logger.info("✓ %s 保存成功 (%d 条记录)", code, len(new_df))
+            return code, True
+        except RateLimitError as e:
+            logger.error("✗ %s 第 %d 次抓取疑似被封禁: %s", code, attempt, e)
+            _cool_sleep(COOLDOWN_SECS)
+        except Exception as e:
+            silent_seconds = 15 * attempt
+            logger.warning("⚠ %s 第 %d 次抓取失败 (%s)，%d 秒后重试",
+                         code, attempt, str(e)[:50], silent_seconds)
+            time.sleep(silent_seconds)
+    
+    logger.error("✗ %s 三次抓取均失败，已跳过！", code)
+    return code, False
+
+
+# --------------------------- 主入口 --------------------------- #
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="从 stocklist.csv 读取股票池并用 Tushare 抓取日线K线",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  # 基础用法 (前复权，3个线程)
+  python download_kline.py --stocklist stocklist.csv --start 20050101 --workers 3
+
+  # 排除创业板和科创板
+  python download_kline.py --stocklist stocklist.csv --start 20050101 \\
+      --exclude-boards gem star --workers 3
+
+  # 后复权，覆盖已有文件
+  python download_kline.py --stocklist stocklist.csv --start 20050101 \\
+      --adjust hfq --overwrite --workers 2
+        """
     )
+    
+    # 数据范围
+    parser.add_argument("--start", default="20190101",
+                       help="起始日期 YYYYMMDD (默认: 20190101)")
+    parser.add_argument("--end", default="today",
+                       help="结束日期 YYYYMMDD 或 'today' (默认: today)")
+    
+    # 复权模式
+    parser.add_argument("--adjust", default="qfq",
+                       choices=["qfq", "hfq", "none"],
+                       help="复权模式: qfq=前复权, hfq=后复权, none=不复权 (默认: qfq)")
+    
+    # 股票清单与板块过滤
+    parser.add_argument("--stocklist", type=Path, required=True,
+                       help="股票清单CSV路径 (需含 ts_code 或 symbol 列)")
+    parser.add_argument("--exclude-boards", nargs="*", default=[],
+                       choices=["gem", "star", "bj"],
+                       help="排除板块: gem(创业板300/301) star(科创板688) bj(北交所)")
+    
+    # 输出设置
+    parser.add_argument("--out", type=Path, default=PROJECT_ROOT / "data",
+                       help="输出目录 (默认: ./data)")
+    parser.add_argument("--overwrite", action="store_true",
+                       help="覆盖已存在的文件 (默认: 跳过)")
+    
+    # 性能设置
+    parser.add_argument("--workers", type=int, default=3,
+                       help="并发线程数 (默认: 3，建议根据账户权限调整)")
+    parser.add_argument("--limit", type=int, default=0,
+                       help="限制下载数量 (0=全部，用于测试)")
+    
+    args = parser.parse_args()
+
+    # ---------- Tushare Token ---------- #
+    os.environ["NO_PROXY"] = "api.waditu.com,.waditu.com,waditu.com"
+    os.environ["no_proxy"] = os.environ["NO_PROXY"]
+    
+    ts_token = os.environ.get("TUSHARE_TOKEN")
+    if not ts_token:
+        logger.error("❌ 未设置 TUSHARE_TOKEN 环境变量")
+        logger.error("请运行: export TUSHARE_TOKEN=你的token")
+        sys.exit(1)
+    
+    ts.set_token(ts_token)
+    global pro
+    pro = ts.pro_api()
+    logger.info("✓ Tushare token 已设置")
+
+    # ---------- 日期解析 ---------- #
+    start = dt.date.today().strftime("%Y%m%d") if str(args.start).lower() == "today" else args.start
+    end = dt.date.today().strftime("%Y%m%d") if str(args.end).lower() == "today" else args.end
+
+    # ---------- 输出目录 ---------- #
+    out_dir = args.out
+    out_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("✓ 输出目录: %s", out_dir.resolve())
+
+    # ---------- 从 stocklist.csv 读取股票池 ---------- #
+    if not args.stocklist.exists():
+        logger.error("❌ 股票清单文件不存在: %s", args.stocklist)
+        sys.exit(1)
+    
+    exclude_boards = set(args.exclude_boards or [])
+    codes = load_codes_from_stocklist(args.stocklist, exclude_boards)
+
+    if not codes:
+        logger.error("❌ stocklist 为空或被过滤后无代码，请检查")
+        sys.exit(1)
+    
+    if args.limit > 0:
+        codes = codes[:args.limit]
+        logger.info("⚠️  限制下载数量: %d", args.limit)
+
+    logger.info("=" * 70)
+    logger.info("开始下载任务")
+    logger.info("  股票数量: %d", len(codes))
+    logger.info("  日期范围: %s → %s", start, end)
+    logger.info("  复权模式: %s", args.adjust)
+    logger.info("  并发线程: %d", args.workers)
+    logger.info("  排除板块: %s", ",".join(sorted(exclude_boards)) or "无")
+    logger.info("=" * 70)
+
+    # ---------- 多线程抓取 ---------- #
+    success_count = 0
+    failed_count = 0
+    
+    with ThreadPoolExecutor(max_workers=args.workers) as executor:
+        futures = {
+            executor.submit(
+                fetch_one,
+                code,
+                start,
+                end,
+                out_dir,
+                args.adjust,
+                args.overwrite,
+            ): code
+            for code in codes
+        }
+        
+        for future in tqdm(as_completed(futures), total=len(futures), desc="下载进度"):
+            code = futures[future]
+            try:
+                _, success = future.result()
+                if success:
+                    success_count += 1
+                else:
+                    failed_count += 1
+            except Exception as e:
+                logger.error("✗ %s 下载出错: %s", code, e)
+                failed_count += 1
+
+    # ---------- 结果统计 ---------- #
+    logger.info("=" * 70)
+    logger.info("下载任务完成")
+    logger.info("  成功: %d", success_count)
+    logger.info("  失败: %d", failed_count)
+    logger.info("  数据保存至: %s", out_dir.resolve())
+    logger.info("  日志文件: %s", LOG_FILE.resolve())
+    logger.info("=" * 70)
 
 
 if __name__ == "__main__":
     main()
+

@@ -5,3 +5,4 @@ backtrader>=1.9.78.123
 scikit-learn>=1.7.2
 joblib>=1.5.2
 matplotlib>=3.9
+tqdm>=4.67

@@ -35,22 +35,42 @@ Quantitative research and trading framework scaffold covering data ingestion, fa
 - **Step 7** — `regime_detector.py`: market state classification utilities.
 
 ## Data Download
-- The downloader now targets **Tushare Pro** endpoints exclusively. Reference token permissions (e.g. rate limits) before launching a full run.
-- Download the entire stock universe based on an external stock list:
-  ```bash
-  python data_downloader.py \
-    --stocklist /home/yang/projects/StockTradebyZ/stocklist.csv \
-    --max-workers 6 \
-    --start-date 20050101 --adjust qfq
-  ```
-- Fetch specific equities or indices:
-  ```bash
-  python data_downloader.py \
-    --symbols 000001.SZ 000002.SZ \
-    --index-symbols 000300.SH 000852.SH \
-    --start-date 20200101 --adjust qfq --overwrite
-  ```
-- Use `--limit` to dry-run with a subset before downloading the full universe. CSV files are saved under `data/<ts_code>.csv`.
+
+
+**快速开始**（交互式菜单）:
+```bash
+export TUSHARE_TOKEN="your_token_here"
+./start_download.sh
+```
+
+**命令行直接使用**:
+```bash
+# 首次全量下载（2005年至今）
+TUSHARE_TOKEN=your_token python data_downloader.py \
+    --stocklist stocklist.csv \
+    --start 20050101 \
+    --workers 3
+
+# 日常增量更新（2024年至今）
+TUSHARE_TOKEN=your_token python data_downloader.py \
+    --stocklist stocklist.csv \
+    --start 20240101 \
+    --workers 5
+
+# 排除创业板和科创板
+TUSHARE_TOKEN=your_token python data_downloader.py \
+    --stocklist stocklist.csv \
+    --start 20050101 \
+    --exclude-boards gem star \
+    --workers 3
+```
+
+**特性**:
+- ✅ 稳定可靠，无 "object of type 'bool'" 错误
+- ✅ 智能限流检测和长时间冷却
+- ✅ 断点续传（不覆盖已存在文件）
+- ✅ 支持板块过滤（创业板/科创板/北交所）
+
 
 ## Backtesting
 - The shared engine supports any dotted strategy path:
