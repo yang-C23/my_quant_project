@@ -44,8 +44,10 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
         help="Directory containing Tushare CSV data.",
     )
     parser.add_argument("--cash", type=float, default=100_000.0, help="Initial cash.")
-    parser.add_argument("--commission", type=float, default=0.003, help="Commission per trade (0.3%%).")
+    parser.add_argument("--commission", type=float, default=0.0003, help="Commission per trade (0.03%% or 万3).")
+    parser.add_argument("--stamp-duty", type=float, default=0.001, help="Stamp duty (0.1%% or 千1, sell only).")
     parser.add_argument("--slippage", type=float, default=0.0005, help="Slippage percentage.")
+    parser.add_argument("--no-ashare-commission", action="store_true", help="Disable A-share commission scheme.")
     parser.add_argument(
         "--strategy-params",
         nargs="*",
@@ -94,6 +96,8 @@ def main(argv: Iterable[str] | None = None) -> None:
         cash=args.cash,
         commission=args.commission,
         slippage=args.slippage,
+        stamp_duty=args.stamp_duty,
+        use_ashare_commission=not args.no_ashare_commission,
     )
     save_outputs(result, args.metrics_path, args.plot_path, args.benchmark_symbols, args.data_dir)
 
