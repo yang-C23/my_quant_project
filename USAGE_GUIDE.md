@@ -36,3 +36,20 @@ python data_quality.py data/000001.csv
 # 批量检查
 python data_quality.py
 ```
+
+### 4. 指标回测（KDJ J<0）
+
+```bash
+python run_backtest.py \
+  --data-dir data \
+  --start 2015-01-01 \
+  --end 2024-12-31 \
+  --j-threshold 0 \
+  --horizons 1,3,5
+```
+
+### 5. 配置化流程
+
+```bash
+python run_pipeline.py --config configs/pipeline_kdj_j0.yaml
+```
