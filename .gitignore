@@ -6,3 +6,4 @@ models/
 backtest_results/
 .env
 *.log
+tk.csv

@@ -1,0 +1,27 @@
+steps:
+  download: true
+  quality: true
+  backtest: false
+
+data:
+  data_dir: data
+  stocklist: stocklist.csv
+  symbols: []
+  max_stocks: 0
+  exclude_boards: [star]
+  download:
+    start: 20110101
+    end: today
+    workers: 5
+    exclude_boards: [star]
+    overwrite: false
+    limit: 0
+    stale_only: true
+    stale_grace_days: 10
+
+quality:
+  output_dir: data_clean
+  remove_suspension: true
+  mark_limit_price: true
+  handle_outliers: true
+  generate_adj_price: true

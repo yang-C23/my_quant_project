@@ -5,6 +5,22 @@ echo "========================================"
 echo "下载指数数据（沪深300、中证1000）"
 echo "========================================"
 
+# 检查环境变量，若为空则尝试读取 tk.csv
+if [ -z "$TUSHARE_TOKEN" ]; then
+    if [ -f "/home/yang/tk.csv" ]; then
+        export TUSHARE_TOKEN=$(/home/yang/venvs/my_quant_env/bin/python - <<'PY'
+import pandas as pd
+print(pd.read_csv('/home/yang/tk.csv')['token'].iloc[0])
+PY
+)
+    fi
+fi
+
+if [ -z "$TUSHARE_TOKEN" ]; then
+    echo "错误: 未设置 TUSHARE_TOKEN 且未找到 /home/yang/tk.csv"
+    exit 1
+fi
+
 # 创建临时的指数列表文件
 cat > /tmp/indices.csv << EOF
 ts_code,name,industry
@@ -20,7 +36,6 @@ EOF
     --stocklist /tmp/indices.csv \
     --start 20040101 \
     --end today \
-    --adjust none \
     --workers 1 \
     --overwrite \
     --out data
@@ -28,4 +43,3 @@ EOF
 echo "========================================"
 echo "指数数据下载完成！"
 echo "========================================"
-

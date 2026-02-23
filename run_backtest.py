@@ -16,7 +16,7 @@ from quant.reporting.report import summarize_overall, summarize_results, write_r
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Backtest KDJ J<0 forward returns")
-    parser.add_argument("--data-dir", default="data", help="CSV data directory")
+    parser.add_argument("--data-dir", default="data", help="Base data directory")
     parser.add_argument("--stocklist", default="", help="CSV with symbol/ts_code")
     parser.add_argument("--symbols", default="", help="Comma-separated symbols")
     parser.add_argument("--max-stocks", type=int, default=0, help="Limit number of symbols")

@@ -31,8 +31,10 @@ def run_kdj_forward_return_backtest(
             LOGGER.warning("Skip %s: %s", symbol, exc)
             continue
 
-        if df.empty or len(df) < max(horizons) + 2:
-            LOGGER.warning("Skip %s: not enough data (%d rows)", symbol, len(df))
+        min_kdj_len = max(int(kdj_n), int(kdj_k) + int(kdj_d)) + 2
+        min_len = max(max(horizons) + 2, min_kdj_len)
+        if df.empty or len(df) < min_len:
+            LOGGER.warning("Skip %s: not enough data (%d rows, need %d)", symbol, len(df), min_len)
             continue
 
         cerebro = bt.Cerebro(stdstats=False)
@@ -47,8 +49,12 @@ def run_kdj_forward_return_backtest(
             horizons=horizons,
         )
 
-        strat = cerebro.run()[0]
-        stats = strat.get_stats()
-        results.append(stats)
+        try:
+            strat = cerebro.run()[0]
+            stats = strat.get_stats()
+            results.append(stats)
+        except Exception as exc:
+            LOGGER.warning("Skip %s: backtest failed (%s)", symbol, exc)
+            continue
 
     return results

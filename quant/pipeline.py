@@ -11,6 +11,7 @@ from quant.data.loader import (
     list_symbols_from_data_dir,
     load_symbols_from_stocklist,
     normalize_symbols,
+    filter_symbols_by_boards,
 )
 from quant.data.quality import batch_process_stocks
 from quant.reporting.report import summarize_overall, summarize_results, write_report
@@ -20,19 +21,21 @@ LOGGER = logging.getLogger("quant_pipeline")
 
 def _resolve_symbols(cfg: dict, data_dir: str | Path) -> list[str]:
     data_cfg = cfg.get("data", {})
+    exclude_boards = set(data_cfg.get("exclude_boards", []) or [])
     symbols = data_cfg.get("symbols") or []
     if symbols:
-        return normalize_symbols(symbols)
+        return filter_symbols_by_boards(symbols, exclude_boards)
 
     stocklist = data_cfg.get("stocklist")
     if stocklist:
-        return load_symbols_from_stocklist(stocklist, limit=int(data_cfg.get("max_stocks", 0) or 0))
+        symbols = load_symbols_from_stocklist(stocklist, limit=int(data_cfg.get("max_stocks", 0) or 0))
+        return filter_symbols_by_boards(symbols, exclude_boards)
 
     symbols = list_symbols_from_data_dir(data_dir)
     max_stocks = int(data_cfg.get("max_stocks", 0) or 0)
     if max_stocks > 0:
         symbols = symbols[:max_stocks]
-    return symbols
+    return filter_symbols_by_boards(symbols, exclude_boards)
 
 
 def run_pipeline(config_path: str | Path) -> dict:
@@ -60,11 +63,13 @@ def run_pipeline(config_path: str | Path) -> dict:
             start=str(start),
             end=str(end),
             out_dir=data_dir,
-            adjust=download_cfg.get("adjust", "qfq"),
             workers=int(download_cfg.get("workers", 3)),
             exclude_boards=set(download_cfg.get("exclude_boards", []) or []),
             overwrite=bool(download_cfg.get("overwrite", False)),
             limit=int(download_cfg.get("limit", 0) or 0),
+            missing_only=bool(download_cfg.get("missing_only", False)),
+            stale_only=bool(download_cfg.get("stale_only", False)),
+            stale_grace_days=int(download_cfg.get("stale_grace_days", 10) or 10),
         )
         outputs["download"] = summary
 
@@ -82,6 +87,7 @@ def run_pipeline(config_path: str | Path) -> dict:
             remove_suspension=bool(quality_cfg.get("remove_suspension", True)),
             mark_limit_price=bool(quality_cfg.get("mark_limit_price", True)),
             handle_outliers=bool(quality_cfg.get("handle_outliers", True)),
+            generate_adj_price=bool(quality_cfg.get("generate_adj_price", True)),
         )
         outputs["quality"] = {"output_dir": quality_output, "symbols": len(symbols)}
 

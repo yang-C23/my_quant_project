@@ -49,11 +49,11 @@ class KDJForwardReturnStrategy(bt.Strategy):
         prev_j = float(self.kdj.j[-1])
 
         if prev_j < self.p.j_threshold:
-            entry_price = float(self.data.close[-1])
-            entry_date = self.data.datetime.date(-1)
+            entry_price = float(self.data.open[0])
+            entry_date = self.data.datetime.date(0)
             self.pending.append(
                 {
-                    "index": current_index - 1,
+                    "index": current_index,
                     "price": entry_price,
                     "date": entry_date,
                     "done": set(),

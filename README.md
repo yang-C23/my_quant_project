@@ -13,8 +13,8 @@
 
 ## ✅ 已支持能力
 
-- 数据下载：Tushare 日线前复权 (qfq)
-- 数据质量检查：异常值、停牌、涨跌停标记
+- 数据下载：Tushare 日线原始价 + 复权因子 (raw_price/adj_factor)
+- 数据质量检查：异常值、停牌、涨跌停标记（输出 data_clean）
 - 指标回测：KDJ 指标 J<0 触发点
 - 多股票、多时间区间回测
 - 自动生成胜率/回报率报告 (1/3/5 天)
@@ -67,7 +67,8 @@ pip install -r requirements.txt
 ### 2. 下载数据
 
 ```bash
-# 设置 Tushare Token
+# 设置 Tushare Token（推荐放在 /home/yang/tk.csv，列名 token）
+# 下载脚本会优先读取 tk.csv，也可以使用 --token-file 指定
 export TUSHARE_TOKEN="your_token_here"
 
 # 下载完整历史数据（2004-至今）
@@ -77,11 +78,18 @@ bash download_full_history.sh
 ### 3. 数据质量检查
 
 ```bash
-# 单只股票
-python data_quality.py data/000001.csv
+python data_quality.py \
+  --data-dir data \
+  --output-dir data_clean
 
-# 批量检查
-python data_quality.py
+如需关闭 adj_price 生成：
+
+```bash
+python data_quality.py \
+  --data-dir data \
+  --output-dir data_clean \
+  --no-adj-price
+```
 ```
 
 ---
@@ -92,7 +100,7 @@ python data_quality.py
 
 ```bash
 python run_backtest.py \
-  --data-dir data \
+  --data-dir data_clean \
   --start 2015-01-01 \
   --end 2024-12-31 \
   --j-threshold 0 \
@@ -103,6 +111,7 @@ python run_backtest.py \
 
 ```bash
 python run_backtest.py \
+  --data-dir data_clean \
   --stocklist stocklist.csv \
   --max-stocks 300 \
   --start 2018-01-01 \
@@ -113,6 +122,7 @@ python run_backtest.py \
 
 ```bash
 python run_backtest.py \
+  --data-dir data_clean \
   --symbols 000001,000002,000333 \
   --start 2019-01-01 \
   --end 2023-12-31
@@ -144,11 +154,42 @@ python run_backtest.py \
 python run_pipeline.py --config configs/pipeline_kdj_j0.yaml
 ```
 
+建议流程：先执行 `pipeline_prepare.yaml` 完成更新与清洗，再执行 `pipeline_kdj_j0.yaml` 回测。
+
 可配置项包括：
 
-- 数据下载参数（起止日期、复权、线程、板块过滤）
+- 数据下载参数（起止日期、线程、板块过滤）
 - 数据清洗参数（停牌移除、异常值处理）
 - 回测参数（时间区间、KDJ 参数、前瞻天数）
+
+仅做“更新 + 清洗”可用：
+
+```bash
+python run_pipeline.py --config configs/pipeline_prepare.yaml
+```
+
+---
+
+## 📂 数据目录结构
+
+```
+data/
+├── raw_price/    # 原始价格 OHLCV
+└── adj_factor/   # 复权因子
+
+data_clean/
+├── raw_price/    # 清洗后的原始价格 + 停牌/涨跌停标记
+├── adj_factor/   # 清洗后的复权因子
+└── adj_price/    # 清洗后预计算复权价（默认生成）
+```
+
+## 🧮 回测用价
+
+回测引擎内部统一：
+
+```
+adj_price = raw_price * factor.iloc[-1] / factor
+```
 
 ---
 
