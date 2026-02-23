@@ -134,6 +134,41 @@ adj_price = raw_price * factor.iloc[-1] / factor
 - Enforce T+1 entry (signal day close -> next day open).
 - Avoid look-ahead bias: indicators must use data up to t only; shift signals when needed.
 
+## Research & Backtesting Standards (Professional)
+### Research Workflow
+- Start with a hypothesis, define signal logic and constraints, and pre-register evaluation windows.
+- Use multi-horizon forward returns (1/3/5/10/20 days) and multiple regimes (bull/bear/volatility).
+- Separate research data prep from trading rules to avoid leakage.
+
+### Backtesting Integrity Checklist
+- No look-ahead: indicators and features use data up to t; signals enter at t+1 open.
+- Survivorship control: avoid filtering by future listing status; respect IPO start date.
+- Corporate actions: use raw + adj_factor with point-in-time adjustment.
+- Trading constraints: include suspensions, limit-up/down, liquidity, and T+1 rules.
+- Costs: apply commission, stamp tax, and slippage assumptions.
+
+### Risk & Performance Metrics
+- Win rate, average/median return, profit factor, hit ratio by regime.
+- Drawdown metrics: max drawdown, average drawdown, time-to-recover.
+- Risk-adjusted: Sharpe, Sortino, Calmar (annualized where appropriate).
+- Tail risk: skew, kurtosis, CVaR/Expected Shortfall.
+
+### Validation & Robustness
+- Walk-forward or rolling OOS validation; avoid single-period optimization.
+- Parameter sensitivity: test small grids and stability bands.
+- Avoid overfitting: prefer simple rules and robust signals.
+
+### Optimization & Parallelism
+- CPU-parallel for per-symbol backtests; use multiprocessing on 9900X.
+- GPU/CUDA for heavy factor research or DL models (PyTorch); keep backtests CPU-parallel.
+- Cache expensive transforms (adj_price, factors) to avoid recomputation.
+
+### A-share Specific Rules
+- Enforce T+1 settlement for buys; no same-day sell of new buys.
+- Handle limit-up/down and suspensions; skip non-tradable entries.
+- Consider ST/other special treatment filters when relevant.
+- Always confirm whether to exclude STAR board before each run.
+
 ## Performance & Hardware
 - Host: 9900X + RTX5090. Use multithreading/multiprocessing for batch runs.
 - Consider CUDA/torch for heavy factor research or DL models; keep backtests CPU-parallel.
