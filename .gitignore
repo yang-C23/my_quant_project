@@ -7,3 +7,4 @@ backtest_results/
 .env
 *.log
 tk.csv
+tmp_stocklist_*.csv
