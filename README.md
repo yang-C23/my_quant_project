@@ -5,45 +5,65 @@
 
 ---
 
-## 🎯 项目定位
+## 项目定位
 
 - 面向 A 股日线数据的量化回测与指标验证
 - 统一数据准备、质量检查、策略回测与报告输出
 - 基于 Backtrader 搭建可扩展的策略/指标框架
+- **PostgreSQL 数据库存储**：通达信二进制数据导入、GBBQ 解密、自动复权
 
-## ✅ 已支持能力
+## 已支持能力
 
-- 数据下载：Tushare 日线原始价 + 复权因子 (raw_price/adj_factor)
-- 数据质量检查：异常值、停牌、涨跌停标记（输出 data_clean）
-- 指标回测：KDJ 指标 J<0 触发点
+- **数据库存储**：PostgreSQL + `tdx` schema 隔离，28M+ 日线记录
+- **通达信数据导入**：.day 二进制解析、GBBQ 股本变迁解密、板块/行业元数据
+- **自动复权**：QUANTAXIS 算法计算后复权/前复权因子，视图直接查询
+- **增量更新**：从通达信 vipdoc 目录增量同步新日线数据
+- 数据下载：Tushare 日线原始价 + 复权因子 (CSV 模式，可选)
+- 数据质量检查：异常值、停牌、涨跌停标记
+- 指标回测：KDJ 指标 J<0 触发点、双趋势呼吸策略
 - 多股票、多时间区间回测
 - 自动生成胜率/回报率报告 (1/3/5 天)
 - 一键配置化流程 (下载 → 清洗 → 回测)
 
-## 📁 项目结构
+## 项目结构
 
 ```
 my_quant_project/
 ├── configs/
-│   └── pipeline_kdj_j0.yaml   # 配置化流程样例
+│   ├── pipeline_kdj_j0.yaml      # 配置化流程样例
+│   └── pipeline_prepare.yaml     # 数据准备流程
 ├── quant/
 │   ├── backtest/
-│   │   ├── engine.py            # Backtrader 回测入口
-│   │   └── strategies.py        # 指标/策略逻辑
+│   │   ├── engine.py              # Backtrader 回测入口 (支持 DB/CSV)
+│   │   └── strategies.py          # 指标/策略逻辑
 │   ├── data/
-│   │   ├── downloader.py        # Tushare 下载模块
-│   │   ├── loader.py            # 数据加载与股票池解析
-│   │   └── quality.py           # 数据清洗与质量检查
+│   │   ├── downloader.py          # Tushare 下载模块
+│   │   ├── loader.py              # 数据加载 (DB 优先, CSV 兼容)
+│   │   └── quality.py             # 数据清洗与质量检查
+│   ├── db/
+│   │   ├── __init__.py
+│   │   ├── connection.py          # PostgreSQL 连接管理
+│   │   └── schema.py              # DDL: 建表、索引、视图
 │   ├── indicators/
-│   │   └── kdj.py               # KDJ 指标实现
-│   └── reporting/
-│       └── report.py            # 报告生成
-├── run_pipeline.py             # 配置化流程入口
-├── data_downloader.py           # 批量下载日线数据
-├── data_quality.py              # 数据质量检查
-├── run_backtest.py              # 回测 CLI 入口
-├── download_full_history.sh
-├── download_indices.sh
+│   │   ├── kdj.py                 # KDJ 指标
+│   │   ├── kdj_tdx.py            # KDJ (通达信兼容)
+│   │   ├── dual_trend.py         # 双趋势指标
+│   │   └── volume_breath.py      # 量能呼吸指标
+│   ├── reporting/
+│   │   └── report.py              # 报告生成
+│   └── pipeline.py                # 配置驱动流程
+├── scripts/
+│   ├── import_tdx.py              # 全量导入 (TDX → PostgreSQL)
+│   ├── update_daily.py            # 增量更新 (每日同步)
+│   ├── tdx_parser.py              # TDX .day 二进制解析
+│   ├── gbbq_decoder.py            # GBBQ 加密文件解码
+│   ├── blocks_parser.py           # 板块元数据解析
+│   ├── calc_basic.py              # 前收盘/换手率/市值计算
+│   └── calc_factor.py             # 复权因子计算 (QUANTAXIS)
+├── run_pipeline.py                # 配置化流程 CLI
+├── run_backtest.py                # 回测 CLI 入口
+├── data_downloader.py             # 批量下载日线数据
+├── data_quality.py                # 数据质量检查
 ├── requirements.txt
 ├── stocklist.csv
 └── README.md
@@ -51,52 +71,102 @@ my_quant_project/
 
 ---
 
-## 📦 快速开始
+## 数据库架构
+
+### PostgreSQL (Docker)
+
+```bash
+# 容器: pg_quant (postgres:16-alpine)
+# 连接: host=localhost port=5432 dbname=quant_db user=quant password=quant123
+# Schema: tdx
+```
+
+### 表结构
+
+| 表/视图 | 说明 | 记录数量级 |
+|---------|------|-----------|
+| `tdx.securities` | 证券主表（个股/指数/ETF） | ~12K |
+| `tdx.daily_kline` | 日K线（统一存储） | ~28M |
+| `tdx.gbbq` | 股本变迁 (GBBQ解密) | ~180K |
+| `tdx.stocks_basic` | 前收盘/涨跌幅/换手率/市值 | ~28M |
+| `tdx.adjust_factor` | 复权因子 (QUANTAXIS算法) | ~28M |
+| `tdx.blocks_info` | 板块/指数主表 | ~1K |
+| `tdx.blocks_member` | 板块成分股 | ~77K |
+| `tdx.holidays` | 假期日历 | ~600 |
+| `tdx.v_bfq_daily` | 不复权日线视图 | view |
+| `tdx.v_qfq_daily` | 前复权日线视图 | view |
+| `tdx.v_hfq_daily` | 后复权日线视图 | view |
+
+---
+
+## 快速开始
 
 ### 1. 环境设置
 
 ```bash
-# 创建环境
-conda create -y -p /home/yang/venvs/my_quant_env python=3.10
+eval "$(/home/yang/venvs/miniconda3/bin/conda shell.bash hook)"
 conda activate /home/yang/venvs/my_quant_env
-
-# 安装依赖
+cd /home/yang/projects/my_quant_project
 pip install -r requirements.txt
 ```
 
-### 2. 下载数据
+### 2. 启动数据库
 
 ```bash
-# 设置 Tushare Token（推荐放在 /home/yang/tk.csv，列名 token）
-# 下载脚本会优先读取 tk.csv，也可以使用 --token-file 指定
-export TUSHARE_TOKEN="your_token_here"
+# 首次启动 PostgreSQL 容器
+docker run -d --name pg_quant \
+  -e POSTGRES_USER=quant -e POSTGRES_PASSWORD=quant123 -e POSTGRES_DB=quant_db \
+  -p 5432:5432 -v pgdata_quant:/var/lib/postgresql/data \
+  postgres:16-alpine
 
-# 下载完整历史数据（2004-至今）
-bash download_full_history.sh
+# 后续启动
+docker start pg_quant
 ```
 
-### 3. 数据质量检查
+### 3. 全量导入通达信数据（首次）
 
 ```bash
-python data_quality.py \
-  --data-dir data \
-  --output-dir data_clean
+# 从 hsjday.zip 全量导入
+python scripts/import_tdx.py \
+  --zip /mnt/d/TDX_hsjday.zip \
+  --tdxhome /mnt/d/new_tdx
 
-如需关闭 adj_price 生成：
-
-```bash
-python data_quality.py \
-  --data-dir data \
-  --output-dir data_clean \
-  --no-adj-price
+# 或指定单独步骤
+python scripts/import_tdx.py --steps init,kline,gbbq,blocks,securities,basic,factor,views
 ```
+
+### 4. 每日增量更新
+
+```bash
+# 先在通达信中下载最新日线数据，然后运行：
+python scripts/update_daily.py \
+  --vipdoc /mnt/d/new_tdx/vipdoc \
+  --tdxhome /mnt/d/new_tdx
+```
+
+### 5. SQL 查询示例
+
+```sql
+-- 前复权日线
+SELECT * FROM tdx.v_qfq_daily WHERE symbol='sz000001' ORDER BY date DESC LIMIT 10;
+
+-- 后复权日线
+SELECT * FROM tdx.v_hfq_daily WHERE symbol='sh600519' ORDER BY date DESC LIMIT 10;
+
+-- 查板块成分
+SELECT bm.stock_symbol, bi.block_name
+FROM tdx.blocks_member bm
+JOIN tdx.blocks_info bi ON bm.block_code = bi.block_code
+WHERE bm.stock_symbol = 'sz000001';
 ```
 
 ---
 
-## 🧪 指标回测：KDJ J<0 触发
+## 指标回测
 
-### 示例 1：回测全部股票
+回测引擎默认使用 PostgreSQL 数据源（前复权），也可回退到 CSV 模式。
+
+### KDJ J<0 触发
 
 ```bash
 python run_backtest.py \
@@ -107,93 +177,51 @@ python run_backtest.py \
   --horizons 1,3,5
 ```
 
-### 示例 2：指定股票池
+### Python API (使用数据库)
 
-```bash
-python run_backtest.py \
-  --data-dir data_clean \
-  --stocklist stocklist.csv \
-  --max-stocks 300 \
-  --start 2018-01-01 \
-  --end 2024-12-31
+```python
+from quant.data.loader import load_symbol_db, list_symbols_from_db
+
+# 加载前复权日线
+df = load_symbol_db('sz000001', start='2024-01-01', adjust='qfq')
+
+# 列出所有股票（排除科创板/北交所）
+symbols = list_symbols_from_db(exclude_boards={'star', 'bse'})
+
+# 回测
+from quant.backtest.engine import run_kdj_forward_return_backtest
+results = run_kdj_forward_return_backtest(
+    symbols=['sz000001', 'sh600519'],
+    start='2024-01-01', end='2024-12-31',
+    source='db',  # 默认即 'db'
+)
 ```
-
-### 示例 3：手工指定股票列表
-
-```bash
-python run_backtest.py \
-  --data-dir data_clean \
-  --symbols 000001,000002,000333 \
-  --start 2019-01-01 \
-  --end 2023-12-31
-```
-
-### 输出
-
-回测报告默认输出到 `backtest_results/`，包含：
-
-- `*_summary.csv`
-- `*_summary.md`
-
-字段含义：
-
-- `signals`: 触发信号数量
-- `count`: 有效计算样本数
-- `win_rate`: 胜率
-- `avg_return`: 平均收益率
-- `median_return`: 中位数收益率
-- `p25_return/p75_return`: 分位数区间
 
 ---
 
-## 🧰 一键配置化流程
-
-使用 `configs/pipeline_kdj_j0.yaml` 进行流程编排：
+## 一键配置化流程
 
 ```bash
+# 数据准备（下载+清洗，CSV模式）
+python run_pipeline.py --config configs/pipeline_prepare.yaml
+
+# KDJ 回测
 python run_pipeline.py --config configs/pipeline_kdj_j0.yaml
 ```
 
-建议流程：先执行 `pipeline_prepare.yaml` 完成更新与清洗，再执行 `pipeline_kdj_j0.yaml` 回测。
+---
 
-可配置项包括：
+## 数据复权算法
 
-- 数据下载参数（起止日期、线程、板块过滤）
-- 数据清洗参数（停牌移除、异常值处理）
-- 回测参数（时间区间、KDJ 参数、前瞻天数）
+复权因子使用 QUANTAXIS 算法，与通达信、雪球、新浪前复权一致：
 
-仅做“更新 + 清洗”可用：
-
-```bash
-python run_pipeline.py --config configs/pipeline_prepare.yaml
-```
+- 除权日：`ratio = prev_close / preclose_adjusted`，`hfq_factor *= ratio`
+- 前复权因子：`qfq_factor = hfq_factor / latest_hfq_factor`
+- 前复权价：`adj_price = raw_price * qfq_factor`
 
 ---
 
-## 📂 数据目录结构
-
-```
-data/
-├── raw_price/    # 原始价格 OHLCV
-└── adj_factor/   # 复权因子
-
-data_clean/
-├── raw_price/    # 清洗后的原始价格 + 停牌/涨跌停标记
-├── adj_factor/   # 清洗后的复权因子
-└── adj_price/    # 清洗后预计算复权价（默认生成）
-```
-
-## 🧮 回测用价
-
-回测引擎内部统一：
-
-```
-adj_price = raw_price * factor.iloc[-1] / factor
-```
-
----
-
-## 🧩 扩展指南
+## 扩展指南
 
 ### 新增指标或策略
 
@@ -201,20 +229,17 @@ adj_price = raw_price * factor.iloc[-1] / factor
 2. 在 `quant/backtest/strategies.py` 编写新策略
 3. 在 `run_backtest.py` 中新增 CLI 参数
 
-### 新增回测类型
+### 新增数据库表
 
-你可以扩展：
-
-- 指标回测（如均线交叉、RSI 低位）
-- 策略回测（持仓规则 + 资金管理）
-- 量化模型（因子打分、机器学习信号）
+1. 在 `quant/db/schema.py` 添加 DDL
+2. 运行 `python scripts/import_tdx.py --steps init`
 
 ---
 
-## 📌 下一步规划（可逐步扩展）
+## 下一步规划
 
 - 因子库与特征工程模块
 - 回测结果可视化与评分体系
-- 策略组合与组合回测
 - Walk-forward 验证
 - 交易成本与滑点模型
+- 分时数据支持 (1min/5min)
