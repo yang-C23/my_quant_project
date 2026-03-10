@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS {SCHEMA}.adjust_factor (
     symbol      VARCHAR(12)       NOT NULL,
     date        DATE              NOT NULL,
     hfq_factor  DOUBLE PRECISION  NOT NULL DEFAULT 1.0,
+    qfq_scale   DOUBLE PRECISION  NOT NULL DEFAULT 1.0,
+    qfq_offset  DOUBLE PRECISION  NOT NULL DEFAULT 0.0,
     PRIMARY KEY (symbol, date)
 );
 
@@ -147,30 +149,24 @@ JOIN {SCHEMA}.adjust_factor f
 LEFT JOIN {SCHEMA}.stocks_basic b
     ON k.symbol = b.symbol AND k.date = b.date;
 
--- 前复权日线
+-- 前复权日线（TDX 减法公式: QFQ = raw * scale - offset）
 CREATE OR REPLACE VIEW {SCHEMA}.v_qfq_daily AS
 SELECT
     k.symbol,
     k.date,
-    ROUND((k.open  * f.hfq_factor / lf.latest_hfq)::numeric, 2) AS open,
-    ROUND((k.high  * f.hfq_factor / lf.latest_hfq)::numeric, 2) AS high,
-    ROUND((k.low   * f.hfq_factor / lf.latest_hfq)::numeric, 2) AS low,
-    ROUND((k.close * f.hfq_factor / lf.latest_hfq)::numeric, 2) AS close,
+    ROUND((k.open  * f.qfq_scale - f.qfq_offset)::numeric, 3) AS open,
+    ROUND((k.high  * f.qfq_scale - f.qfq_offset)::numeric, 3) AS high,
+    ROUND((k.low   * f.qfq_scale - f.qfq_offset)::numeric, 3) AS low,
+    ROUND((k.close * f.qfq_scale - f.qfq_offset)::numeric, 3) AS close,
     k.volume,
     k.amount,
-    ROUND((b.preclose * f.hfq_factor / lf.latest_hfq)::numeric, 2) AS preclose,
-    ROUND((f.hfq_factor / lf.latest_hfq)::numeric, 6) AS qfq_factor,
+    ROUND((b.preclose * f.qfq_scale - f.qfq_offset)::numeric, 3) AS preclose,
+    f.qfq_scale,
+    f.qfq_offset,
     f.hfq_factor
 FROM {SCHEMA}.daily_kline k
 JOIN {SCHEMA}.adjust_factor f
     ON k.symbol = f.symbol AND k.date = f.date
-JOIN LATERAL (
-    SELECT hfq_factor AS latest_hfq
-    FROM {SCHEMA}.adjust_factor
-    WHERE symbol = k.symbol
-    ORDER BY date DESC
-    LIMIT 1
-) lf ON true
 LEFT JOIN {SCHEMA}.stocks_basic b
     ON k.symbol = b.symbol AND k.date = b.date;
 """

@@ -1,16 +1,17 @@
 ---
 name: quant-analyst-myproj
-description: Quant analyst skill tailored to the my_quant_project backtesting platform with Backtrader workflows, data pipeline, and reporting.
+description: Quant analyst skill tailored to the my_quant_project backtesting platform with Backtrader workflows, PostgreSQL data pipeline, TDX import, and reporting.
 ---
 
 # Quant Analyst (My Quant Project)
 
 ## Purpose
-Expert in quantitative finance, algorithmic trading strategies, and financial data analysis, specialized for the `my_quant_project` codebase. Provides rigorous backtesting, risk-aware analytics, and clean engineering practices using the Python scientific stack and Backtrader.
+Expert in quantitative finance, algorithmic trading strategies, and financial data analysis, specialized for the `my_quant_project` codebase. Provides rigorous backtesting, risk-aware analytics, and clean engineering practices using the Python scientific stack, Backtrader, and PostgreSQL.
 
 ## When to Use
 - Build or extend A-share backtests in `my_quant_project`
 - Add indicators, signals, or strategy logic
+- Import, update, or query TDX market data in PostgreSQL
 - Run or automate data download, quality checks, and reporting
 - Refactor the pipeline or config-driven workflows
 - Design research metrics or validation protocols
@@ -18,21 +19,35 @@ Expert in quantitative finance, algorithmic trading strategies, and financial da
 ## Quick Start (Project Commands)
 ```bash
 # Activate environment and enter project
-source /home/yang/venvs/my_quant_env/bin/activate
+eval "$(/home/yang/venvs/miniconda3/bin/conda shell.bash hook)"
+conda activate /home/yang/venvs/my_quant_env
 cd /home/yang/projects/my_quant_project
 
-# Token from /home/yang/tk.csv (column token) or env
+# ── Database operations ──
 
-# Data download (raw_price + adj_factor)
+# Start PostgreSQL (Docker)
+docker start pg_quant
+
+# Full import from TDX (first time only)
+python scripts/import_tdx.py --zip /mnt/d/TDX_hsjday.zip --tdxhome /mnt/d/new_tdx
+
+# Daily incremental update (after TDX downloads latest data)
+python scripts/update_daily.py --vipdoc /mnt/d/new_tdx/vipdoc --tdxhome /mnt/d/new_tdx
+
+# ── Legacy CSV operations (optional) ──
+
+# Data download via Tushare (raw_price + adj_factor)
 python data_downloader.py --stocklist stocklist.csv --start 20040101 --end today --workers 5 --exclude-boards star --missing-only
 
 # Data quality batch check + adj_price cache
 python data_quality.py --data-dir data --output-dir data_clean --exclude-boards star
 
-# KDJ J<0 forward-return backtest (uses adj_price)
+# ── Backtesting ──
+
+# KDJ J<0 forward-return backtest (default: uses DB)
 python run_backtest.py --data-dir data_clean --start 2015-01-01 --end 2024-12-31
 
-# Config-driven pipeline (prepare -> backtest)
+# Config-driven pipeline
 python run_pipeline.py --config configs/pipeline_prepare.yaml
 python run_pipeline.py --config configs/pipeline_kdj_j0.yaml
 ```
@@ -41,32 +56,118 @@ python run_pipeline.py --config configs/pipeline_kdj_j0.yaml
 ```
 my_quant_project/
 ├── configs/                     # Pipeline configs
-├── data/                        # raw_price + adj_factor
-├── data_clean/                  # raw_price + adj_factor + adj_price
 ├── backtest_results/            # Backtest reports
 ├── quant/
-│   ├── backtest/engine.py        # Backtrader entrypoints
-│   ├── backtest/strategies.py    # KDJ forward-return strategy
-│   ├── data/downloader.py        # Tushare downloader
-│   ├── data/loader.py            # CSV loader + symbol resolution
+│   ├── backtest/engine.py        # Backtrader entrypoints (DB/CSV)
+│   ├── backtest/strategies.py    # KDJ, DualTrend strategies
+│   ├── data/downloader.py        # Tushare downloader (CSV)
+│   ├── data/loader.py            # DB + CSV loader + symbol resolution
 │   ├── data/quality.py           # Data quality checks
-│   ├── indicators/kdj.py         # KDJ indicator
+│   ├── db/connection.py          # PostgreSQL connection manager
+│   ├── db/schema.py              # DDL: tables, indexes, views
+│   ├── indicators/               # KDJ, DualTrend, VolBreath, Brick
 │   ├── reporting/report.py       # CSV/MD report generation
 │   └── pipeline.py               # Config-driven pipeline
+├── scripts/
+│   ├── import_tdx.py             # Full TDX → PostgreSQL import
+│   ├── update_daily.py           # Incremental daily update
+│   ├── tdx_parser.py             # TDX binary .day parser
+│   ├── gbbq_decoder.py           # GBBQ decryption
+│   ├── blocks_parser.py          # Block/sector metadata
+│   ├── calc_basic.py             # Preclose/turnover/market-value
+│   └── calc_factor.py            # HFQ factor (QUANTAXIS)
 ├── run_backtest.py               # Backtest CLI
 ├── run_pipeline.py               # Pipeline CLI
-├── data_downloader.py            # Downloader wrapper
-├── data_quality.py               # Quality wrapper
-└── configs/pipeline_kdj_j0.yaml   # Example pipeline config
+└── stocklist.csv
 ```
 
 ## Environment and Project Entry
-- Virtualenv: `/home/yang/venvs/my_quant_env`
+- Conda env: `/home/yang/venvs/my_quant_env`
 - Project root: `/home/yang/projects/my_quant_project`
 
 ```bash
-source /home/yang/venvs/my_quant_env/bin/activate
+eval "$(/home/yang/venvs/miniconda3/bin/conda shell.bash hook)"
+conda activate /home/yang/venvs/my_quant_env
 cd /home/yang/projects/my_quant_project
+```
+
+## Database Configuration
+
+### PostgreSQL (Docker)
+- Container: `pg_quant` (postgres:16-alpine)
+- DSN: `host=localhost port=5432 dbname=quant_db user=quant password=quant123`
+- Schema: `tdx`
+- Override via env: `QUANT_DB_DSN="host=... dbname=... user=... password=..."`
+
+### Database Schema
+| Table/View | Description | Scale |
+|------------|-------------|-------|
+| `tdx.securities` | Securities master (stock/index/ETF) | ~12K |
+| `tdx.daily_kline` | Daily OHLCV (unified storage) | ~28M |
+| `tdx.gbbq` | Corporate actions (GBBQ decrypted) | ~180K |
+| `tdx.stocks_basic` | Preclose/change%/turnover/market-value | ~28M |
+| `tdx.adjust_factor` | HFQ adjustment factors | ~28M |
+| `tdx.blocks_info` | Block/sector master table | ~1K |
+| `tdx.blocks_member` | Block constituents | ~77K |
+| `tdx.holidays` | Holiday calendar | ~600 |
+| `tdx.v_bfq_daily` | Unadjusted daily view | view |
+| `tdx.v_qfq_daily` | Forward-adjusted (前复权) view | view |
+| `tdx.v_hfq_daily` | Backward-adjusted (后复权) view | view |
+
+### Data Update Commands
+```bash
+# Start the database container
+docker start pg_quant
+
+# Daily incremental update (run after TDX downloads new data)
+python scripts/update_daily.py --vipdoc /mnt/d/new_tdx/vipdoc --tdxhome /mnt/d/new_tdx
+
+# Re-import GBBQ only
+python scripts/import_tdx.py --steps gbbq --tdxhome /mnt/d/new_tdx
+
+# Recalculate factors only
+python scripts/import_tdx.py --steps basic,factor,views --tdxhome /mnt/d/new_tdx
+
+# Full re-import from zip
+python scripts/import_tdx.py --zip /mnt/d/TDX_hsjday.zip --tdxhome /mnt/d/new_tdx
+```
+
+### Data Loading API
+```python
+from quant.data.loader import load_symbol_db, list_symbols_from_db, load_symbol
+
+# DB loader (default, recommended)
+df = load_symbol_db('sz000001', start='2024-01-01', adjust='qfq')
+
+# Unified loader (DB by default, CSV fallback)
+df = load_symbol('sz000001', start='2024-01-01', source='db')
+df = load_symbol('000001', start='2024-01-01', source='csv', data_dir='data_clean')
+
+# List symbols from DB
+symbols = list_symbols_from_db(sec_type='stock', exclude_boards={'star', 'bse'})
+```
+
+## Data Layout & Pricing
+
+### Database (primary)
+Adjustment factors via QUANTAXIS algorithm:
+```
+hfq_factor: on ex-right dates, ratio = prev_close / preclose_adjusted
+qfq_factor = hfq_factor / latest_hfq_factor
+adj_price = raw_price * qfq_factor  (forward adjusted)
+adj_price = raw_price * hfq_factor  (backward adjusted)
+```
+
+### CSV (legacy, optional)
+```
+data/
+├── raw_price/    # OHLCV
+└── adj_factor/   # adj factor
+
+data_clean/
+├── raw_price/    # cleaned raw + limit/suspension flags
+├── adj_factor/   # cleaned adj factors
+└── adj_price/    # cached adjusted prices
 ```
 
 ## Config Schema (Pipeline)
@@ -82,20 +183,6 @@ data:
   symbols: []
   max_stocks: 0
   exclude_boards: [star]
-  download:
-    start: 20040101
-    end: today
-    workers: 5
-    exclude_boards: []
-    overwrite: false
-    limit: 0
-
-quality:
-  output_dir: data_clean
-  remove_suspension: true
-  mark_limit_price: true
-  handle_outliers: true
-  generate_adj_price: true
 
 backtest:
   type: kdj_forward_return
@@ -111,39 +198,23 @@ backtest:
   report_dir: backtest_results
 ```
 
-## Data Layout & Pricing
-```
-data/
-├── raw_price/    # OHLCV
-└── adj_factor/   # adj factor
-
-data_clean/
-├── raw_price/    # cleaned raw + limit/suspension flags
-├── adj_factor/   # cleaned adj factors
-└── adj_price/    # cached adjusted prices
-```
-
-Pricing rule (point-in-time safe):
-```
-adj_price = raw_price * factor.iloc[-1] / factor
-```
-
 ## Operational Standard
-- Always run update + clean before backtest (use `pipeline_prepare.yaml`).
-- Confirm STAR board exclusion for A-share backtests (add `exclude_boards: [star]`).
+- Always start PostgreSQL container (`docker start pg_quant`) before running backtests.
+- Run `update_daily.py` after TDX software downloads latest data.
+- Confirm STAR board exclusion for A-share backtests.
 - Enforce T+1 entry (signal day close -> next day open).
-- Avoid look-ahead bias: indicators must use data up to t only; shift signals when needed.
+- Avoid look-ahead bias: indicators must use data up to t only.
 
 ## Research & Backtesting Standards (Professional)
 ### Research Workflow
-- Start with a hypothesis, define signal logic and constraints, and pre-register evaluation windows.
-- Use multi-horizon forward returns (1/3/5/10/20 days) and multiple regimes (bull/bear/volatility).
+- Start with a hypothesis, define signal logic and constraints.
+- Use multi-horizon forward returns (1/3/5/10/20 days) and multiple regimes.
 - Separate research data prep from trading rules to avoid leakage.
 
 ### Backtesting Integrity Checklist
 - No look-ahead: indicators and features use data up to t; signals enter at t+1 open.
 - Survivorship control: avoid filtering by future listing status; respect IPO start date.
-- Corporate actions: use raw + adj_factor with point-in-time adjustment.
+- Corporate actions: use adjustment factors from `tdx.adjust_factor`.
 - Trading constraints: include suspensions, limit-up/down, liquidity, and T+1 rules.
 - Costs: apply commission, stamp tax, and slippage assumptions.
 
@@ -152,16 +223,6 @@ adj_price = raw_price * factor.iloc[-1] / factor
 - Drawdown metrics: max drawdown, average drawdown, time-to-recover.
 - Risk-adjusted: Sharpe, Sortino, Calmar (annualized where appropriate).
 - Tail risk: skew, kurtosis, CVaR/Expected Shortfall.
-
-### Validation & Robustness
-- Walk-forward or rolling OOS validation; avoid single-period optimization.
-- Parameter sensitivity: test small grids and stability bands.
-- Avoid overfitting: prefer simple rules and robust signals.
-
-### Optimization & Parallelism
-- CPU-parallel for per-symbol backtests; use multiprocessing on 9900X.
-- GPU/CUDA for heavy factor research or DL models (PyTorch); keep backtests CPU-parallel.
-- Cache expensive transforms (adj_price, factors) to avoid recomputation.
 
 ### A-share Specific Rules
 - Enforce T+1 settlement for buys; no same-day sell of new buys.
@@ -173,35 +234,25 @@ adj_price = raw_price * factor.iloc[-1] / factor
 - Host: 9900X + RTX5090. Use multithreading/multiprocessing for batch runs.
 - Consider CUDA/torch for heavy factor research or DL models; keep backtests CPU-parallel.
 
-## Engineering Standards (Project Expectations)
+## Engineering Standards
 - Prefer vectorized Pandas/NumPy for signal generation.
 - Strictly avoid look-ahead bias; use point-in-time data only.
 - Always include transaction costs and slippage in strategy backtests.
-- Use log returns for statistical modeling, simple returns for reporting.
-- Validate models with walk-forward or out-of-sample testing.
 - Keep modules small, composable, and CLI-friendly.
 
-## Research Best Practices (From quant-analyst Skill)
-- Include realistic trading constraints: limit moves, suspensions, liquidity.
-- Use robust statistics and avoid normality assumptions for tail risk.
-- Prefer multi-horizon evaluation (1/3/5/10/20 days).
-- Parameterize assumptions; avoid hardcoding market rules.
-
-## Anti-Patterns
-- Overfitting to historical data
-- Ignoring transaction costs or execution constraints
-- Using future data in signal generation
-- Hardcoding market assumptions without stress testing
-
 ## Interfaces Summary
-- `quant.data.downloader.download_kline(...)`
-- `quant.data.quality.DataQualityChecker` + `batch_process_stocks(...)`
-- `quant.backtest.engine.run_kdj_forward_return_backtest(...)`
-- `quant.reporting.report.write_report(...)`
+- `quant.data.loader.load_symbol_db(symbol, start, end, adjust)`
+- `quant.data.loader.list_symbols_from_db(sec_type, exclude_boards)`
+- `quant.data.loader.load_symbol(symbol, start, end, source, data_dir)`
+- `quant.backtest.engine.run_kdj_forward_return_backtest(symbols, ..., source='db')`
+- `quant.backtest.engine.run_dualtrend_breath_backtest(symbols, ..., source='db')`
+- `quant.db.connection.get_connection(dsn)`
+- `quant.db.schema.init_schema(conn)` / `create_views(conn)`
 - `quant.pipeline.run_pipeline(config_path)`
 
 ## How to Extend
 - Add indicators to `quant/indicators/`
 - Add new strategies to `quant/backtest/strategies.py`
 - Add new pipeline steps in `quant/pipeline.py`
+- Add new DB tables in `quant/db/schema.py`
 - Update `configs/*.yaml` for new workflows
