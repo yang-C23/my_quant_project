@@ -3,23 +3,17 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import logging
-from pathlib import Path
 
 from quant.backtest.engine import run_kdj_forward_return_backtest
-from quant.data.loader import (
-    list_symbols_from_data_dir,
-    load_symbols_from_stocklist,
-    normalize_symbols,
-)
+from quant.data.loader import list_symbols_from_db, normalize_symbols
 from quant.reporting.report import summarize_overall, summarize_results, write_report
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Backtest KDJ J<0 forward returns")
-    parser.add_argument("--data-dir", default="data", help="Base data directory")
-    parser.add_argument("--stocklist", default="", help="CSV with symbol/ts_code")
-    parser.add_argument("--symbols", default="", help="Comma-separated symbols")
-    parser.add_argument("--max-stocks", type=int, default=0, help="Limit number of symbols")
+    parser.add_argument("--symbols", default="", help="Comma-separated symbols (e.g. sz000001,sz000002)")
+    parser.add_argument("--max-stocks", type=int, default=0, help="Limit number of symbols from DB")
+    parser.add_argument("--exclude-boards", default="star", help="Comma-separated boards to exclude")
     parser.add_argument("--start", default="", help="Start date YYYY-MM-DD")
     parser.add_argument("--end", default="", help="End date YYYY-MM-DD")
 
@@ -43,19 +37,17 @@ def main() -> None:
 
     if args.symbols:
         symbols = normalize_symbols(args.symbols.split(","))
-    elif args.stocklist:
-        symbols = load_symbols_from_stocklist(args.stocklist, limit=args.max_stocks)
     else:
-        symbols = list_symbols_from_data_dir(args.data_dir)
+        exclude_boards = set(b.strip() for b in args.exclude_boards.split(",") if b.strip())
+        symbols = list_symbols_from_db(sec_type="stock", exclude_boards=exclude_boards)
         if args.max_stocks > 0:
             symbols = symbols[: args.max_stocks]
 
     if not symbols:
-        raise SystemExit("No symbols found. Check --symbols, --stocklist, or --data-dir")
+        raise SystemExit("No symbols found. Check --symbols or DB connection")
 
     results = run_kdj_forward_return_backtest(
         symbols=symbols,
-        data_dir=args.data_dir,
         start=start,
         end=end,
         kdj_n=args.kdj_n,

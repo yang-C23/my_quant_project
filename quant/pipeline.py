@@ -6,106 +6,47 @@ from pathlib import Path
 
 from quant.backtest.engine import run_kdj_forward_return_backtest
 from quant.config import load_config
-from quant.data.downloader import download_kline
-from quant.data.loader import (
-    list_symbols_from_data_dir,
-    load_symbols_from_stocklist,
-    normalize_symbols,
-    filter_symbols_by_boards,
-)
-from quant.data.quality import batch_process_stocks
+from quant.data.loader import list_symbols_from_db, normalize_symbols, filter_symbols_by_boards
 from quant.reporting.report import summarize_overall, summarize_results, write_report
 
 LOGGER = logging.getLogger("quant_pipeline")
 
 
-def _resolve_symbols(cfg: dict, data_dir: str | Path) -> list[str]:
+def _resolve_symbols(cfg: dict) -> list[str]:
     data_cfg = cfg.get("data", {})
     exclude_boards = set(data_cfg.get("exclude_boards", []) or [])
     symbols = data_cfg.get("symbols") or []
     if symbols:
         return filter_symbols_by_boards(symbols, exclude_boards)
 
-    stocklist = data_cfg.get("stocklist")
-    if stocklist:
-        symbols = load_symbols_from_stocklist(stocklist, limit=int(data_cfg.get("max_stocks", 0) or 0))
-        return filter_symbols_by_boards(symbols, exclude_boards)
-
-    symbols = list_symbols_from_data_dir(data_dir)
+    symbols = list_symbols_from_db(sec_type="stock", exclude_boards=exclude_boards)
     max_stocks = int(data_cfg.get("max_stocks", 0) or 0)
     if max_stocks > 0:
         symbols = symbols[:max_stocks]
-    return filter_symbols_by_boards(symbols, exclude_boards)
+    return symbols
 
 
 def run_pipeline(config_path: str | Path) -> dict:
     cfg = load_config(config_path)
     steps = cfg.get("steps", {})
-    data_cfg = cfg.get("data", {})
-    quality_cfg = cfg.get("quality", {})
     backtest_cfg = cfg.get("backtest", {})
-
-    data_dir = Path(data_cfg.get("data_dir", "data"))
 
     outputs: dict[str, object] = {"config": str(config_path)}
 
-    if steps.get("download", False):
-        download_cfg = data_cfg.get("download", {})
-        start = download_cfg.get("start", "20190101")
-        end = download_cfg.get("end", "today")
-        if str(start).lower() == "today":
-            start = dt.date.today().strftime("%Y%m%d")
-        if str(end).lower() == "today":
-            end = dt.date.today().strftime("%Y%m%d")
-
-        summary = download_kline(
-            stocklist=Path(data_cfg.get("stocklist", "stocklist.csv")),
-            start=str(start),
-            end=str(end),
-            out_dir=data_dir,
-            workers=int(download_cfg.get("workers", 3)),
-            exclude_boards=set(download_cfg.get("exclude_boards", []) or []),
-            overwrite=bool(download_cfg.get("overwrite", False)),
-            limit=int(download_cfg.get("limit", 0) or 0),
-            missing_only=bool(download_cfg.get("missing_only", False)),
-            stale_only=bool(download_cfg.get("stale_only", False)),
-            stale_grace_days=int(download_cfg.get("stale_grace_days", 10) or 10),
-        )
-        outputs["download"] = summary
-
-    symbols = _resolve_symbols(cfg, data_dir=data_dir)
+    symbols = _resolve_symbols(cfg)
     if not symbols:
-        raise RuntimeError("No symbols resolved for pipeline")
-
-    quality_output = None
-    if steps.get("quality", False):
-        quality_output = quality_cfg.get("output_dir", "data_clean")
-        batch_process_stocks(
-            symbols=symbols,
-            data_dir=data_dir,
-            output_dir=quality_output,
-            remove_suspension=bool(quality_cfg.get("remove_suspension", True)),
-            mark_limit_price=bool(quality_cfg.get("mark_limit_price", True)),
-            handle_outliers=bool(quality_cfg.get("handle_outliers", True)),
-            generate_adj_price=bool(quality_cfg.get("generate_adj_price", True)),
-        )
-        outputs["quality"] = {"output_dir": quality_output, "symbols": len(symbols)}
+        raise RuntimeError("No symbols resolved for pipeline — check DB connection")
 
     if steps.get("backtest", False):
         backtest_type = backtest_cfg.get("type", "kdj_forward_return")
         if backtest_type != "kdj_forward_return":
             raise ValueError(f"Unsupported backtest type: {backtest_type}")
 
-        backtest_data_dir = backtest_cfg.get("data_dir")
-        if not backtest_data_dir:
-            backtest_data_dir = quality_output or data_dir
-
         horizons = tuple(int(h) for h in backtest_cfg.get("horizons", [1, 3, 5]))
         kdj_cfg = backtest_cfg.get("kdj", {})
 
         results = run_kdj_forward_return_backtest(
             symbols=symbols,
-            data_dir=backtest_data_dir,
             start=backtest_cfg.get("start"),
             end=backtest_cfg.get("end"),
             kdj_n=int(kdj_cfg.get("n", 9)),

@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 import backtrader as bt
 
 from quant.backtest.strategies import DualTrendBreathStrategy, KDJForwardReturnStrategy
-from quant.data.loader import build_data_feed, load_symbol, load_symbol_csv
+from quant.data.loader import build_data_feed, load_symbol_db
 
 LOGGER = logging.getLogger("backtest_engine")
 
 
 def run_kdj_forward_return_backtest(
     symbols: list[str],
-    data_dir: str | Path = "",
     start: str | None = None,
     end: str | None = None,
     kdj_n: int = 9,
@@ -21,13 +19,12 @@ def run_kdj_forward_return_backtest(
     kdj_d: int = 3,
     j_threshold: float = 0.0,
     horizons: tuple[int, ...] = (1, 3, 5),
-    source: str = "db",
 ) -> list[dict]:
     results: list[dict] = []
 
     for symbol in symbols:
         try:
-            df = load_symbol(symbol, start=start, end=end, source=source, data_dir=data_dir or None)
+            df = load_symbol_db(symbol, start=start, end=end)
         except Exception as exc:
             LOGGER.warning("Skip %s: %s", symbol, exc)
             continue
@@ -63,7 +60,6 @@ def run_kdj_forward_return_backtest(
 
 def run_dualtrend_breath_backtest(
     symbols: list[str],
-    data_dir: str | Path = "",
     start: str | None = None,
     end: str | None = None,
     short_period: int = 10,
@@ -86,7 +82,6 @@ def run_dualtrend_breath_backtest(
     require_pullback: bool = True,
     filter_untradable: bool = True,
     horizons: tuple[int, ...] = (1, 3, 5, 10, 20),
-    source: str = "db",
 ) -> list[dict]:
     results: list[dict] = []
 
@@ -96,7 +91,7 @@ def run_dualtrend_breath_backtest(
 
     for symbol in symbols:
         try:
-            df = load_symbol(symbol, start=start, end=end, source=source, data_dir=data_dir or None)
+            df = load_symbol_db(symbol, start=start, end=end)
         except Exception as exc:
             LOGGER.warning("Skip %s: %s", symbol, exc)
             continue
