@@ -6,10 +6,10 @@ from typing import Iterable
 import backtrader as bt
 import numpy as np
 
-from quant.indicators.dual_trend import DualTrend
-from quant.indicators.kdj import KDJ
-from quant.indicators.kdj_tdx import KDJTDX
-from quant.indicators.volume_breath import VolumeBreath
+from .dual_trend import DualTrend
+from .kdj import KDJ
+from .kdj_tdx import KDJTDX
+from .volume_breath import VolumeBreath
 
 
 @dataclass

@@ -24,7 +24,7 @@
 | `REF(X,N)` | N 根前的 X 值（`X.shift(N)`） |
 | `MA(X,N)` | 最近 N 根简单均值 |
 | `EMA(X,N)` | 递归：`Y = (2·X + (N−1)·Y′) / (N+1)`，首值 Y₀=X₀ |
-| `SMA(X,N,M)` | **TDX 特有递归**：`Y = (M·X + (N−M)·Y′) / N`，首值 Y₀=X₀（Wilder 式；等价 `ewm(alpha=M/N, adjust=False)`，NaN 需跳过并保持状态） |
+| `SMA(X,N,M)` | **TDX 特有递归**：`Y = (M·X + (N−M)·Y′) / N`，首值 Y₀=X₀（Wilder 式；等价 `ewm(alpha=M/N, adjust=False)`，NaN 需跳过并保持状态）。**TASK-020 实证**：v1 bt 的 TDXSMA 时钟跟随输入线，种子同为首个有效值 → KDJ 黄金对比可全程精确（rtol 1e-8）；但 bt 的经典 `EMA` 用前 N 均值播种，与 TDX `EMA`(Y₀=X₀) 前段不同、按 ((N−1)/(N+1))^k 收敛——dual_trend 白线对比须避开前段（见 TASK-021 备注） |
 | `HHV(X,N)` / `LLV(X,N)` | 最近 N 根最高/最低（含当根）；N=0 表示从头累计 |
 | `SUM(X,N)` | 最近 N 根滚动和 |
 | `COUNT(cond,N)` | 最近 N 根内条件成立次数 |

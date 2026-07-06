@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import backtrader as bt
 
-from quant.indicators.brick import TDXSMA
+from .brick import TDXSMA
 
 
 class KDJTDX(bt.Indicator):

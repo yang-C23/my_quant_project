@@ -13,7 +13,7 @@
 | `tdx/gbbq_sample.*` | GBBQ 小样本（或解码后 CSV） | 见 TASK-011 | 011 |
 | `adjust/pg_sz000001_adjust.csv` | PG 黄金复权因子 | `psql "$QUANT_DB_DSN" -c "\copy (select symbol,date,hfq_factor,qfq_factor from tdx.adjust_factor where symbol='sz000001' order by date) to stdout csv header"` | 012 |
 | `staging_mini/**` | 迷你 staging（fixture .day 全流程产物） | `tests/fixtures/make_staging_mini.py`（013 编写） | 013 |
-| `goldens/*.csv` | v1 backtrader 指标黄金值 | `python tests/fixtures/generate_goldens.py`（020 编写；`--check` 校验模式） | 020 |
+| `goldens/bt_legacy_{symbol}.csv` | v1 backtrader 指标黄金值（sma_3_1/sma_40_4/k/d/j/short_trend/long_trend/avghigh/avglow/activity/brick/brick_xg，200 bar 含 warmup NaN） | `python tests/fixtures/generate_goldens.py`（`--check` 校验可复现） | 020 ✅ |
 | 各 `*_snapshot.*` | 指标命中日回归快照 | 各指标测试首跑生成 | 022/024 |
 
 ## 纪律
