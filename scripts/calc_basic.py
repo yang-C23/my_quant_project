@@ -1,3 +1,4 @@
+# FROZEN (v1 legacy): non-runnable since TASK-001; reference only until TASK-033.
 """Calculate pre-close price, change%, amplitude, turnover, and market value.
 
 Port of tdx2db/calc/basic.go — QUANTAXIS-compatible pre-close calculation.

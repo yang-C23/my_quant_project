@@ -12,7 +12,6 @@ Binary format: 32 bytes per record, little-endian.
 """
 
 import struct
-import os
 import re
 from datetime import date
 from pathlib import Path
@@ -55,16 +54,18 @@ def parse_day_file(filepath: str | Path, symbol: str) -> list[tuple]:
         dt = _parse_date(rec[0])
         if dt is None:
             continue
-        rows.append((
-            symbol,
-            dt,
-            rec[1] / 100.0,   # open
-            rec[2] / 100.0,   # high
-            rec[3] / 100.0,   # low
-            rec[4] / 100.0,   # close
-            rec[6],            # volume (uint32)
-            rec[5],            # amount (float32 -> float)
-        ))
+        rows.append(
+            (
+                symbol,
+                dt,
+                rec[1] / 100.0,  # open
+                rec[2] / 100.0,  # high
+                rec[3] / 100.0,  # low
+                rec[4] / 100.0,  # close
+                rec[6],  # volume (uint32)
+                rec[5],  # amount (float32 -> float)
+            )
+        )
     return rows
 
 
