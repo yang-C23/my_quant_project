@@ -1,72 +1,17 @@
-"""Parse TDX binary .day files into (symbol, date, O, H, L, C, volume, amount) tuples.
+"""TDX file discovery and symbol mapping helpers.
 
-Binary format: 32 bytes per record, little-endian.
-  [0:4]   uint32  date      (YYYYMMDD)
-  [4:8]   uint32  open      (×100)
-  [8:12]  uint32  high      (×100)
-  [12:16] uint32  low       (×100)
-  [16:20] uint32  close     (×100)
-  [20:24] float32 amount    (IEEE 754)
-  [24:28] uint32  volume
-  [28:32] (unused)
+Binary .day record layout (32 bytes, little-endian) is documented in
+docs/data_platform.md §3; the vectorized parser lives in
+``quant.etl.staging`` (``DAY_DTYPE`` / ``parse_day_bytes``).
 """
 
-import struct
+from __future__ import annotations
+
 import re
-from datetime import date
 from pathlib import Path
-
-RECORD_FMT = "<IIIIIfII"
-RECORD_SIZE = 32
-
-EXCHANGE_MAP = {
-    "sh": "sh",
-    "sz": "sz",
-    "bj": "bj",
-}
 
 # filename example: sh600000.day -> symbol = sh600000
 _FNAME_RE = re.compile(r"^(sh|sz|bj)(\d{6})\.day$", re.IGNORECASE)
-
-
-def _parse_date(d: int) -> date | None:
-    y, rem = divmod(d, 10000)
-    m, day = divmod(rem, 100)
-    if y < 1990 or m < 1 or m > 12 or day < 1 or day > 31:
-        return None
-    try:
-        return date(y, m, day)
-    except ValueError:
-        return None
-
-
-def parse_day_file(filepath: str | Path, symbol: str) -> list[tuple]:
-    """Return list of (symbol, date, open, high, low, close, volume, amount)."""
-    filepath = Path(filepath)
-    data = filepath.read_bytes()
-    n = len(data)
-    if n == 0 or n % RECORD_SIZE != 0:
-        return []
-
-    rows = []
-    for offset in range(0, n, RECORD_SIZE):
-        rec = struct.unpack_from(RECORD_FMT, data, offset)
-        dt = _parse_date(rec[0])
-        if dt is None:
-            continue
-        rows.append(
-            (
-                symbol,
-                dt,
-                rec[1] / 100.0,  # open
-                rec[2] / 100.0,  # high
-                rec[3] / 100.0,  # low
-                rec[4] / 100.0,  # close
-                rec[6],  # volume (uint32)
-                rec[5],  # amount (float32 -> float)
-            )
-        )
-    return rows
 
 
 def collect_day_files(root_dir: str | Path) -> list[tuple[Path, str]]:
@@ -74,8 +19,7 @@ def collect_day_files(root_dir: str | Path) -> list[tuple[Path, str]]:
     root = Path(root_dir)
     results = []
     for fpath in sorted(root.rglob("*.day")):
-        fname = fpath.name.lower()
-        m = _FNAME_RE.match(fname)
+        m = _FNAME_RE.match(fpath.name.lower())
         if m:
             symbol = m.group(1).lower() + m.group(2)
             results.append((fpath, symbol))

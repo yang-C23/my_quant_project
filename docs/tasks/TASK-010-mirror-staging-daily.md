@@ -45,3 +45,8 @@ GBBQ/证券/板块（TASK-011）、衍生表（011/012）、qlib dump（013）�
 - worker 内只读**镜像**路径，禁止 `/mnt/d`（data_platform §2）。
 - Windows 路径反斜杠兼容（v1 import_tdx 有处理逻辑可参考）。
 - 价格为 0 的记录（停牌残留）保留原样，由 flags（TASK-011）处理，不在解析层过滤。
+
+## 规划者修订（2026-07-06，实现期发现）
+- **vipdoc 只含 ~2021-08 之后的数据**（首次集成实测仅 9M 行）；v1 的 28M 全历史来自 `TDX_hsjday.zip`。
+- 范围扩展（已授权）：`mirror.extract_zip_baseline(zip_path, mirror_dir)`（反斜杠规范化、扁平化到 `zip_baseline/`、`.complete` 指纹缓存）；`build_daily_staging` 改为**按符号跨源并集**，重叠日期 vipdoc 优先（`keep="last"`），新增 `rows_deduped` 统计；`Settings.tdx_zip`（TASK-003 文件的授权扩展）+ `.env` `TDX_ZIP`。
+- 集成实测：zip 12,045 + vipdoc 9,392 文件 → 28,673,235 行 / 12,169 符号 / 1990-12-19~2026-04-08 / (symbol,date) 零重复 / 8.77M 重叠行去重 / 全程 41s。zip 中 `sz200b07.day`（B股字母码）被文件名正则排除——与 v1 口径一致。
