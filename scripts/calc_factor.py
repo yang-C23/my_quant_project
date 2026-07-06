@@ -1,3 +1,4 @@
+# FROZEN (v1 legacy): non-runnable since TASK-001; reference only until TASK-033.
 """Calculate adjustment factors — HFQ (QUANTAXIS) + QFQ (TDX subtractive).
 
 HFQ factor (后复权因子):

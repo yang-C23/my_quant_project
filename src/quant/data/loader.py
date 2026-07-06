@@ -10,6 +10,7 @@ _DB_SCHEMA = "tdx"
 
 def _get_db_connection():
     from quant.db.connection import get_connection
+
     return get_connection()
 
 

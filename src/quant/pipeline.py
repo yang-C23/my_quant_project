@@ -6,7 +6,7 @@ from pathlib import Path
 
 from quant.backtest.engine import run_kdj_forward_return_backtest
 from quant.config import load_config
-from quant.data.loader import list_symbols_from_db, normalize_symbols, filter_symbols_by_boards
+from quant.data.loader import filter_symbols_by_boards, list_symbols_from_db
 from quant.reporting.report import summarize_overall, summarize_results, write_report
 
 LOGGER = logging.getLogger("quant_pipeline")

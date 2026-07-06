@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# FROZEN (v1 legacy): non-runnable since TASK-001; reference only until TASK-033.
 """Incremental daily update: sync TDX vipdoc → PostgreSQL.
 
 Reads .day files from the TDX vipdoc directory (maintained by TDX software),

@@ -5,7 +5,7 @@
 
 | ID | 标题 | 里程碑 | 状态 | 分支 | 依赖 | 备注 |
 |---|---|---|---|---|---|---|
-| TASK-001 | src 布局迁移 + pyproject | M0 | ready | — | — | |
+| TASK-001 | src 布局迁移 + pyproject | M0 | review | task/TASK-001-src-layout | — | review env: `my_quant_env`; qlib 0.9.7 import OK |
 | TASK-002 | GitHub Actions CI | M0 | backlog | — | 001 | |
 | TASK-003 | config 设置模块 | M0 | backlog | — | 001 | |
 | TASK-004 | 死代码清理 | M0 | backlog | — | 001 | |

@@ -20,6 +20,7 @@ def _read_gbk_file(filepath: str | Path) -> str:
 
 # ── Holidays ──────────────────────────────────────────────────────────────────
 
+
 def parse_holidays(filepath: str | Path) -> list[date]:
     """Parse needini.dat → list of holiday dates."""
     content = Path(filepath).read_text(encoding="utf-8", errors="replace")
@@ -104,6 +105,7 @@ def parse_infoharbor_blocks(filepath: str | Path) -> list[tuple[str, str]]:
 
 
 # ── Industry block members (tdxhy.cfg) ────────────────────────────────────────
+
 
 def parse_tdxhy(filepath: str | Path) -> list[tuple[str, str]]:
     """Parse tdxhy.cfg → list of (stock_symbol, block_code)."""

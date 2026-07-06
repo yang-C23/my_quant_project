@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from quant.data.loader import load_symbol_csv, list_symbols_from_data_dir, load_symbols_from_stocklist
+from quant.data.loader import load_symbol_csv, load_symbols_from_stocklist
 
 
 def _choose_data_dir(data_dir: str | None) -> Path:
@@ -166,7 +166,9 @@ def summarize(df: pd.DataFrame, group_cols: list[str]) -> pd.DataFrame:
         return df
 
     df = df.copy()
-    df["signal_id"] = df["symbol"].astype(str) + "_" + pd.to_datetime(df["signal_date"]).dt.strftime("%Y%m%d")
+    df["signal_id"] = (
+        df["symbol"].astype(str) + "_" + pd.to_datetime(df["signal_date"]).dt.strftime("%Y%m%d")
+    )
 
     def agg(group: pd.DataFrame) -> pd.Series:
         stats = _summary_stats(group["return"])
@@ -269,7 +271,9 @@ def plot_return_distribution(df: pd.DataFrame, output_dir: Path, prefix: str) ->
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="KDJ B1 analysis with T+1 entry")
-    parser.add_argument("--data-dir", default="", help="Base data directory (default: data_clean if exists)")
+    parser.add_argument(
+        "--data-dir", default="", help="Base data directory (default: data_clean if exists)"
+    )
     parser.add_argument("--stocklist", default="stocklist.csv", help="CSV with symbol/ts_code")
     parser.add_argument("--symbols", default="", help="Comma-separated symbols")
     parser.add_argument("--max-stocks", type=int, default=0, help="Limit number of symbols")
@@ -315,7 +319,9 @@ def main() -> None:
     rows = []
     for symbol in symbols:
         try:
-            df = load_symbol_csv(symbol, data_dir=data_dir, start=args.start or None, end=args.end or None)
+            df = load_symbol_csv(
+                symbol, data_dir=data_dir, start=args.start or None, end=args.end or None
+            )
         except Exception:
             continue
         if df.empty or len(df) < max(horizons) + 2:

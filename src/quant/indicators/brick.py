@@ -29,7 +29,9 @@ class TDXSMA(bt.Indicator):
         if math.isnan(prev):
             prev = val
 
-        self.lines.sma[0] = (self.p.m * val + (self.p.period - self.p.m) * prev) / float(self.p.period)
+        self.lines.sma[0] = (self.p.m * val + (self.p.period - self.p.m) * prev) / float(
+            self.p.period
+        )
 
 
 class BrickIndicator(bt.Indicator):

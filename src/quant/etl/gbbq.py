@@ -9,7 +9,7 @@ import struct
 from datetime import date
 from pathlib import Path
 
-from tdx_parser import generate_symbol
+from quant.etl.tdx_parser import generate_symbol
 
 # ── Decryption keys (extracted verbatim from tdx2db/tdx/gbbq_var.go) ─────────
 # 4176 bytes, loaded once at import time.
@@ -221,13 +221,13 @@ def decode_gbbq_file(filepath: str | Path) -> list[tuple]:
             break
 
         clear = bytearray(29)
-        clear[0:8] = _decrypt_block(keys, data[pos:pos + 8])
+        clear[0:8] = _decrypt_block(keys, data[pos : pos + 8])
         pos += 8
-        clear[8:16] = _decrypt_block(keys, data[pos:pos + 8])
+        clear[8:16] = _decrypt_block(keys, data[pos : pos + 8])
         pos += 8
-        clear[16:24] = _decrypt_block(keys, data[pos:pos + 8])
+        clear[16:24] = _decrypt_block(keys, data[pos : pos + 8])
         pos += 8
-        clear[24:29] = data[pos:pos + 5]
+        clear[24:29] = data[pos : pos + 5]
         pos += 5
 
         code_bytes = clear[1:8]

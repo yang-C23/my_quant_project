@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# FROZEN (v1 legacy): non-runnable since TASK-001; reference only until TASK-033.
 """Main orchestrator: unzip TDX data → parse → import to PostgreSQL → calculate factors.
 
 Usage:

@@ -252,7 +252,13 @@ class DualTrendBreathStrategy(bt.Strategy):
             vol_prevprev = float(self.data.volume[-2])
             pullback_ok = close_prev < close_prevprev and vol_prev < vol_prevprev
 
-        return trend_ok and activity_ok and entry_ok and pullback_ok and not self._signal_blocked_prev()
+        return (
+            trend_ok
+            and activity_ok
+            and entry_ok
+            and pullback_ok
+            and not self._signal_blocked_prev()
+        )
 
     def next(self):
         if len(self.data) < 2:
