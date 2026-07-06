@@ -1,0 +1,14 @@
+# 事件研究配置 schema 示例（myquant study configs/study_kdj_j13.yaml）
+# —— 字段即 run_event_study 的参数，见 docs/backtest_platform.md §2
+signal: kdj_oversold          # quant.signals.registry 注册名
+signal_params:
+  j_threshold: 13             # J < 13（B1 体系默认口径）
+universe: nostar              # instruments 子集：all | nostar | main_only
+exclude_boards: [star]        # 与 universe 二选一（显式列出优先）
+start: "2015-01-01"
+end: "2024-12-31"
+horizons: [1, 3, 5, 10, 20]
+entry: next_open              # t 信号 → t+1 开盘（唯一支持值，protect against 口径漂移）
+regime_by: null               # 可选：amv_regime（按活跃市值市况分组统计）
+report_dir: backtest_results
+report_prefix: kdj_j13

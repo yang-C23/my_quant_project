@@ -1,0 +1,27 @@
+# STATUS.md — 任务看板（唯一状态源）
+
+> 公告：当前开发环境 = `my_quant_env`（若 TASK-001 触发新建 `my_quant_v2`，由其 review 更新本行）。
+> 状态机与流程见 `docs/workflow.md`；`backlog` 的卡不许认领。
+
+| ID | 标题 | 里程碑 | 状态 | 分支 | 依赖 | 备注 |
+|---|---|---|---|---|---|---|
+| TASK-001 | src 布局迁移 + pyproject | M0 | ready | — | — | |
+| TASK-002 | GitHub Actions CI | M0 | backlog | — | 001 | |
+| TASK-003 | config 设置模块 | M0 | backlog | — | 001 | |
+| TASK-004 | 死代码清理 | M0 | backlog | — | 001 | |
+| TASK-010 | 镜像+并行解析→staging | M1 | backlog | — | 003 | |
+| TASK-011 | 元数据/标志位 staging | M1 | backlog | — | 010 | |
+| TASK-012 | 向量化复权因子 | M1 | backlog | — | 011 | |
+| TASK-013 | qlib dump | M1 | backlog | — | 012 | |
+| TASK-014 | data.api / universe | M1 | backlog | — | 013 | |
+| TASK-015 | 增量日更 | M1 | backlog | — | 013 | |
+| TASK-016 | validate_vs_pg 黄金门 | M1 | backlog | — | 013 | gate 工具 |
+| TASK-020 | tdx.functions + 黄金值 | M2 | backlog | — | 004 | 可与 M1 并行 |
+| TASK-021 | KDJ + 双线 V2.1 | M2 | backlog | — | 020 | |
+| TASK-022 | B1 三版本 | M2 | backlog | — | 021 | |
+| TASK-023 | 活跃市值 0AMV | M2 | backlog | — | 020 | |
+| TASK-024 | 倍量/单针/MACD/砖形 | M2 | backlog | — | 021 | |
+| TASK-025 | 事件研究引擎（gate 卡） | M2 | backlog | — | 014, 021 | parity 见 docs/parity |
+| TASK-026 | IC / 分层分析 | M2 | backlog | — | 025 | |
+
+M3–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）。

@@ -1,0 +1,6 @@
+# ETL 配置（myquant etl full --config configs/etl.yaml；路径类配置一律在 .env，不在此文件）
+steps: [daily, gbbq, securities, blocks, derive, flags]   # 全量流水线顺序
+exchanges: [sh, sz, bj]
+include_index: true          # 指数（sh999xxx/sz399xxx）随个股导入，AMV 择时需要
+# 解析容错
+skip_invalid_records: true   # 非法日期/损坏记录 warn+跳过并计数

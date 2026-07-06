@@ -8,3 +8,5 @@ __pycache__/
 *.log
 tk.csv
 tmp_stocklist_*.csv
+/exports/
+/mlruns/

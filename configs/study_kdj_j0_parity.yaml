@@ -1,0 +1,15 @@
+# M2 gate parity 配置 —— 严格复刻 v1 全市场 run（勿改动任何值）
+# 对照文件：docs/parity/pipeline_kdj_forward_return_20260311_225334_summary.csv
+# v1 来源：run_pipeline.py + configs/pipeline_kdj_j0.yaml（J<0，前一bar J，horizons 1/3/5）
+signal: kdj_oversold
+signal_params:
+  j_threshold: 0              # v1 口径：REF(J,1) < 0 触发（信号取前一 bar 的 J，实现须核对 v1 源码）
+universe: nostar
+exclude_boards: [star]
+start: "2015-01-01"
+end: "2024-12-31"
+horizons: [1, 3, 5]
+entry: next_open
+regime_by: null
+report_dir: backtest_results
+report_prefix: kdj_j0_parity
