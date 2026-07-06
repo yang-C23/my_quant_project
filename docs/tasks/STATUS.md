@@ -8,7 +8,7 @@
 | TASK-001 | src 布局迁移 + pyproject | M0 | done | merged 2badc79 | — | env=`my_quant_env`（qlib 0.9.7 兼容，无需新env）；review PASS |
 | TASK-002 | GitHub Actions CI | M0 | ready | — | 001 | |
 | TASK-003 | config 设置模块 | M0 | ready | — | 001 | |
-| TASK-004 | 死代码清理 | M0 | ready | — | 001 | 002/003/004 无共享文件，可依序连做 |
+| TASK-004 | 死代码清理 | M0 | review | task/TASK-004-dead-code | 001 | 002/003/004 无共享文件，可依序连做 |
 | TASK-010 | 镜像+并行解析→staging | M1 | backlog | — | 003 | |
 | TASK-011 | 元数据/标志位 staging | M1 | backlog | — | 010 | |
 | TASK-012 | 向量化复权因子 | M1 | backlog | — | 011 | |
