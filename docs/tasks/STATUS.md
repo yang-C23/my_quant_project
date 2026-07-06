@@ -9,8 +9,8 @@
 | TASK-002 | GitHub Actions CI | M0 | done | merged 202a059 | 001 | review PASS（云端绿灯待用户确认） |
 | TASK-003 | config 设置模块 | M0 | done | merged b9a2327 | 001 | review PASS |
 | TASK-004 | 死代码清理 | M0 | done | merged b2987c4 | 001 | review PASS；**M0 gate 通过**（M0-gate-report.md） |
-| TASK-010 | 镜像+并行解析→staging | M1 | ready | — | 003 | |
-| TASK-011 | 元数据/标志位 staging | M1 | backlog | — | 010 | |
+| TASK-010 | 镜像+并行解析→staging | M1 | done | merged | 003 | review PASS；zip 基线范围修订见卡面；28.67M 行/41s |
+| TASK-011 | 元数据/标志位 staging | M1 | ready | — | 010 | |
 | TASK-012 | 向量化复权因子 | M1 | backlog | — | 011 | |
 | TASK-013 | qlib dump | M1 | backlog | — | 012 | |
 | TASK-014 | data.api / universe | M1 | backlog | — | 013 | |
