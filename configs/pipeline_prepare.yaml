@@ -1,9 +1,0 @@
-# Legacy config — no longer runs download/quality steps.
-# Use scripts/update_daily.py to sync TDX data into PostgreSQL.
-steps:
-  backtest: false
-
-data:
-  symbols: []
-  max_stocks: 0
-  exclude_boards: [star]
