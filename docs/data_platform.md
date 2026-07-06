@@ -18,9 +18,10 @@
 └── archive/                         # pg_quant 最终 dump 等归档
 ```
 
-## 2. 9P/IO 规则（WSL2 强制）
+## 2. 9P/IO 规则（WSL2 强制）与双数据源
 
-- **全量导入**：先 `mirror.py` 用 tar 管道批量拷贝 `/mnt/d/new_tdx/vipdoc` → `DATA_ROOT/tdx_mirror/`（顺序大块 IO，规避 12K 次随机小读），解析只读镜像。
+- **两个日线源**：`TDX_ZIP`（全历史基线 zip，~12K 文件回溯到 1990）+ `TDX_HOME/vipdoc`（TDX 客户端持续下载的近期数据，约 2021-08 起）。staging 按符号做**并集**，重叠日期 **vipdoc 优先**。
+- **全量导入**：`mirror.py` 先把 zip 抽取到 `DATA_ROOT/tdx_mirror/zip_baseline/`（单文件顺序流式读，带 `.complete` 指纹缓存，重跑免抽取），再用 tar 管道批量拷贝 `vipdoc` → `DATA_ROOT/tdx_mirror/vipdoc/`（顺序大块 IO，规避 12K 次随机小读），解析只读镜像。
 - **日增量**：不做全量镜像；对每个 `.day` 文件 `seek` 到尾部只读最后 `N×32` 字节（N = 缺失交易日数 + 安全余量 5），直接跨 9P 读也可接受。
 - **禁止**并行 worker 直接读 `/mnt/d`（9P + 并发 = 病态性能）。
 

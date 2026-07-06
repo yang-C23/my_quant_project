@@ -16,14 +16,15 @@ class Settings(BaseSettings):
 
     data_root: Path = Path("~/quant_data")
     tdx_home: Path = Path("/tdx")
+    tdx_zip: Path | None = None
     pg_dsn: str = Field(default="", validation_alias="QUANT_DB_DSN")
     etl_workers: int = 20
 
-    @field_validator("data_root", "tdx_home", mode="after")
+    @field_validator("data_root", "tdx_home", "tdx_zip", mode="after")
     @classmethod
-    def expand_path(cls, value: Path) -> Path:
+    def expand_path(cls, value: Path | None) -> Path | None:
         """Expand user home markers without requiring the path to exist."""
-        return value.expanduser()
+        return value.expanduser() if value is not None else None
 
     @property
     def mirror_dir(self) -> Path:
