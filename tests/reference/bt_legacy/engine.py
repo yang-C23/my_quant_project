@@ -4,7 +4,7 @@ import logging
 
 import backtrader as bt
 
-from quant.backtest.strategies import DualTrendBreathStrategy, KDJForwardReturnStrategy
+from .strategies import DualTrendBreathStrategy, KDJForwardReturnStrategy
 from quant.data.loader import build_data_feed, load_symbol_db
 
 LOGGER = logging.getLogger("backtest_engine")
