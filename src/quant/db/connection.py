@@ -1,17 +1,18 @@
 """PostgreSQL connection manager for the quant database."""
 
-import os
 import psycopg2
-import psycopg2.extras
+from psycopg2.extensions import connection as PgConnection
 
-DEFAULT_DSN = "host=localhost port=5432 dbname=quant_db user=quant password=quant123"
+from quant.config import get_settings
 
 
 def get_dsn() -> str:
-    return os.environ.get("QUANT_DB_DSN", DEFAULT_DSN)
+    """Return the configured PostgreSQL DSN."""
+    return get_settings().pg_dsn
 
 
-def get_connection(dsn: str | None = None, autocommit: bool = False):
+def get_connection(dsn: str | None = None, autocommit: bool = False) -> PgConnection:
+    """Open a PostgreSQL connection using the configured DSN by default."""
     conn = psycopg2.connect(dsn or get_dsn())
     conn.autocommit = autocommit
     return conn
