@@ -24,6 +24,7 @@ class B1Params:
     maxvol_window: int
     line_mult: float
     j_max: float = 13.0
+    plry_mult: float = 1.95
 
 
 PRESETS: dict[str, B1Params] = {
@@ -149,7 +150,7 @@ def b1(df: pd.DataFrame, params: B1Params = PRESETS["b1_v242_62"]) -> pd.DataFra
     good_cnt_ok = cnt_bad <= 0
 
     avg40 = F.MA(volume, 40)
-    plry = (volume > 1.95 * F.REF(volume, 1)) & (close > open_) & (volume > avg40)
+    plry = (volume > params.plry_mult * F.REF(volume, 1)) & (close > open_) & (volume > avg40)
     plry_cnt_ok = (F.COUNT(plry, 14) >= 2) | (F.COUNT(plry, 57) >= params.plry_long_count)
     plry_first = plry & ~_bool_ref(plry)
     plry_cont = plry & _bool_ref(plry)
