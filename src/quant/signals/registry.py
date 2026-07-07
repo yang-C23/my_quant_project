@@ -8,8 +8,12 @@ import pandas as pd
 
 from quant.indicators.amv import amv, amv_timing_signal
 from quant.indicators.b1 import PRESETS as B1_PRESETS
+from quant.indicators.brick_osc import PRESETS as BRICK_PRESETS
+from quant.indicators.brick_osc import brick_osc
 from quant.indicators.dual_trend import dual_trend
 from quant.indicators.kdj import kdj
+from quant.indicators.volume_patterns import single_needle_proxy, volume_patterns
+from quant.indicators.zhixing_macd import zhixing_macd
 from quant.signals.factors import b1_signal_with_universe
 
 SignalFunc = Callable[[pd.DataFrame], pd.Series]
@@ -78,3 +82,46 @@ def b1_v242b(df: pd.DataFrame) -> pd.Series:
 def b1_v242p(df: pd.DataFrame) -> pd.Series:
     """B1 v2.42p signal; MVOK is applied here when float_mktcap exists."""
     return b1_signal_with_universe(df, B1_PRESETS["b1_v242p"])
+
+
+@register("double_vol_yang")
+def double_vol_yang(df: pd.DataFrame) -> pd.Series:
+    """Double-volume positive candle."""
+    return volume_patterns(df)["sig_double_vol_yang"]
+
+
+@register("triple_dvy")
+def triple_dvy(df: pd.DataFrame) -> pd.Series:
+    """Three consecutive double-volume positive candles with rising price."""
+    return volume_patterns(df)["sig_triple_dvy"]
+
+
+@register("single_needle_proxy")
+def single_needle_proxy_signal(df: pd.DataFrame) -> pd.Series:
+    """Shape-only proxy for the proprietary single-needle signal."""
+    return single_needle_proxy(df)["sig_single_needle"]
+
+
+@register("zhixing_macd_cross")
+def zhixing_macd_cross(df: pd.DataFrame) -> pd.Series:
+    """DIFF zero-axis cross marker from ZhiXing MACD."""
+    macd = zhixing_macd(df)
+    return macd["sig_diff_cross_up_zero"] | macd["sig_diff_cross_dn_zero"]
+
+
+@register("brick_strict")
+def brick_strict(df: pd.DataFrame) -> pd.Series:
+    """Strict brick oscillator stock-picking variant."""
+    return brick_osc(df, BRICK_PRESETS["strict"])["sig_brick_strict"]
+
+
+@register("brick_relaxed")
+def brick_relaxed(df: pd.DataFrame) -> pd.Series:
+    """Relaxed brick oscillator stock-picking variant."""
+    return brick_osc(df, BRICK_PRESETS["relaxed"])["sig_brick_relaxed"]
+
+
+@register("brick_len")
+def brick_len(df: pd.DataFrame) -> pd.Series:
+    """Length-checked brick oscillator stock-picking variant."""
+    return brick_osc(df, BRICK_PRESETS["len_checked"])["sig_brick_len"]
