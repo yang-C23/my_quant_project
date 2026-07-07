@@ -222,6 +222,7 @@ def research_cmd(
     from quant.config import load_config
     from quant.research.amv_timing import run_amv_research
     from quant.research.optimize import load_research_config, run_param_scan, write_scan_report
+    from quant.research.trade_pairs import run_dual_trend_research
 
     if oos_final is not None:
         if not i_am_the_reviewer:
@@ -234,6 +235,10 @@ def research_cmd(
     if raw.get("kind") == "amv_timing":
         result = run_amv_research(config_path)
         typer.echo(f"research scan: {result.report_paths['md']}")
+        return
+    if raw.get("kind") == "dual_trend_pairs":
+        paths = run_dual_trend_research(config_path)
+        typer.echo(f"research scan: {paths['md']}")
         return
 
     cfg = load_research_config(config_path)

@@ -26,7 +26,7 @@
 | TASK-060 | R1 研究基础设施（扫描/切分/稳定性） | R1 | review | — | 025,026 | pytest -q tests/unit/test_optimize.py PASS；模板真实数据 demo <3m；IS 越界拒绝+按符号价格缓存已测 |
 | TASK-061 | 研究：活跃市值（K/阈值/右侧确认） | R1 | review | — | 060 | pytest -q tests/unit/test_amv_timing.py PASS；myquant research configs/research/amv.yaml PASS；K 对 pct 无影响，top-5 邻域稳定均未过，候选为空 |
 | TASK-062 | 研究：B1 参数族+组合条件 | R1 | review | — | 060 | pytest -q tests/unit/test_n_shape.py tests/unit/test_b1.py PASS；myquant research configs/research/b1.yaml PASS（300 stocks_nostar 样本）；无稳定且正收益的密度合格候选 |
-| TASK-063 | 研究：双线成对交易/退出策略 | R1 | backlog | — | 060 | |
+| TASK-063 | 研究：双线成对交易/退出策略 | R1 | review | — | 060 | pytest -q tests/unit/test_trade_pairs.py PASS；myquant research configs/research/dual_trend.yaml PASS；候选=两条 dead_cross 退出，注意中位数为负 |
 | TASK-064 | 研究：单针/砖形 持有期×止损 | R1 | backlog | — | 063 | 复用 trade_pairs |
 | TASK-065 | 探索：红绿量占比/筹码代理有效性 | R1 | backlog | — | 060 | 允许全负结论 |
 | TASK-066 | R1 汇总：OOS 裁定+最终报告 | R1 | backlog | — | 061-065 | 规划者执行，不分配开发代理 |
