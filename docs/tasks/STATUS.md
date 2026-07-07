@@ -28,7 +28,7 @@
 | TASK-062 | 研究：B1 参数族+组合条件 | R1 | review | — | 060 | pytest -q tests/unit/test_n_shape.py tests/unit/test_b1.py PASS；myquant research configs/research/b1.yaml PASS（300 stocks_nostar 样本）；无稳定且正收益的密度合格候选 |
 | TASK-063 | 研究：双线成对交易/退出策略 | R1 | review | — | 060 | pytest -q tests/unit/test_trade_pairs.py PASS；myquant research configs/research/dual_trend.yaml PASS；候选=两条 dead_cross 退出，注意中位数为负 |
 | TASK-064 | 研究：单针/砖形 持有期×止损 | R1 | review | — | 063 | pytest -q tests/unit/test_trade_pairs.py PASS；myquant research configs/research/shortterm.yaml PASS；top-2 候选均为 single_needle_proxy，CI 较宽 |
-| TASK-065 | 探索：红绿量占比/筹码代理有效性 | R1 | backlog | — | 060 | 允许全负结论 |
+| TASK-065 | 探索：红绿量占比/筹码代理有效性 | R1 | review | — | 060 | pytest -q tests/unit/test_exploratory_factors.py tests/unit/test_ic.py PASS；myquant research configs/research/exploratory.yaml PASS；全部因子未达 |ICIR|>=0.3 阈值，候选为空 |
 | TASK-066 | R1 汇总：OOS 裁定+最终报告 | R1 | backlog | — | 061-065 | 规划者执行，不分配开发代理 |
 
 M3–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
