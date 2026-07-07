@@ -14,7 +14,7 @@
 | TASK-012 | 向量化复权因子 | M1 | done | merged | 011 | review PASS；hfq 与 PG 5 复杂样本全历史**逐位相等**；全市场 derive 1m51s |
 | TASK-013 | qlib dump | M1 | done | merged | 012 | review PASS；全量 29.34M 行/2m18s；D.features vs PG 5.8e-8（f32 界内）；**016 口径：对齐用 raw×factor 重算，勿用 v_hfq 视图（视图有 2 位舍入）** |
 | TASK-014 | data.api / universe | M1 | review | task/TASK-014-data-api | 013 | test_symbols/test_data_api/test_qlib_dump 31 passed；122 non-integration / ruff OK；get_ohlcv sz000001 smoke OK；PG 数量对齐待审查者 |
-| TASK-015 | 增量日更 | M1 | ready | — | 013 | 从最新 v2 切分支（与 014 无共享文件，014 不碰 cli.py） |
+| TASK-015 | 增量日更 | M1 | review | task/TASK-015-update | 013 | test_update 5 passed / 98 non-integration / ruff OK；覆盖 tail-read、二次 0 新行且 hash 不变、除权窗口触发 adjust+qlib factor 重写 |
 | TASK-016 | validate_vs_pg 黄金门 | M1 | ready | — | 013 | **堆叠**：从 task/TASK-015-update 切出（共享 cli.py）；C5 口径见 013 备注 |
 | TASK-020 | tdx.functions + 黄金值 | M2 | done | merged | 004 | review PASS；KDJ 黄金全程精确；EMA 种子差异记入 021 |
 | TASK-021 | KDJ + 双线 V2.1 | M2 | done | merged | 020 | 返工后 PASS；字面呼吸度语义经审查者恒等复核；v1 sorted 差异快照留档 |
