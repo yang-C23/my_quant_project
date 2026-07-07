@@ -19,7 +19,7 @@
 | TASK-020 | tdx.functions + 黄金值 | M2 | done | merged | 004 | review PASS；KDJ 黄金全程精确；EMA 种子差异记入 021 |
 | TASK-021 | KDJ + 双线 V2.1 | M2 | ready | — | 020 | 白线对比窗口见卡内规划者备注 |
 | TASK-022 | B1 三版本 | M2 | backlog | — | 021 | |
-| TASK-023 | 活跃市值 0AMV | M2 | ready | — | 020 | |
+| TASK-023 | 活跃市值 0AMV | M2 | review | task/TASK-023-amv | 020 | |
 | TASK-024 | 倍量/单针/MACD/砖形 | M2 | backlog | — | 021 | |
 | TASK-025 | 事件研究引擎（gate 卡） | M2 | backlog | — | 014, 021 | parity 见 docs/parity |
 | TASK-026 | IC / 分层分析 | M2 | backlog | — | 025 | |
