@@ -18,7 +18,7 @@
 | TASK-016 | validate_vs_pg 黄金门 | M1 | backlog | — | 013 | gate 工具 |
 | TASK-020 | tdx.functions + 黄金值 | M2 | done | merged | 004 | review PASS；KDJ 黄金全程精确；EMA 种子差异记入 021 |
 | TASK-021 | KDJ + 双线 V2.1 | M2 | done | merged | 020 | 返工后 PASS；字面呼吸度语义经审查者恒等复核；v1 sorted 差异快照留档 |
-| TASK-022 | B1 三版本 | M2 | ready | — | 021 | 从最新 v2 切分支；长 fixture 规则见批次指令 |
+| TASK-022 | B1 三版本 | M2 | review | task/TASK-022-b1 | 021 | test_b1 9 passed / 66 non-integration / ruff OK；长 fixture 600 根；默认版命中 2022-12-19~21 |
 | TASK-023 | 活跃市值 0AMV | M2 | done | merged | 020 | review PASS；924 行情信号复现 |
 | TASK-024 | 倍量/单针/MACD/砖形 | M2 | ready | — | 021 | **堆叠**：从 task/TASK-022-b1 切出（共享 registry/__init__），022 置 review 后即开工 |
 | TASK-025 | 事件研究引擎（gate 卡） | M2 | backlog | — | 014, 021 | parity 见 docs/parity |

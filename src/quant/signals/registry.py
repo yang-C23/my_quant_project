@@ -7,8 +7,10 @@ from collections.abc import Callable
 import pandas as pd
 
 from quant.indicators.amv import amv, amv_timing_signal
+from quant.indicators.b1 import PRESETS as B1_PRESETS
 from quant.indicators.dual_trend import dual_trend
 from quant.indicators.kdj import kdj
+from quant.signals.factors import b1_signal_with_universe
 
 SignalFunc = Callable[[pd.DataFrame], pd.Series]
 
@@ -58,3 +60,21 @@ def kdj_oversold(df: pd.DataFrame) -> pd.Series:
 def dual_trend_entry(df: pd.DataFrame) -> pd.Series:
     """Dual-trend XG trigger, excluding universe-level board filters."""
     return dual_trend(df)["sig_dual_trend_entry"]
+
+
+@register("b1_v242_62")
+def b1_v242_62(df: pd.DataFrame) -> pd.Series:
+    """B1 v2.42.62 signal; MVOK is applied here when float_mktcap exists."""
+    return b1_signal_with_universe(df, B1_PRESETS["b1_v242_62"])
+
+
+@register("b1_v242b")
+def b1_v242b(df: pd.DataFrame) -> pd.Series:
+    """B1 v2.42b signal; MVOK is applied here when float_mktcap exists."""
+    return b1_signal_with_universe(df, B1_PRESETS["b1_v242b"])
+
+
+@register("b1_v242p")
+def b1_v242p(df: pd.DataFrame) -> pd.Series:
+    """B1 v2.42p signal; MVOK is applied here when float_mktcap exists."""
+    return b1_signal_with_universe(df, B1_PRESETS["b1_v242p"])

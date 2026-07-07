@@ -8,6 +8,7 @@
 |---|---|---|---|
 | `tdx/lday/sh600000.day` | 浦发银行日线 200 条真实记录（2021-08-02 起） | `head -c 6400 $TDX_HOME/vipdoc/sh/lday/sh600000.day > sh600000.day` | 010 ✅ |
 | `tdx/lday/sz000001.day` | 平安银行 200 条（2021-08-02 起） | 同上（sz 目录） | 010 ✅ |
+| `tdx/lday/sz000001_long.day` | 平安银行日线 600 条真实记录（2021-08-02 ~ 2024-01-18） | `head -c 19200 $TDX_HOME/vipdoc/sz/lday/sz000001.day > sz000001_long.day` | 022 |
 | `tdx/lday/sh999999.day` | 上证指数 300 条（2021-08-02 ~ 2022-10-28） | `head -c 9600 ...` | 010/023 ✅ |
 | `tdx/expected/{symbol}.csv` | 上述三文件的 v1 逐条解析器输出（黄金对照） | v1 `parse_day_file`（commit 326bf99 时点）一次性生成；再生成需 `git show` 取回 v1 实现 | 010 ✅ |
 | `tdx/gbbq_sample_decoded.csv` | GBBQ 解码后小样本（category/symbol/date/c1..c4） | 从 v1 `decode_gbbq_file` 输出 schema 手工截取两条代表性记录：category=1 除权、category=5 股本变更；本卡只验证 staging schema 与写盘，不提交加密原始样本 | 011 ✅ |
