@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal
@@ -12,6 +13,7 @@ from quant.config import get_settings
 from quant.data.symbols import to_qlib
 
 _INIT_STATE: tuple[str, str, Path] | None = None
+_INIT_LOCK = threading.Lock()
 _PRICE_COLUMNS = ("open", "high", "low", "close")
 _DEFAULT_FIELDS = ("open", "high", "low", "close", "volume", "amount", "factor")
 
@@ -36,7 +38,12 @@ def _provider_uri(region: str, freq: str) -> Path:
 
 
 def init_qlib(region: str = "cn", freq: str = "day") -> None:
-    """Idempotently initialize qlib from runtime settings."""
+    """Idempotently and thread-safely initialize qlib from runtime settings.
+
+    Concurrent ``qlib.init`` calls corrupt qlib's global config (observed as
+    ``KeyError: 'dataset_cache'`` under 20-thread batch loads), so the
+    double-checked lock is required, not an optimization.
+    """
     global _INIT_STATE
 
     provider_uri = _provider_uri(region, freq)
@@ -44,15 +51,19 @@ def init_qlib(region: str = "cn", freq: str = "day") -> None:
     if _INIT_STATE == state:
         return
 
-    import qlib
+    with _INIT_LOCK:
+        if _INIT_STATE == state:
+            return
 
-    qlib.init(
-        provider_uri=str(provider_uri),
-        region=region,
-        expression_cache=None,
-        dataset_cache=None,
-    )
-    _INIT_STATE = state
+        import qlib
+
+        qlib.init(
+            provider_uri=str(provider_uri),
+            region=region,
+            expression_cache=None,
+            dataset_cache=None,
+        )
+        _INIT_STATE = state
 
 
 def _flatten_single_symbol(features: pd.DataFrame, qlib_symbol: str) -> pd.DataFrame:
