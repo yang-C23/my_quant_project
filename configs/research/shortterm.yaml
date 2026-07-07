@@ -2,7 +2,8 @@ kind: shortterm_pairs
 name: shortterm
 universe: stocks_nostar
 exclude_boards: [star, b]
-max_symbols: 300
+max_symbols: 800
+sample_seed: 42
 is_start: 2015-01-01
 is_end: 2021-12-31
 warmup_days: 180

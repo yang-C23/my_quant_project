@@ -23,12 +23,12 @@
 | TASK-024 | 倍量/单针/MACD/砖形 | M2 | done | merged | 021 | review PASS；brick zxt 黄金对齐 |
 | TASK-025 | 事件研究引擎（gate 卡） | M2 | done | merged | 014, 021 | review PASS + 审查者三处口径修复后 10 股对拍**逐位归零**（2180=2180，0.0000bps）；M2 gate 见 docs/reviews/ |
 | TASK-026 | IC / 分层分析 | M2 | done | merged | 025 | review PASS |
-| TASK-060 | R1 研究基础设施（扫描/切分/稳定性） | R1 | review | — | 025,026 | pytest -q tests/unit/test_optimize.py PASS；模板真实数据 demo <3m；IS 越界拒绝+按符号价格缓存已测 |
-| TASK-061 | 研究：活跃市值（K/阈值/右侧确认） | R1 | review | — | 060 | pytest -q tests/unit/test_amv_timing.py PASS；myquant research configs/research/amv.yaml PASS；K 对 pct 无影响，top-5 邻域稳定均未过，候选为空 |
-| TASK-062 | 研究：B1 参数族+组合条件 | R1 | review | — | 060 | pytest -q tests/unit/test_n_shape.py tests/unit/test_b1.py PASS；myquant research configs/research/b1.yaml PASS（300 stocks_nostar 样本）；无稳定且正收益的密度合格候选 |
-| TASK-063 | 研究：双线成对交易/退出策略 | R1 | review | — | 060 | pytest -q tests/unit/test_trade_pairs.py PASS；myquant research configs/research/dual_trend.yaml PASS；候选=两条 dead_cross 退出，注意中位数为负 |
-| TASK-064 | 研究：单针/砖形 持有期×止损 | R1 | review | — | 063 | pytest -q tests/unit/test_trade_pairs.py PASS；myquant research configs/research/shortterm.yaml PASS；top-2 候选均为 single_needle_proxy，CI 较宽 |
-| TASK-065 | 探索：红绿量占比/筹码代理有效性 | R1 | review | — | 060 | pytest -q tests/unit/test_exploratory_factors.py tests/unit/test_ic.py PASS；myquant research configs/research/exploratory.yaml PASS；全部因子未达 |ICIR|>=0.3 阈值，候选为空 |
-| TASK-066 | R1 汇总：OOS 裁定+最终报告 | R1 | backlog | — | 061-065 | 规划者执行，不分配开发代理 |
+| TASK-060 | R1 研究基础设施（扫描/切分/稳定性） | R1 | done | merged | 025,026 | review PASS + 审查者修复：max_symbols 头部截断→种子化随机抽样（R1-batch1-review.md F-1） |
+| TASK-061 | 研究：活跃市值（K/阈值/右侧确认） | R1 | done | merged | 060 | review PASS；审查者扩展 sell 网格（−1.0 内部极值）；候选=结构性 confirm_life@原版阈值（IS 累计 0.595 vs 0.310）；调参点按邻域判据弃用 |
+| TASK-062 | 研究：B1 参数族+组合条件 | R1 | done | merged | 060 | review PASS；首轮 300 样本全为北交所股→作废，800 seed=42 重跑（findings 修订版为准）；case 网格的 stable 列不可采信（F-5） |
+| TASK-063 | 研究：双线成对交易/退出策略 | R1 | done | merged | 060 | review PASS；真实样本 5250 笔：无退出规则击败原版死叉（PF 1.15、笔均 +0.93%、中位数负）；候选为空 |
+| TASK-064 | 研究：单针/砖形 持有期×止损 | R1 | done | merged | 063 | review PASS + 审查者修 entry_low 止损入场日恒真 bug（F-2）；800 样本重跑后候选见 findings 修订版 |
+| TASK-065 | 探索：红绿量占比/筹码代理有效性 | R1 | done | merged | 060 | review PASS + 审查者修 turnover 字段未加载假阴性（F-3）与单调性判定（F-4）；全部因子未过门槛，washout/turnover_cost 两家族留档 M6 |
+| TASK-066 | R1 汇总：OOS 裁定+最终报告 | R1 | in_progress | — | 061-065 | 规划者执行中：scripts/r1_oos_final.py --i-am-the-reviewer |
 
 M3–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。

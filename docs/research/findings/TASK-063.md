@@ -1,6 +1,9 @@
-# TASK-063 Findings
+# TASK-063 Findings（审查者修订版）
 
-IS window: 2015-01-01 to 2021-12-31. Research sample: first 300 `stocks_nostar` symbols with 220 warmup days.
+IS window: 2015-01-01 to 2021-12-31。样本 = 800 只 `stocks_nostar` 种子化随机抽样
+（seed=42，warmup 220 天）。首轮"前 300 符号"样本全为北交所股（最少仅 70 笔交易），
+经审查者修复后重跑（docs/reviews/R1-batch1-review.md F-1）；**首轮结论全部作废**，
+本版为有效版本。
 
 Reproduce:
 
@@ -8,30 +11,37 @@ Reproduce:
 myquant research configs/research/dual_trend.yaml
 ```
 
-Pair matrix:
+## 退出矩阵（Tier1 无费用）
 
-| entry | exit | trades | win | avg | median | profit_factor | hold | MAE | MFE |
+| entry | exit | trades | win | avg | median | PF | hold | MAE | MFE |
 |:---|:---|---:|---:|---:|---:|---:|---:|---:|---:|
-| golden_cross | dead_cross | 84 | 0.404762 | 0.131021 | -0.016851 | 3.54949 | 58.6786 | -0.092329 | 0.385859 |
-| golden_cross | close_lt_white_2d | 85 | 0.482353 | 0.002236 | -0.004065 | 1.07510 | 19.5294 | -0.052497 | 0.101593 |
-| golden_cross | close_lt_yellow | 85 | 0.364706 | 0.028876 | -0.023342 | 1.71099 | 29.6824 | -0.059478 | 0.181769 |
-| golden_cross | stop_8 | 70 | 0.385714 | 0.093444 | -0.065351 | 2.57713 | 54.7571 | -0.080623 | 0.326292 |
-| golden_cross | dead_cross_stop_8 | 84 | 0.285714 | 0.062268 | -0.046360 | 2.25017 | 44.9643 | -0.069874 | 0.272832 |
-| dual_entry | dead_cross | 97 | 0.402062 | 0.134086 | -0.057692 | 3.09336 | 44.9897 | -0.114988 | 0.374348 |
-| dual_entry | close_lt_white_2d | 262 | 0.339695 | -0.004780 | -0.006391 | 0.665678 | 2.1031 | -0.025910 | 0.030561 |
-| dual_entry | close_lt_yellow | 151 | 0.192053 | 0.023548 | -0.029885 | 1.60942 | 12.3510 | -0.055274 | 0.133237 |
-| dual_entry | stop_8 | 112 | 0.250000 | 0.105180 | -0.075284 | 2.58527 | 34.3661 | -0.088536 | 0.299975 |
-| dual_entry | dead_cross_stop_8 | 114 | 0.280702 | 0.086884 | -0.071353 | 2.46449 | 30.8509 | -0.081544 | 0.274476 |
+| golden_cross | dead_cross | 5250 | 0.303 | **0.0093** | −0.0440 | **1.147** | 44.8 | −0.103 | 0.231 |
+| golden_cross | close_lt_white_2d | 5276 | 0.306 | 0.0030 | −0.0222 | 1.085 | 13.1 | −0.054 | 0.119 |
+| golden_cross | close_lt_yellow | 5278 | 0.254 | 0.0038 | −0.0271 | 1.094 | 19.1 | −0.054 | 0.149 |
+| golden_cross | stop_8 | 4538 | 0.230 | 0.0038 | −0.0728 | 1.057 | 43.3 | −0.086 | 0.221 |
+| golden_cross | dead_cross_stop_8 | 5265 | 0.247 | 0.0008 | −0.0562 | 1.014 | 32.3 | −0.074 | 0.192 |
+| dual_entry | dead_cross | 3192 | 0.311 | 0.0099 | −0.0462 | 1.151 | 46.6 | −0.109 | 0.250 |
+| dual_entry | close_lt_white_2d | 6627 | 0.426 | 0.0002 | −0.0029 | 1.014 | 2.8 | −0.023 | 0.040 |
+| dual_entry | close_lt_yellow | 4426 | 0.234 | 0.0017 | −0.0211 | 1.054 | 13.7 | −0.042 | 0.120 |
+| dual_entry | stop_8 | 3295 | 0.230 | 0.0040 | −0.0723 | 1.060 | 43.6 | −0.085 | 0.227 |
+| dual_entry | dead_cross_stop_8 | 3467 | 0.242 | 0.0006 | −0.0579 | 1.010 | 33.5 | −0.077 | 0.206 |
 
-Fake golden-cross rate: 86 golden crosses; dead cross within 5 bars = 0.046512.
+假金叉率（5 bar 内死叉）：5325 个金叉中 8.15%。
 
-Interpretation: dead-cross exits dominate average return and profit_factor, but both candidate rows have negative median trade return. This is a low-hit-rate, high-right-tail profile.
+## 结论
 
-Candidate params JSON:
+1. **没有退出规则击败 z哥原版死叉退出**——提前退出（白线 2 日 / 黄线 / −8% 止损 /
+   死叉+止损组合）全部同时降低均值与 PF。原版"金叉持有到死叉"在矩阵内已是最优。
+2. 原版规则本身的 Tier1 画像：笔均 +0.93%（持有 ~45 天）、胜率 30%、中位数 −4.4%、
+   PF 1.15——**低胜率右尾依赖型**，且按 ~0.2% 双边费用估算后笔均降至 ~0.7%。
+   作为独立选股-择时策略边际太薄；其价值更可能在与 B1/AMV regime 的组合过滤里。
+3. 首轮（北交所废样本）报出的 PF 3.55/笔均 13% 是小样本幻觉，作废留档以自警。
+
+## 候选（进入 OOS）
 
 ```json
-[
-  {"entry": "golden_cross", "exit": "dead_cross", "max_hold": 120},
-  {"entry": "dual_entry", "exit": "dead_cross", "max_hold": 120}
-]
+[]
 ```
+
+无独立于基线的候选。原版 `golden_cross → dead_cross` 作为 z哥基线在 TASK-066 的 OOS
+报告中跑一次留档（协议允许：基线 1 组），但不构成"优化采纳"。

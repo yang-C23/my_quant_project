@@ -17,7 +17,7 @@ from quant.indicators.brick_osc import PRESETS as BRICK_PRESETS
 from quant.indicators.brick_osc import brick_osc
 from quant.indicators.dual_trend import dual_trend
 from quant.indicators.volume_patterns import single_needle_proxy
-from quant.research.optimize import IS_END_LIMIT, IS_START, _reject_post_is_dates
+from quant.research.optimize import IS_END_LIMIT, IS_START, _reject_post_is_dates, sample_symbols
 
 StopLoss = float | Literal["entry_low"]
 
@@ -96,9 +96,9 @@ def run_dual_trend_research(config_path: str | Path) -> dict[str, Path]:
     _validate_window(start, end)
     warmup_days = int(raw.get("warmup_days", 180))
     max_symbols = raw.get("max_symbols")
+    seed = int(raw.get("sample_seed", 42))
     symbols = list_symbols(exclude_boards=set(raw.get("exclude_boards", ["star", "b"])), at=None)
-    if max_symbols is not None:
-        symbols = symbols[: int(max_symbols)]
+    symbols = sample_symbols(symbols, int(max_symbols) if max_symbols is not None else None, seed)
     load_start = (pd.Timestamp(start) - pd.Timedelta(days=warmup_days)).date().isoformat()
     frames = []
     entry_frames: dict[str, list[pd.DataFrame]] = {"golden_cross": [], "dual_entry": []}
@@ -165,9 +165,9 @@ def run_shortterm_research(config_path: str | Path) -> dict[str, Path]:
     _validate_window(start, end)
     warmup_days = int(raw.get("warmup_days", 180))
     max_symbols = raw.get("max_symbols")
+    seed = int(raw.get("sample_seed", 42))
     symbols = list_symbols(exclude_boards=set(raw.get("exclude_boards", ["star", "b"])), at=None)
-    if max_symbols is not None:
-        symbols = symbols[: int(max_symbols)]
+    symbols = sample_symbols(symbols, int(max_symbols) if max_symbols is not None else None, seed)
     load_start = (pd.Timestamp(start) - pd.Timedelta(days=warmup_days)).date().isoformat()
     prices, entries = _shortterm_inputs(symbols, load_start, end, pd.Timestamp(start))
     rows = []
@@ -196,8 +196,9 @@ def run_shortterm_research(config_path: str | Path) -> dict[str, Path]:
     if bool(raw.get("gem_exclusion_check", True)) and not matrix.empty:
         exclude = set(raw.get("exclude_boards", ["star", "b"])) | {"gem"}
         no_gem_symbols = list_symbols(exclude_boards=exclude, at=None)
-        if max_symbols is not None:
-            no_gem_symbols = no_gem_symbols[: int(max_symbols)]
+        no_gem_symbols = sample_symbols(
+            no_gem_symbols, int(max_symbols) if max_symbols is not None else None, seed
+        )
         no_gem_prices, no_gem_entries = _shortterm_inputs(
             no_gem_symbols, load_start, end, pd.Timestamp(start)
         )
@@ -255,7 +256,17 @@ def _exit_trade(
     last_signal_pos = min(len(bars) - 2, entry_pos + max_hold - 1)
     for pos in range(entry_pos, last_signal_pos + 1):
         row = bars.iloc[pos]
-        if stop_price is not None and float(row["low"]) <= stop_price:
+        # "entry_low" 语义=跌破买入 bar 低点（严格 <，否则入场日 low<=own low 恒真、
+        # 全部交易退化为次日开盘卖出）；数值止损保留 <=（入场日盘中触及即有效）。
+        stop_hit = (
+            stop_price is not None
+            and (
+                float(row["low"]) < stop_price
+                if stop_loss == "entry_low"
+                else float(row["low"]) <= stop_price
+            )
+        )
+        if stop_hit:
             exit_signal_pos = pos
             exit_reason = "stop_loss"
             break
@@ -319,6 +330,7 @@ def _normalize_signal(signal: pd.DataFrame | pd.Series, value_name: str) -> pd.D
             raise ValueError(f"{value_name} signal must have one value column")
         frame = frame.rename(columns={candidates[0]: value_name})
     frame["date"] = pd.to_datetime(frame["date"])
+    frame = frame.sort_values(["symbol", "date"])
     return frame[["symbol", "date", value_name]].loc[lambda x: x[value_name].astype(bool)]
 
 

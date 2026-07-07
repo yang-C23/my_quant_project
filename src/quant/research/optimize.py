@@ -50,6 +50,7 @@ class ResearchConfig:
     min_signals_per_year: float = 30.0
     stability_metric: str = "h5_avg"
     stability_floor: float = 0.7
+    sample_seed: int = 42
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any], *, default_name: str = "research") -> "ResearchConfig":
@@ -97,6 +98,7 @@ class ResearchConfig:
             min_signals_per_year=float(data.get("min_signals_per_year", 30.0)),
             stability_metric=str(data.get("stability_metric", "h5_avg")),
             stability_floor=float(data.get("stability_floor", 0.7)),
+            sample_seed=int(data.get("sample_seed", 42)),
         )
 
 
@@ -259,13 +261,26 @@ def _load_prices_cached(
     return cache
 
 
+def sample_symbols(symbols: Sequence[str], max_symbols: int | None, seed: int = 42) -> list[str]:
+    """Deterministic uniform subsample of a symbol universe.
+
+    A head-slice of the sorted universe is board-biased (``bj*`` sorts first
+    and has almost no pre-2022 history), so subsampling must be random.
+    """
+    ordered = list(symbols)
+    if max_symbols is None or max_symbols >= len(ordered):
+        return ordered
+    rng = np.random.default_rng(seed)
+    picked = rng.choice(len(ordered), size=max_symbols, replace=False)
+    return [ordered[i] for i in sorted(picked)]
+
+
 def _resolve_symbols(cfg: ResearchConfig) -> list[str]:
     if cfg.symbols:
         symbols = list(cfg.symbols)
     else:
         symbols = list_symbols(exclude_boards=set(cfg.exclude_boards), at=None)
-    if cfg.max_symbols is not None:
-        symbols = symbols[: cfg.max_symbols]
+    symbols = sample_symbols(symbols, cfg.max_symbols, cfg.sample_seed)
     if not symbols:
         raise ValueError("research config resolved to an empty symbol universe")
     return symbols

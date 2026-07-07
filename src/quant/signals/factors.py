@@ -107,6 +107,9 @@ def compute_signal(
     )
 
 
+_FACTOR_FIELDS = ("open", "high", "low", "close", "volume", "amount", "factor", "turnover")
+
+
 def _compute_one_factor(
     name: str,
     symbol: str,
@@ -115,7 +118,7 @@ def _compute_one_factor(
     params: dict | None,
 ) -> pd.DataFrame:
     try:
-        data = get_ohlcv(symbol, start=start, end=end, adjust="qfq")
+        data = get_ohlcv(symbol, start=start, end=end, adjust="qfq", fields=_FACTOR_FIELDS)
     except ValueError:
         return pd.DataFrame(columns=["symbol", "date", "factor"])
     factor = _FACTOR_REGISTRY[name](data, params).astype(float)

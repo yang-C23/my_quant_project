@@ -12,6 +12,7 @@ from quant.research.optimize import (
     ResearchConfig,
     neighborhood_stability,
     run_param_scan,
+    sample_symbols,
     write_scan_report,
 )
 
@@ -130,3 +131,20 @@ def test_config_rejects_is_end_beyond_bound() -> None:
                 "is_end": blocked_end,
             }
         )
+
+
+def test_sample_symbols_is_deterministic_and_unbiased() -> None:
+    universe = [f"bj{i:06d}" for i in range(300)] + [f"sh{i:06d}" for i in range(300)] + [
+        f"sz{i:06d}" for i in range(300)
+    ]
+
+    got = sample_symbols(universe, 300, seed=42)
+    again = sample_symbols(universe, 300, seed=42)
+
+    assert got == again
+    assert len(got) == 300
+    # 头部截断会得到 300 个 bj；随机抽样必须混合三个交易所
+    prefixes = {sym[:2] for sym in got}
+    assert prefixes == {"bj", "sh", "sz"}
+    assert sample_symbols(universe, None) == universe
+    assert sample_symbols(universe, 10_000) == universe

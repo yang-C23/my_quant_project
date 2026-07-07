@@ -11,7 +11,7 @@ from quant.data.api import get_ohlcv
 from quant.data.universe import list_symbols
 from quant.research.forward_returns import run_event_study
 from quant.research.ic import quantile_returns, rank_ic
-from quant.research.optimize import IS_END_LIMIT, IS_START, _reject_post_is_dates
+from quant.research.optimize import IS_END_LIMIT, IS_START, _reject_post_is_dates, sample_symbols
 from quant.signals.factors import compute_factor_frame
 
 
@@ -25,8 +25,8 @@ def run_exploratory_research(config_path: str | Path) -> dict[str, Path]:
     end = str(raw.get("is_end", IS_END_LIMIT.date().isoformat()))
     _validate_window(start, end)
     symbols = list_symbols(exclude_boards=set(raw.get("exclude_boards", ["star", "b"])), at=None)
-    if raw.get("max_symbols") is not None:
-        symbols = symbols[: int(raw["max_symbols"])]
+    max_symbols = int(raw["max_symbols"]) if raw.get("max_symbols") is not None else None
+    symbols = sample_symbols(symbols, max_symbols, int(raw.get("sample_seed", 42)))
     prices = _load_prices(symbols, start, end)
     rows = []
     for spec in raw.get("factors", []):
@@ -69,7 +69,7 @@ def run_exploratory_research(config_path: str | Path) -> dict[str, Path]:
         )
     table = pd.DataFrame(rows)
     table["decision"] = np.where(
-        table["icir"].abs().ge(0.3) & table["quantile_spearman"].ge(0.8),
+        table["icir"].abs().ge(0.3) & table["quantile_spearman"].abs().ge(0.8),
         "effective",
         "invalid_or_uncertain",
     )

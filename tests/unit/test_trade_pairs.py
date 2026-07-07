@@ -100,7 +100,8 @@ def test_overlapping_entries_are_ignored_until_exit() -> None:
     assert len(result.trades) == 1
 
 
-def test_entry_low_stop_and_two_day_no_profit() -> None:
+def test_entry_low_stop_triggers_only_when_broken() -> None:
+    # entry 01-02 (low 9.8); 01-03 low 10.5 持有; 01-04 low 8.8 跌破 → 止损
     result = run_pair_study(
         _signal("2020-01-01"),
         {},
@@ -112,7 +113,24 @@ def test_entry_low_stop_and_two_day_no_profit() -> None:
 
     trade = result.trades.iloc[0]
     assert trade["exit_reason"] == "stop_loss"
-    assert trade["exit_signal_date"] == pd.Timestamp("2020-01-02")
+    assert trade["exit_signal_date"] == pd.Timestamp("2020-01-04")
+    assert trade["exit_date"] == pd.Timestamp("2020-01-05")
+
+
+def test_entry_low_stop_never_fires_on_entry_day_itself() -> None:
+    # entry 01-06 (low 7.5)，其后低点均高于 7.5 → 不得因 low<=own low 恒真而当日止损
+    result = run_pair_study(
+        _signal("2020-01-05"),
+        {},
+        _prices(),
+        max_hold=6,
+        stop_loss="entry_low",
+        two_day_no_profit=False,
+    )
+
+    trade = result.trades.iloc[0]
+    assert trade["exit_reason"] == "max_hold"
+    assert trade["hold_days"] == 2
 
 
 def test_two_day_no_profit_exit_without_stop() -> None:
