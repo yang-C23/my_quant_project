@@ -199,3 +199,38 @@ def test_b1_registry_and_universe_float_mktcap_filter(monkeypatch) -> None:
 
     assert filtered.tolist() == [False, True, True]
     assert unfiltered.tolist() == [True, True, True]
+
+
+def test_assemble_a1_three_sum_only_gates_ok1_branch() -> None:
+    """Verbatim A1: the YANGYIN_OK2 branch must NOT require THREE_SUM_OK."""
+    from quant.indicators.b1 import PRESETS, _assemble_a1
+
+    t = pd.Series([True])
+    f = pd.Series([False])
+
+    def a1(params, *, ok1, ok2, ok3, three):
+        return bool(
+            _assemble_a1(
+                params,
+                plry_cnt_ok=t,
+                yangyin_ok1=ok1,
+                yangyin_ok2=ok2,
+                yangyin_ok3=ok3,
+                j_ok=t,
+                good_cnt_ok=t,
+                three_sum_ok=three,
+                maxvol_ok=t,
+            ).iloc[0]
+        )
+
+    for name in ("b1_v242b", "b1_v242p"):  # or2 模式
+        p = PRESETS[name]
+        assert a1(p, ok1=f, ok2=t, ok3=f, three=f) is True  # OK2 分支不看 three_sum
+        assert a1(p, ok1=t, ok2=f, ok3=f, three=f) is False  # OK1 分支必须 three_sum
+        assert a1(p, ok1=t, ok2=f, ok3=f, three=t) is True
+
+    p62 = PRESETS["b1_v242_62"]  # and3 模式：两分支都要求 OK3
+    assert a1(p62, ok1=f, ok2=t, ok3=t, three=f) is True
+    assert a1(p62, ok1=f, ok2=t, ok3=f, three=f) is False
+    assert a1(p62, ok1=t, ok2=f, ok3=t, three=t) is True
+    assert a1(p62, ok1=t, ok2=f, ok3=t, three=f) is False

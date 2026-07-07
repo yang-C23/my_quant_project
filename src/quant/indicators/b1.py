@@ -94,6 +94,30 @@ def _hm_long(close: pd.Series) -> pd.Series:
     return 0.5 * first + 0.5 * second
 
 
+def _assemble_a1(
+    params: B1Params,
+    *,
+    plry_cnt_ok: pd.Series,
+    yangyin_ok1: pd.Series,
+    yangyin_ok2: pd.Series,
+    yangyin_ok3: pd.Series,
+    j_ok: pd.Series,
+    good_cnt_ok: pd.Series,
+    three_sum_ok: pd.Series,
+    maxvol_ok: pd.Series,
+) -> pd.Series:
+    """A1 per the verbatim TDX formulas (all three v2.42 variants).
+
+    Both OR-branches share PLRY/J/GOOD/MAXVOL; ``THREE_SUM_OK`` applies
+    **only to the YANGYIN_OK1 branch** — the OK2 branch never requires it.
+    v2.42.62 ("and3") additionally requires YANGYIN_OK3 in both branches.
+    """
+    common = plry_cnt_ok & j_ok & good_cnt_ok & maxvol_ok
+    if params.yangyin_mode == "and3":
+        common = common & yangyin_ok3
+    return common & ((yangyin_ok1 & three_sum_ok) | yangyin_ok2)
+
+
 def b1(df: pd.DataFrame, params: B1Params = PRESETS["b1_v242_62"]) -> pd.DataFrame:
     """Return B1 component columns and ``sig_b1`` for one symbol.
 
@@ -141,24 +165,17 @@ def b1(df: pd.DataFrame, params: B1Params = PRESETS["b1_v242_62"]) -> pd.DataFra
     maxvol_bad = (volume == maxvol) & real_yin
     maxvol_ok = F.COUNT(maxvol_bad, params.maxvol_window) == 0
 
-    if params.yangyin_mode == "and3":
-        a1 = (
-            plry_cnt_ok
-            & yangyin_ok3
-            & j_ok
-            & good_cnt_ok
-            & maxvol_ok
-            & ((yangyin_ok1 & three_sum_ok) | yangyin_ok2)
-        )
-    else:
-        a1 = (
-            plry_cnt_ok
-            & (yangyin_ok1 | yangyin_ok2)
-            & j_ok
-            & good_cnt_ok
-            & three_sum_ok
-            & maxvol_ok
-        )
+    a1 = _assemble_a1(
+        params,
+        plry_cnt_ok=plry_cnt_ok,
+        yangyin_ok1=yangyin_ok1,
+        yangyin_ok2=yangyin_ok2,
+        yangyin_ok3=yangyin_ok3,
+        j_ok=j_ok,
+        good_cnt_ok=good_cnt_ok,
+        three_sum_ok=three_sum_ok,
+        maxvol_ok=maxvol_ok,
+    )
 
     hm_short = F.SMA(F.SMA(close, 40, 4), 100, 50)
     hm_long = _hm_long(close)
