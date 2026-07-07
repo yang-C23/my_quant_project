@@ -1,0 +1,10 @@
+kind: dual_trend_pairs
+name: dual_trend
+universe: stocks_nostar
+exclude_boards: [star, b]
+max_symbols: 300
+is_start: 2015-01-01
+is_end: 2021-12-31
+warmup_days: 220
+max_hold: 120
+report_dir: backtest_results/research
