@@ -27,7 +27,7 @@ J:=3*K-2*D;
 ## 移植要点
 
 - `SMA(X,N,1)` 用 TDX 递归语义（README 表），**不是** pandas `rolling().mean()`。
-- 除零：`HHV(H,9)==LLV(L,9)`（连续一字/停牌复牌）时 RSV=NaN，K/D 递归跳过 NaN 保持前值状态——与 v1 backtrader 输出用黄金值测试锁定（TASK-020 fixture）。
+- 除零（TASK-020 实证修订）：`HHV(H,9)==LLV(L,9)`（连续一字板）时 **RSV=0**——通达信 `/0→0` 惯例，v1 亦为 `IF(denom==0, 0, …)`，黄金值锁定此口径；实现用 `IIF(denom==0, 0.0, …)`（warmup 区 denom=NaN → 自然输出 NaN）。
 - Warmup：前 9 根 RSV 为 NaN；K/D 从第一个非 NaN RSV 起递归。
 
 ## Pine 导出（TASK-043）

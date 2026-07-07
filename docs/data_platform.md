@@ -43,8 +43,8 @@
 ### securities
 symbol, name(string), exchange, sec_type(stock/index/etf), board(main/star/gem/bse), list_date, delist_date(nullable) —— 上市/退市区间用于 instruments 的 point-in-time 范围。
 
-### gbbq（股本变迁/除权除息，沿 v1 解码字段）
-symbol, date, category(int, 1=除权除息…), fenhong(分红,元/10股), peigujia(配股价), songzhuangu(送转股/10股), peigu(配股/10股), 以及股本类字段(前/后流通股本、总股本, 万股)。
+### gbbq（股本变迁/除权除息，沿 v1 解码字段；TASK-011 定稿）
+symbol, date, category(int16), c1..c4(float64) —— 保留解码器原始四列，**语义随 category 而变**：category=1（除权除息）时 c1..c4 对应 分红/配股价/送转股/配股（每 10 股口径，具体取列以 v1 `calc_basic.py` 为准，TASK-012 负责映射）；股本类 category（2/3/5/7/8/9/10）时为 前/后流通股本、总股本（万股）。
 
 ### basics（由 daily+gbbq 向量化衍生）
 symbol, date, preclose(理论昨收,考虑除权), pct_chg, amplitude, turnover(%), float_shares, total_shares, float_mktcap(元), total_mktcap(元)。
