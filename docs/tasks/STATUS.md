@@ -17,7 +17,7 @@
 | TASK-015 | 增量日更 | M1 | backlog | — | 013 | |
 | TASK-016 | validate_vs_pg 黄金门 | M1 | backlog | — | 013 | gate 工具 |
 | TASK-020 | tdx.functions + 黄金值 | M2 | done | merged | 004 | review PASS；KDJ 黄金全程精确；EMA 种子差异记入 021 |
-| TASK-021 | KDJ + 双线 V2.1 | M2 | changes_requested | task/TASK-021-kdj-dualtrend | 020 | 呼吸度字面语义+RSV除零，4 项见 review |
+| TASK-021 | KDJ + 双线 V2.1 | M2 | review | task/TASK-021-kdj-dualtrend | 020 | 返工：RSV 除零=0；呼吸度改字面嵌套 rolling；v1 sorted 差异快照 sh600000 149/171 active 13、sz000001 171/171 active 40；53 tests+ruff+golden OK |
 | TASK-022 | B1 三版本 | M2 | backlog | — | 021 | |
 | TASK-023 | 活跃市值 0AMV | M2 | done | merged | 020 | review PASS；924 行情信号复现 |
 | TASK-024 | 倍量/单针/MACD/砖形 | M2 | backlog | — | 021 | |

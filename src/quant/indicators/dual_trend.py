@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
-from numpy.lib.stride_tricks import sliding_window_view
 
 from quant.indicators.kdj import kdj
 from quant.tdx import functions as F
@@ -18,44 +16,27 @@ def _require_columns(df: pd.DataFrame, columns: tuple[str, ...]) -> None:
         raise KeyError(f"missing required columns: {missing}")
 
 
-def _rolling_distinct_volume_breath(volume: pd.Series, n: int) -> pd.DataFrame:
-    """Vectorized TDX ``HHV(IF(...))`` volume-breath extrema.
-
-    The formula uses strict ``<`` / ``>`` when selecting the next high/low,
-    so repeated volume values count once for the top/bottom-three average.
-    """
+def _rolling_tdx_volume_breath(volume: pd.Series, n: int) -> pd.DataFrame:
+    """Vectorized literal TDX ``HHV(IF(...))`` volume-breath extrema."""
     if n <= 0:
         raise ValueError(f"n_vol must be positive, got {n}")
 
-    values = volume.astype(float).to_numpy()
-    out = np.full((len(values), 4), np.nan, dtype=float)
-    if len(values) < n:
-        return pd.DataFrame(out, columns=["avghigh", "avglow", "vh1", "vl1"], index=volume.index)
-
-    windows = sliding_window_view(values, n)
-    valid = ~np.isnan(windows).any(axis=1)
-    if valid.any():
-        valid_windows = windows[valid]
-
-        vh1 = valid_windows.max(axis=1)
-        vh2 = np.where(valid_windows < vh1[:, None], valid_windows, 0.0).max(axis=1)
-        vh3 = np.where(valid_windows < vh2[:, None], valid_windows, 0.0).max(axis=1)
-
-        vl1 = valid_windows.min(axis=1)
-        vl2 = np.where(valid_windows > vl1[:, None], valid_windows, _LOW_SENTINEL).min(axis=1)
-        vl3 = np.where(valid_windows > vl2[:, None], valid_windows, _LOW_SENTINEL).min(axis=1)
-
-        rows = np.column_stack(
-            [
-                (vh1 + vh2 + vh3) / 3.0,
-                (vl1 + vl2 + vl3) / 3.0,
-                vh1,
-                vl1,
-            ]
-        )
-        out[np.flatnonzero(valid) + n - 1] = rows
-
-    return pd.DataFrame(out, columns=["avghigh", "avglow", "vh1", "vl1"], index=volume.index)
+    v = volume.astype(float)
+    vh1 = v.rolling(n).max()
+    vh2 = v.where(v < vh1, 0.0).rolling(n).max()
+    vh3 = v.where(v < vh2, 0.0).rolling(n).max()
+    vl1 = v.rolling(n).min()
+    vl2 = v.where(v > vl1, _LOW_SENTINEL).rolling(n).min()
+    vl3 = v.where(v > vl2, _LOW_SENTINEL).rolling(n).min()
+    return pd.DataFrame(
+        {
+            "avghigh": (vh1 + vh2 + vh3) / 3.0,
+            "avglow": (vl1 + vl2 + vl3) / 3.0,
+            "vh1": vh1,
+            "vl1": vl1,
+        },
+        index=volume.index,
+    )
 
 
 def dual_trend(
@@ -79,7 +60,7 @@ def dual_trend(
     yellow = sum(F.MA(close, period) for period in m) / 4.0
 
     kdj_frame = kdj(df)
-    breath = _rolling_distinct_volume_breath(df["volume"], n_vol)
+    breath = _rolling_tdx_volume_breath(df["volume"], n_vol)
     breath_active = breath["avghigh"] > vol_ratio * breath["avglow"]
     zone_ok = (close < white) & (close > yellow)
     trend_ok = white > yellow

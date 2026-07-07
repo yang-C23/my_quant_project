@@ -30,7 +30,7 @@ def kdj(df: pd.DataFrame, *, n: int = 9, m1: int = 3, m2: int = 3) -> pd.DataFra
     low_n = F.LLV(low, n)
     high_n = F.HHV(high, n)
     denom = high_n - low_n
-    rsv = ((close - low_n) / denom * 100.0).where(denom != 0)
+    rsv = F.IIF(denom == 0, 0.0, (close - low_n) / denom * 100.0)
     k = F.SMA(rsv, m1, 1)
     d = F.SMA(k, m2, 1)
     j = 3.0 * k - 2.0 * d

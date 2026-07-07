@@ -32,7 +32,7 @@ def test_kdj_matches_bt_golden(symbol: str) -> None:
     np.testing.assert_allclose(got["j"], golden["j"], rtol=1e-8, atol=1e-8, equal_nan=True)
 
 
-def test_kdj_zero_denominator_keeps_rsv_nan() -> None:
+def test_kdj_zero_denominator_seeds_with_zero_rsv() -> None:
     df = pd.DataFrame(
         {
             "high": [10.0] * 12,
@@ -40,8 +40,12 @@ def test_kdj_zero_denominator_keeps_rsv_nan() -> None:
             "close": [10.0] * 12,
         }
     )
+    got = kdj(df)
 
-    assert kdj(df).isna().all().all()
+    assert got.iloc[:8].isna().all().all()
+    np.testing.assert_allclose(got["k"].iloc[8:], 0.0)
+    np.testing.assert_allclose(got["d"].iloc[8:], 0.0)
+    np.testing.assert_allclose(got["j"].iloc[8:], 0.0)
 
 
 def test_kdj_oversold_signal_registry() -> None:
