@@ -36,9 +36,14 @@ def _compute_one_signal(
     end: str | None,
     signal_params: dict | None,
 ) -> pd.DataFrame:
-    data = get_ohlcv(symbol, start=start, end=end, adjust="qfq")
+    try:
+        data = get_ohlcv(symbol, start=start, end=end, adjust="qfq")
+    except ValueError:
+        # 窗口内无数据（如晚上市的北证股）：贡献零信号，不中断批量研究
+        return pd.DataFrame(columns=["symbol", "date", "sig"])
     if name == "kdj_oversold" and signal_params and "j_threshold" in signal_params:
-        signal = (kdj(data)["j"] < float(signal_params["j_threshold"])).fillna(False)
+        frame = kdj(data, sma_mode=signal_params.get("sma_mode", "tdx"))
+        signal = (frame["j"] < float(signal_params["j_threshold"])).fillna(False)
     else:
         from quant.signals import registry
 
