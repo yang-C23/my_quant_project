@@ -40,7 +40,10 @@ line-length = 100
 src = ["src"]
 exclude = [
     "run_*.py",
-    "scripts",
+    "scripts/calc_basic.py",
+    "scripts/calc_factor.py",
+    "scripts/import_tdx.py",
+    "scripts/update_daily.py",
 ]
 
 [tool.pytest.ini_options]
