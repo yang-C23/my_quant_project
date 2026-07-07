@@ -159,3 +159,31 @@ def dump_cn_daily_cmd(
         f"qlib cn_daily: {stats.rows} rows, {stats.instruments} instruments, "
         f"{stats.fields} fields in {stats.seconds:.1f}s"
     )
+
+
+@app.command("update")
+def update_cmd(
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Only print planned row counts.")
+    ] = False,
+) -> None:
+    """Tail-read TDX daily files and apply an idempotent incremental update."""
+    from quant.config import get_settings
+    from quant.etl.update import apply_update, collect_new_rows
+    import pandas as pd
+
+    settings = get_settings()
+    daily = pd.read_parquet(settings.staging_dir / "daily")
+    last_date = pd.to_datetime(daily["date"]).max()
+    new_rows = collect_new_rows(settings.tdx_home, last_date)
+    if dry_run:
+        typer.echo(
+            f"update dry-run: {len(new_rows)} rows, "
+            f"{new_rows['symbol'].nunique() if not new_rows.empty else 0} symbols"
+        )
+        return
+    stats = apply_update(settings.staging_dir, settings.qlib_cn_daily_uri, new_rows)
+    typer.echo(
+        f"update: {stats.new_rows} rows, {stats.symbols} symbols, "
+        f"qlib_rebuilt={stats.qlib_rebuilt}, {stats.seconds:.1f}s"
+    )
