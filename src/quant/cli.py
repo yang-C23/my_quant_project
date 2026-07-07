@@ -200,6 +200,40 @@ def study_cmd(config_path: str) -> None:
     typer.echo(f"study report: {paths['md']}")
 
 
+@app.command("research")
+def research_cmd(
+    config_path: str,
+    oos_final: Annotated[
+        str | None,
+        typer.Option(
+            "--oos-final",
+            help="Reviewer-only final parameter JSON for the protected holdout path.",
+        ),
+    ] = None,
+    i_am_the_reviewer: Annotated[
+        bool,
+        typer.Option(
+            "--i-am-the-reviewer",
+            help="Required for the protected reviewer-only holdout path.",
+        ),
+    ] = False,
+) -> None:
+    """Run an IS-only research parameter scan."""
+    from quant.research.optimize import load_research_config, run_param_scan, write_scan_report
+
+    if oos_final is not None:
+        if not i_am_the_reviewer:
+            typer.echo("protected holdout path requires reviewer confirmation", err=True)
+            raise typer.Exit(code=2)
+        typer.echo("protected holdout path is reserved for reviewer execution", err=True)
+        raise typer.Exit(code=2)
+
+    cfg = load_research_config(config_path)
+    result = run_param_scan(cfg)
+    paths = write_scan_report(result, cfg.report_dir, cfg.name)
+    typer.echo(f"research scan: {paths['md']}")
+
+
 @app.command("ic")
 def ic_cmd(
     signal_name: str,
