@@ -198,3 +198,20 @@ def study_cmd(config_path: str) -> None:
         config.get("report_prefix", "study"),
     )
     typer.echo(f"study report: {paths['md']}")
+
+
+@app.command("ic")
+def ic_cmd(
+    signal_name: str,
+    start: Annotated[str | None, typer.Option(help="Start date, YYYY-MM-DD.")] = None,
+    end: Annotated[str | None, typer.Option(help="End date, YYYY-MM-DD.")] = None,
+) -> None:
+    """Run a RankIC report for a registered signal."""
+    from quant.data.universe import list_symbols
+    from quant.research.ic import ic_report
+    from quant.signals.factors import to_factor
+
+    symbols = list_symbols(exclude_boards={"star"}, at=end)
+    factor = to_factor(signal_name, symbols, start, end)
+    path = ic_report(signal_name, factor)
+    typer.echo(f"ic report: {path}")
