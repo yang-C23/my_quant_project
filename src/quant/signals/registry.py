@@ -6,6 +6,7 @@ from collections.abc import Callable
 
 import pandas as pd
 
+from quant.indicators.amv import amv, amv_timing_signal
 from quant.indicators.dual_trend import dual_trend
 from quant.indicators.kdj import kdj
 
@@ -39,6 +40,12 @@ def get(name: str) -> SignalFunc:
 def names() -> tuple[str, ...]:
     """Return registered signal names in stable order."""
     return tuple(sorted(_REGISTRY))
+
+
+@register("amv_regime")
+def amv_regime(df: pd.DataFrame) -> pd.Series:
+    """0AMV timing regime for index daily bars."""
+    return amv_timing_signal(amv(df))["regime"]
 
 
 @register("kdj_oversold")
