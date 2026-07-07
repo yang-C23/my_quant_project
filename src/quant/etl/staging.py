@@ -286,10 +286,20 @@ def _classify_security(symbol: str) -> tuple[str, str]:
         return "index", "index"
     if exchange == "bj" and code.startswith("899"):
         return "index", "index"
-    if exchange == "sh" and code.startswith("51"):
+    if exchange == "sh" and code.startswith(("880", "881", "887", "888")):
+        return "index", "index"
+    if exchange == "sh" and code.startswith(("110", "113", "118")):
+        return "bond", "bond"
+    if exchange == "sz" and code.startswith(("123", "127", "128")):
+        return "bond", "bond"
+    if exchange == "sh" and code.startswith(("50", "51", "56", "58")):
         return "etf", "etf"
     if exchange == "sz" and code.startswith(("15", "16")):
         return "etf", "etf"
+    if exchange == "sh" and code.startswith("900"):
+        return "stock", "b"
+    if exchange == "sz" and code.startswith("200"):
+        return "stock", "b"
 
     if exchange == "bj" or code.startswith(("43", "83", "87", "920")):
         return "stock", "bse"
@@ -299,7 +309,7 @@ def _classify_security(symbol: str) -> tuple[str, str]:
         return "stock", "star"
     if exchange == "sh" and code.startswith(("600", "601", "603", "605")):
         return "stock", "main"
-    if exchange == "sz" and code.startswith(("000", "001", "003")):
+    if exchange == "sz" and code.startswith(("000", "001", "002", "003")):
         return "stock", "main"
     return "stock", "other"
 
@@ -477,6 +487,11 @@ def build_flags_staging(staging_dir: Path) -> int:
     basics["date"] = pd.to_datetime(basics["date"])
     securities["list_date"] = pd.to_datetime(securities["list_date"])
     securities["delist_date"] = pd.to_datetime(securities["delist_date"])
+    # A-share limit/suspension flags are only defined for stocks covered by this
+    # platform. Indexes, bonds, funds, and B shares have different trading rules.
+    securities = securities[
+        securities["sec_type"].eq("stock") & ~securities["board"].eq("b")
+    ].copy()
 
     calendar = pd.Series(sorted(daily["date"].dt.normalize().unique()))
     st_symbols = _current_st_symbols(staging_dir)

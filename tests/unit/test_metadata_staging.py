@@ -37,6 +37,7 @@ def test_build_securities_staging_classifies_prefixes(tmp_path: Path) -> None:
         "sh605000": ("sh", "stock", "main"),
         "sz000001": ("sz", "stock", "main"),
         "sz001001": ("sz", "stock", "main"),
+        "sz002001": ("sz", "stock", "main"),
         "sz003001": ("sz", "stock", "main"),
         "sz300001": ("sz", "stock", "gem"),
         "sz301001": ("sz", "stock", "gem"),
@@ -48,6 +49,24 @@ def test_build_securities_staging_classifies_prefixes(tmp_path: Path) -> None:
         "bj920001": ("bj", "stock", "bse"),
         "sh999999": ("sh", "index", "index"),
         "sz399001": ("sz", "index", "index"),
+        "sh880001": ("sh", "index", "index"),
+        "sh881001": ("sh", "index", "index"),
+        "sh887001": ("sh", "index", "index"),
+        "sh888001": ("sh", "index", "index"),
+        "sh110001": ("sh", "bond", "bond"),
+        "sh113001": ("sh", "bond", "bond"),
+        "sh118001": ("sh", "bond", "bond"),
+        "sz123001": ("sz", "bond", "bond"),
+        "sz127001": ("sz", "bond", "bond"),
+        "sz128001": ("sz", "bond", "bond"),
+        "sh900901": ("sh", "stock", "b"),
+        "sz200001": ("sz", "stock", "b"),
+        "sh500001": ("sh", "etf", "etf"),
+        "sh510001": ("sh", "etf", "etf"),
+        "sh560001": ("sh", "etf", "etf"),
+        "sh580001": ("sh", "etf", "etf"),
+        "sz159001": ("sz", "etf", "etf"),
+        "sz160001": ("sz", "etf", "etf"),
     }
     rows = []
     for symbol in cases:
@@ -69,6 +88,9 @@ def test_build_securities_staging_classifies_prefixes(tmp_path: Path) -> None:
         assert pd.isna(row["delist_date"])
 
     assert pd.Timestamp(securities.loc["sz000002", "delist_date"]) == dates[0]
+    other = securities[securities["board"].eq("other")]
+    assert len(other) <= 500
+    assert not other.index.str.startswith("sz002").any()
 
 
 def test_build_gbbq_staging_from_decoded_fixture(monkeypatch, tmp_path: Path) -> None:
@@ -136,6 +158,10 @@ def test_build_flags_staging_suspension_limits_and_st_snapshot(tmp_path: Path) -
             ("bj920001", "2024-01-02", 13.0),
             ("bj920001", "2024-01-03", 13.0),
             ("bj920001", "2024-01-04", 10.0),
+            ("sh999999", "2024-01-02", 10.0),
+            ("sh110001", "2024-01-02", 10.0),
+            ("sh510001", "2024-01-02", 10.0),
+            ("sh900901", "2024-01-02", 10.0),
         ],
         columns=["symbol", "date", "close"],
     )
@@ -144,11 +170,15 @@ def test_build_flags_staging_suspension_limits_and_st_snapshot(tmp_path: Path) -
     basics["preclose"] = 10.0
     securities = pd.DataFrame(
         [
-            ("sh600000", "main", "2024-01-02", pd.NaT),
-            ("sz300001", "gem", "2024-01-02", pd.NaT),
-            ("bj920001", "bse", "2024-01-02", pd.NaT),
+            ("sh600000", "stock", "main", "2024-01-02", pd.NaT),
+            ("sz300001", "stock", "gem", "2024-01-02", pd.NaT),
+            ("bj920001", "stock", "bse", "2024-01-02", pd.NaT),
+            ("sh999999", "index", "index", "2024-01-02", pd.NaT),
+            ("sh110001", "bond", "bond", "2024-01-02", pd.NaT),
+            ("sh510001", "etf", "etf", "2024-01-02", pd.NaT),
+            ("sh900901", "stock", "b", "2024-01-02", pd.NaT),
         ],
-        columns=["symbol", "board", "list_date", "delist_date"],
+        columns=["symbol", "sec_type", "board", "list_date", "delist_date"],
     )
     blocks = pd.DataFrame([("ST01", "ST板块")], columns=["block_code", "block_name"])
     members = pd.DataFrame([("sh600000", "ST01")], columns=["stock_symbol", "block_code"])
@@ -162,6 +192,7 @@ def test_build_flags_staging_suspension_limits_and_st_snapshot(tmp_path: Path) -
     assert build_flags_staging(tmp_path) == 9
     flags = pd.read_parquet(tmp_path / "flags.parquet")
     flags["date"] = pd.to_datetime(flags["date"])
+    assert set(flags["symbol"]) == {"sh600000", "sz300001", "bj920001"}
 
     sh = flags[flags["symbol"] == "sh600000"].set_index("date")
     assert bool(sh.loc[pd.Timestamp("2024-01-02"), "is_st"])
