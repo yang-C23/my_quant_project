@@ -1,24 +1,36 @@
-# TASK-011 Review（第 1 轮）
+# TASK-011 Review（第 1 轮，规划者审查）
 
-- 日期：2026-07-07　|　开发者 & 审查者：Codex（自审；验收命令真实运行留痕）
-- 分支：`task/TASK-011-metadata`
+- 日期：2026-07-07　|　审查者：Claude (Fable 5)　|　分支：`task/TASK-011-metadata`（6d6b6c7）
+- 开发者自审报告见该分支上的同名文件（合并 v2 时以本文件为准）。
 
-## 验收命令运行结果
+## 验收命令重跑结果（审查者独立运行）
 
 | # | 命令 | 结果 |
 |---|---|---|
-| 1 | `pytest -q tests/unit/test_metadata_staging.py` | PASS（4 用例：GBBQ decoded fixture、证券前缀分类/退市推断、板块/成员/节假日解析、flags 停牌/ST/涨跌停合成场景） |
-| 2 | `pytest -q -m "not integration"` | PASS（40 passed） |
-| 3 | `ruff check .` + `ruff format --check .` | PASS |
-| 4 | `myquant etl full --steps meta --no-mirror` | PASS：gbbq 182,295 行、securities 12,169 行、blocks/holidays 77,405 行；flags 因 TASK-012 的 basics 尚不存在而显式跳过 |
+| 1 | `pytest -q tests/unit/test_metadata_staging.py` | PASS（4 用例） |
+| 2 | 全套非集成 + ruff | PASS（40 passed / 全绿） |
+| 3 | `myquant etl full --steps meta --no-mirror` | PASS：gbbq 182,295 / securities 12,169 / blocks+holidays 77,405（11.7s）；flags 正确降级等待 basics |
 
-## 质量意见
+## 实现质量（认可项）
 
-- `securities` 由 daily 全量 symbol/date 推导，板块分类按卡面前缀表驱动覆盖：主板、创业板、科创板、北证、指数与 ETF。
-- `gbbq`、`blocks`、`holidays` 复用既有 v1 解析器，只在 staging 层做 schema 化、去重、排序和 zstd parquet 落盘。
-- `flags` 函数已完整实现并用合成 `basics.preclose` 测试；CLI 的 `meta` alias 在 TASK-012 前不会因缺 basics 硬失败，待 basics 表生成后会自动产出 flags。
-- ST 标志仍是当前板块快照，非 PIT；这是卡面声明的已知局限，代码注释中保留。
+- GBBQ/blocks/holidays 复用 v1 解析器 + staging schema 化，量级与 PG 一致；退市推断（末交易日 < 全局末日−20）识别出 2,895 只退市股——幸存者控制的数据基础成立。
+- flags 的涨跌停/ST/停牌合成逻辑与北交所首日豁免正确；`meta` alias 对缺 basics 的优雅降级设计得当。
+- gbbq 保留 `category + c1..c4` 原始列（而非卡面预写的命名列）——**接受**，比提前重命名更忠实原始数据；data_platform.md §4 已由规划者同步修订，TASK-012 负责 category=1 的 c1..c4 → fenhong/peigujia/songzhuangu/peigu 映射（对照 v1 `calc_basic.py` 的取列顺序，勿凭猜）。
+
+## 必须修改（CHANGES_REQUESTED）
+
+审查者抽查 securities 分布发现 `stock/other` 桶 4,291 只，其中：
+
+1. **[阻塞] `sz002xxx`（973 只）落入 other**——中小板 2021 年已并入深市主板，必须归 `("stock","main")`。否则宇宙过滤直接丢掉 973 只主板股。
+2. **[阻塞] 非股票资产被标 `sec_type="stock"`** 污染宇宙：
+   - 可转债 `sh110/113/118`、`sz123/127/128` → `("bond","bond")`（新增枚举）；
+   - B股 `sh900`、`sz200` → `("stock","b")`（board 新枚举，宇宙默认排除）；
+   - 通达信板块/风格指数 `sh88x`（880/881/887/888 共 ~1,316 只）→ `("index","index")`；
+   - 基金补漏：`sh50x/56x/58x`、`sz16x` 已有部分，统一归 `("etf","etf")`（或 fund，二选一并写注释）。
+3. `build_flags_staging` 只处理 `sec_type=="stock"` 且 `board != "b"` 的证券（指数/债券/基金无涨跌停语义，B股规则不同，注释声明局限）。
+4. 测试：分类表驱动用例覆盖上述全部前缀；新增断言——重建 securities 后 `other` 桶 ≤ 500 且**不含任何 002 开头深市代码**。
+5. 重跑 `myquant etl full --steps meta --no-mirror`，在 STATUS 备注贴新分布。
 
 ## 结论
 
-**PASS** —— TASK-011 可进入 review；后续 TASK-012 生成 basics 后需重跑 `myquant etl full --steps meta` 确认 flags 实表行数。
+**CHANGES_REQUESTED**（修改项 1–5）。修复前先 `git merge v2` 同步分支（评审文件冲突以 v2 版为准）。

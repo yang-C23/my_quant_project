@@ -68,7 +68,7 @@ XG: COND_TREND AND COND_ACTIVITY AND COND_ENTRY_J AND COND_PRICE_ZONE
 
 ## 移植要点
 
-1. **top-3/bottom-3 成交量的 HHV(IF(...)) 技巧**必须逐字复刻（先排除第一高再取次高……），不要"聪明地"改成 `sorted()[−3:]`——两者在窗口内有重复值时行为不同；v1 `volume_breath.py` 用的是 sorted 版，**以通达信原式为准**，差异用黄金值测试记录。
+1. **HHV(IF(...)) 必须按字面嵌套滚动实现**（TASK-021 审查修订）：`IF` 逐 bar 用**该 bar 自己的**滚动 VH1/VL2 掩蔽，再对掩蔽序列整体滚动求极值——`vh1=V.rolling(n).max(); vh2=V.where(V<vh1,0).rolling(n).max(); vh3=V.where(V<vh2,0).rolling(n).max()`（lows 用哨兵 99999999 对称）。**不要**改成 sorted top-3 或窗口内去重 top-3——实测与字面语义在 87–100% 的 bar 上不同（breath_active 每 171 bar 翻转 13–40 次）。v1 `volume_breath.py` 的 sorted 版差异仅作统计记录。
 2. `99999999` 哨兵值保留（VOL 单位是股时也远大于实际值即可，若 fixture 出现超过哨兵的成交量需改为 `+inf` 并在测试中注明）。
 3. 双重 EMA 与四均线直译；warmup 最长 114 根，前段输出 NaN。
 
