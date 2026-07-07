@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Literal
 
@@ -12,8 +13,13 @@ import pandas as pd
 from quant.config import load_config
 from quant.data.api import get_ohlcv
 from quant.data.universe import list_symbols
+from quant.indicators.brick_osc import PRESETS as BRICK_PRESETS
+from quant.indicators.brick_osc import brick_osc
 from quant.indicators.dual_trend import dual_trend
+from quant.indicators.volume_patterns import single_needle_proxy
 from quant.research.optimize import IS_END_LIMIT, IS_START, _reject_post_is_dates
+
+StopLoss = float | Literal["entry_low"]
 
 
 @dataclass(frozen=True)
@@ -32,7 +38,8 @@ def run_pair_study(
     *,
     entry_filters: Literal["ashare", "none"] = "ashare",
     max_hold: int = 120,
-    stop_loss: float | None = None,
+    stop_loss: StopLoss | None = None,
+    two_day_no_profit: bool = False,
 ) -> PairStudyResult:
     """Evaluate entry signal -> next-open entry -> first exit-rule next-open exit."""
     if max_hold <= 0:
@@ -67,6 +74,7 @@ def run_pair_study(
                 positions=positions,
                 max_hold=max_hold,
                 stop_loss=stop_loss,
+                two_day_no_profit=two_day_no_profit,
             )
             if trade is None:
                 exclusions["exit_missing"] += 1
@@ -146,6 +154,82 @@ def run_dual_trend_research(config_path: str | Path) -> dict[str, Path]:
     return _write_dual_report(name, matrix, fake, Path(str(raw.get("report_dir", "backtest_results/research"))))
 
 
+def run_shortterm_research(config_path: str | Path) -> dict[str, Path]:
+    """Run brick/single-needle short-term hold/stop matrix."""
+    cfg_path = Path(config_path)
+    raw = load_config(cfg_path)
+    _reject_post_is_dates(raw)
+    name = str(raw.get("name", cfg_path.stem))
+    start = str(raw.get("is_start", IS_START.date().isoformat()))
+    end = str(raw.get("is_end", IS_END_LIMIT.date().isoformat()))
+    _validate_window(start, end)
+    warmup_days = int(raw.get("warmup_days", 180))
+    max_symbols = raw.get("max_symbols")
+    symbols = list_symbols(exclude_boards=set(raw.get("exclude_boards", ["star", "b"])), at=None)
+    if max_symbols is not None:
+        symbols = symbols[: int(max_symbols)]
+    load_start = (pd.Timestamp(start) - pd.Timedelta(days=warmup_days)).date().isoformat()
+    prices, entries = _shortterm_inputs(symbols, load_start, end, pd.Timestamp(start))
+    rows = []
+    holds = [int(item) for item in raw.get("max_hold_grid", [1, 2, 3, 4, 6])]
+    stops = list(raw.get("stop_grid", ["entry_low", 0.02, 0.03, "none"]))
+    single_trades: dict[tuple[int, str], pd.Series] = {}
+    for entry_name, signal in entries.items():
+        for hold in holds:
+            for stop in stops:
+                stop_value = _coerce_stop_value(str(stop))
+                result = run_pair_study(
+                    signal,
+                    {},
+                    prices,
+                    max_hold=hold,
+                    stop_loss=stop_value,
+                    two_day_no_profit=bool(raw.get("two_day_no_profit", True)),
+                )
+                summary = result.summary.iloc[0].to_dict()
+                rows.append({"entry": entry_name, "max_hold": hold, "stop": str(stop), **summary})
+                if entry_name == "single_needle_proxy":
+                    single_trades[(hold, str(stop))] = result.trades["return"].astype(float)
+    matrix = pd.DataFrame(rows)
+    single_prior = _single_prior_bootstrap(matrix, single_trades)
+    gem_compare = pd.DataFrame()
+    if bool(raw.get("gem_exclusion_check", True)) and not matrix.empty:
+        exclude = set(raw.get("exclude_boards", ["star", "b"])) | {"gem"}
+        no_gem_symbols = list_symbols(exclude_boards=exclude, at=None)
+        if max_symbols is not None:
+            no_gem_symbols = no_gem_symbols[: int(max_symbols)]
+        no_gem_prices, no_gem_entries = _shortterm_inputs(
+            no_gem_symbols, load_start, end, pd.Timestamp(start)
+        )
+        gem_rows = []
+        for item in matrix.sort_values("profit_factor", ascending=False).head(2).itertuples():
+            result = run_pair_study(
+                no_gem_entries[str(item.entry)],
+                {},
+                no_gem_prices,
+                max_hold=int(item.max_hold),
+                stop_loss=_coerce_stop_value(str(item.stop)),
+                two_day_no_profit=bool(raw.get("two_day_no_profit", True)),
+            )
+            summary = result.summary.iloc[0].to_dict()
+            gem_rows.append(
+                {
+                    "entry": item.entry,
+                    "max_hold": int(item.max_hold),
+                    "stop": str(item.stop),
+                    **summary,
+                }
+            )
+        gem_compare = pd.DataFrame(gem_rows)
+    return _write_shortterm_report(
+        name,
+        matrix,
+        single_prior,
+        gem_compare,
+        Path(str(raw.get("report_dir", "backtest_results/research"))),
+    )
+
+
 def _exit_trade(
     *,
     symbol: str,
@@ -155,11 +239,17 @@ def _exit_trade(
     exits: dict[str, pd.DataFrame],
     positions: dict[pd.Timestamp, int],
     max_hold: int,
-    stop_loss: float | None,
+    stop_loss: StopLoss | None,
+    two_day_no_profit: bool,
 ) -> dict[str, Any] | None:
     entry_row = bars.iloc[entry_pos]
     entry_price = float(entry_row["open"])
-    stop_price = entry_price * (1.0 - stop_loss) if stop_loss is not None else None
+    if stop_loss == "entry_low":
+        stop_price = float(entry_row["low"])
+    elif stop_loss is not None:
+        stop_price = entry_price * (1.0 - float(stop_loss))
+    else:
+        stop_price = None
     exit_signal_pos = None
     exit_reason = None
     last_signal_pos = min(len(bars) - 2, entry_pos + max_hold - 1)
@@ -168,6 +258,10 @@ def _exit_trade(
         if stop_price is not None and float(row["low"]) <= stop_price:
             exit_signal_pos = pos
             exit_reason = "stop_loss"
+            break
+        if two_day_no_profit and pos - entry_pos == 2 and float(row["close"]) <= entry_price:
+            exit_signal_pos = pos
+            exit_reason = "two_day_no_profit"
             break
         matched = [
             name
@@ -184,7 +278,12 @@ def _exit_trade(
             break
     if exit_signal_pos is None or exit_reason is None:
         return None
-    exit_exec_pos = _next_tradable_pos(bars, exit_signal_pos + 1, entry_filters="none")
+    exit_exec_pos = _next_tradable_pos(
+        bars,
+        exit_signal_pos + 1,
+        entry_filters="none",
+        block_limit_down=exit_reason == "stop_loss",
+    )
     if exit_exec_pos is None:
         return None
     exit_row = bars.iloc[exit_exec_pos]
@@ -232,17 +331,31 @@ def _normalize_prices(prices: pd.DataFrame) -> pd.DataFrame:
         frame["is_suspended"] = False
     if "limit_up_price" not in frame.columns:
         frame["limit_up_price"] = np.nan
+    if "limit_down_price" not in frame.columns:
+        frame["limit_down_price"] = np.nan
     if "raw_open" not in frame.columns:
         frame["raw_open"] = frame["open"]
     return frame.sort_values(["symbol", "date"]).reset_index(drop=True)
 
 
 def _next_tradable_pos(
-    bars: pd.DataFrame, start_pos: int, *, entry_filters: Literal["ashare", "none"]
+    bars: pd.DataFrame,
+    start_pos: int,
+    *,
+    entry_filters: Literal["ashare", "none"],
+    block_limit_down: bool = False,
 ) -> int | None:
     for pos in range(start_pos, len(bars)):
         row = bars.iloc[pos]
         if pd.isna(row["open"]) or bool(row.get("is_suspended", False)):
+            continue
+        limit_down = row.get("limit_down_price", np.nan)
+        if (
+            block_limit_down
+            and pd.notna(limit_down)
+            and pd.notna(row.get("raw_open", np.nan))
+            and row["raw_open"] <= limit_down
+        ):
             continue
         if entry_filters == "ashare" and _blocked_entry(row):
             return pos
@@ -314,11 +427,55 @@ def _load_prices(symbol: str, start: str, end: str) -> pd.DataFrame:
         start=start,
         end=end,
         adjust="raw",
-        fields=("open", "suspended", "limit_up_price"),
+        fields=("open", "suspended", "limit_up_price", "limit_down_price"),
     ).rename(columns={"open": "raw_open", "suspended": "is_suspended"})
     frame = qfq.join(raw, how="left")
     frame["symbol"] = symbol
     return frame.reset_index()
+
+
+def _shortterm_inputs(
+    symbols: list[str], load_start: str, end: str, signal_start: pd.Timestamp
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+    frames = []
+    entry_parts: dict[str, list[pd.DataFrame]] = {}
+    brick_specs = [
+        ("brick_strict", "strict"),
+        ("brick_relaxed", "relaxed"),
+        ("brick_len", "len_checked"),
+    ]
+    for symbol in symbols:
+        try:
+            frame = _load_prices(symbol, load_start, end)
+        except ValueError:
+            continue
+        indexed = frame.set_index("date")
+        frames.append(frame[frame["date"].ge(signal_start)].copy())
+        for entry_name, preset_name in brick_specs:
+            for smallup in (0.02, 0.03, 0.04):
+                params = replace(BRICK_PRESETS[preset_name], smallup_pct=smallup)
+                signal = brick_osc(indexed, params)[params.signal_col]
+                key = f"{entry_name}_smallup_{smallup:.2f}"
+                signal = signal.loc[signal.index >= signal_start]
+                entry_parts.setdefault(key, []).append(
+                    _signal_frame(symbol, signal.index, signal)
+                )
+        single = single_needle_proxy(indexed)["sig_single_needle"]
+        single = single.loc[single.index >= signal_start]
+        entry_parts.setdefault("single_needle_proxy", []).append(
+            _signal_frame(symbol, single.index, single)
+        )
+    prices = pd.concat(frames, ignore_index=True)
+    entries = {name: pd.concat(parts, ignore_index=True) for name, parts in entry_parts.items()}
+    return prices, entries
+
+
+def _coerce_stop_value(raw: str) -> StopLoss | None:
+    if raw == "none":
+        return None
+    if raw == "entry_low":
+        return "entry_low"
+    return float(raw)
 
 
 def _signal_frame(symbol: str, index: pd.Index, values: pd.Series) -> pd.DataFrame:
@@ -361,6 +518,76 @@ def _write_dual_report(name: str, matrix: pd.DataFrame, fake: pd.Series, report_
         "",
         "## Fake Golden Cross",
         fake.to_markdown(),
+    ]
+    md_path.write_text("\n".join(lines), encoding="utf-8")
+    return {"csv": csv_path, "md": md_path}
+
+
+def _single_prior_bootstrap(
+    matrix: pd.DataFrame, single_trades: dict[tuple[int, str], pd.Series]
+) -> pd.Series:
+    single = matrix[matrix["entry"].eq("single_needle_proxy")]
+    if single.empty:
+        return pd.Series(dtype=float)
+    best = single.sort_values("profit_factor", ascending=False).iloc[0]
+    key = (int(best["max_hold"]), str(best["stop"]))
+    returns = single_trades.get(key, pd.Series(dtype=float)).dropna().to_numpy()
+    if len(returns) == 0:
+        return pd.Series(dtype=float)
+    rng = np.random.default_rng(7)
+    win_rates = []
+    profit_factors = []
+    for _ in range(1000):
+        sample = rng.choice(returns, size=len(returns), replace=True)
+        sample_s = pd.Series(sample)
+        win_rates.append(float((sample_s > 0).mean()))
+        profit_factors.append(_profit_factor(sample_s))
+    return pd.Series(
+        {
+            "max_hold": int(best["max_hold"]),
+            "stop": str(best["stop"]),
+            "trades": int(len(returns)),
+            "win_rate": float((returns > 0).mean()),
+            "win_ci_low": float(np.quantile(win_rates, 0.025)),
+            "win_ci_high": float(np.quantile(win_rates, 0.975)),
+            "profit_factor": _profit_factor(pd.Series(returns)),
+            "pf_ci_low": float(np.quantile(profit_factors, 0.025)),
+            "pf_ci_high": float(np.quantile(profit_factors, 0.975)),
+        }
+    )
+
+
+def _write_shortterm_report(
+    name: str,
+    matrix: pd.DataFrame,
+    single_prior: pd.Series,
+    gem_compare: pd.DataFrame,
+    report_dir: Path,
+) -> dict[str, Path]:
+    report_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = report_dir / f"{name}_shortterm.csv"
+    md_path = report_dir / f"{name}_shortterm.md"
+    matrix.to_csv(csv_path, index=False)
+    top = matrix.sort_values("profit_factor", ascending=False).head(20)
+    single = matrix[matrix["entry"].eq("single_needle_proxy")].sort_values(
+        "profit_factor", ascending=False
+    )
+    lines = [
+        f"# Short-Term Pair Study: {name}",
+        "",
+        "IS-only paired trades. Returns are before fees.",
+        "",
+        "## Top",
+        top.to_markdown(index=False),
+        "",
+        "## Single Needle Proxy",
+        single.head(10).to_markdown(index=False),
+        "",
+        "## Single Needle Prior Check",
+        single_prior.to_markdown(),
+        "",
+        "## GEM Excluded Check",
+        gem_compare.to_markdown(index=False),
     ]
     md_path.write_text("\n".join(lines), encoding="utf-8")
     return {"csv": csv_path, "md": md_path}

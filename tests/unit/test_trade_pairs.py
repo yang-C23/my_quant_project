@@ -98,3 +98,49 @@ def test_overlapping_entries_are_ignored_until_exit() -> None:
     result = run_pair_study(entries, {"dead_cross": _signal("2020-01-03")}, _prices())
 
     assert len(result.trades) == 1
+
+
+def test_entry_low_stop_and_two_day_no_profit() -> None:
+    result = run_pair_study(
+        _signal("2020-01-01"),
+        {},
+        _prices(),
+        max_hold=6,
+        stop_loss="entry_low",
+        two_day_no_profit=True,
+    )
+
+    trade = result.trades.iloc[0]
+    assert trade["exit_reason"] == "stop_loss"
+    assert trade["exit_signal_date"] == pd.Timestamp("2020-01-02")
+
+
+def test_two_day_no_profit_exit_without_stop() -> None:
+    result = run_pair_study(
+        _signal("2020-01-02"),
+        {},
+        _prices(),
+        max_hold=6,
+        two_day_no_profit=True,
+    )
+
+    trade = result.trades.iloc[0]
+    assert trade["exit_reason"] == "two_day_no_profit"
+    assert trade["exit_signal_date"] == pd.Timestamp("2020-01-05")
+
+
+def test_stop_exit_defers_when_next_open_is_limit_down() -> None:
+    prices = _prices()
+    prices["limit_down_price"] = np.nan
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-05")), "limit_down_price"] = 9.0
+    result = run_pair_study(
+        _signal("2020-01-01"),
+        {},
+        prices,
+        max_hold=6,
+        stop_loss=0.10,
+    )
+
+    trade = result.trades.iloc[0]
+    assert trade["exit_signal_date"] == pd.Timestamp("2020-01-04")
+    assert trade["exit_date"] == pd.Timestamp("2020-01-06")
