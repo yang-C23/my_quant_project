@@ -24,7 +24,7 @@
 | TASK-025 | 事件研究引擎（gate 卡） | M2 | done | merged | 014, 021 | review PASS + 审查者三处口径修复后 10 股对拍**逐位归零**（2180=2180，0.0000bps）；M2 gate 见 docs/reviews/ |
 | TASK-026 | IC / 分层分析 | M2 | done | merged | 025 | review PASS |
 | TASK-060 | R1 研究基础设施（扫描/切分/稳定性） | R1 | review | — | 025,026 | pytest -q tests/unit/test_optimize.py PASS；模板真实数据 demo <3m；IS 越界拒绝+按符号价格缓存已测 |
-| TASK-061 | 研究：活跃市值（K/阈值/右侧确认） | R1 | backlog | — | 060 | |
+| TASK-061 | 研究：活跃市值（K/阈值/右侧确认） | R1 | review | — | 060 | pytest -q tests/unit/test_amv_timing.py PASS；myquant research configs/research/amv.yaml PASS；K 对 pct 无影响，top-5 邻域稳定均未过，候选为空 |
 | TASK-062 | 研究：B1 参数族+组合条件 | R1 | backlog | — | 060 | |
 | TASK-063 | 研究：双线成对交易/退出策略 | R1 | backlog | — | 060 | |
 | TASK-064 | 研究：单针/砖形 持有期×止损 | R1 | backlog | — | 063 | 复用 trade_pairs |
