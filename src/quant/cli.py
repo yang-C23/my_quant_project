@@ -219,6 +219,8 @@ def research_cmd(
     ] = False,
 ) -> None:
     """Run an IS-only research parameter scan."""
+    from quant.config import load_config
+    from quant.research.amv_timing import run_amv_research
     from quant.research.optimize import load_research_config, run_param_scan, write_scan_report
 
     if oos_final is not None:
@@ -227,6 +229,12 @@ def research_cmd(
             raise typer.Exit(code=2)
         typer.echo("protected holdout path is reserved for reviewer execution", err=True)
         raise typer.Exit(code=2)
+
+    raw = load_config(config_path)
+    if raw.get("kind") == "amv_timing":
+        result = run_amv_research(config_path)
+        typer.echo(f"research scan: {result.report_paths['md']}")
+        return
 
     cfg = load_research_config(config_path)
     result = run_param_scan(cfg)
