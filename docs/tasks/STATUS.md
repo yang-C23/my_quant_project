@@ -20,7 +20,7 @@
 | TASK-021 | KDJ + 双线 V2.1 | M2 | done | merged | 020 | 返工后 PASS；字面呼吸度语义经审查者恒等复核；v1 sorted 差异快照留档 |
 | TASK-022 | B1 三版本 | M2 | review | task/TASK-022-b1 | 021 | test_b1 9 passed / 66 non-integration / ruff OK；长 fixture 600 根；默认版命中 2022-12-19~21 |
 | TASK-023 | 活跃市值 0AMV | M2 | done | merged | 020 | review PASS；924 行情信号复现 |
-| TASK-024 | 倍量/单针/MACD/砖形 | M2 | ready | — | 021 | **堆叠**：从 task/TASK-022-b1 切出（共享 registry/__init__），022 置 review 后即开工 |
+| TASK-024 | 倍量/单针/MACD/砖形 | M2 | review | task/TASK-024-volume-brick | 021 | stacked on 022；3 个目标测试文件 15 passed / 81 non-integration / ruff OK；brick zxt vs golden rtol≤1e-8 |
 | TASK-025 | 事件研究引擎（gate 卡） | M2 | backlog | — | 014, 021 | parity 见 docs/parity |
 | TASK-026 | IC / 分层分析 | M2 | backlog | — | 025 | |
 
