@@ -148,6 +148,8 @@ def _default_signal_builder(name: str, bars: pd.DataFrame, params: Mapping[str, 
         from quant.indicators.kdj import kdj
 
         return (kdj(bars)["j"] < float(params["j_threshold"])).fillna(False).astype(bool)
+    if name == "b1_parametric":
+        return _b1_parametric_signal(bars, params)
 
     from quant.signals import registry
 
@@ -157,6 +159,56 @@ def _default_signal_builder(name: str, bars: pd.DataFrame, params: Mapping[str, 
     except TypeError:
         signal = func(bars)
     return signal.fillna(False).astype(bool)
+
+
+def _b1_parametric_signal(bars: pd.DataFrame, params: Mapping[str, Any]) -> pd.Series:
+    from dataclasses import replace
+
+    from quant.indicators.b1 import PRESETS, b1
+    from quant.indicators.dual_trend import dual_trend
+    from quant.indicators.n_shape import n_shape
+
+    parsed = _parse_case_params(str(params["case"])) if "case" in params else dict(params)
+    preset_name = str(parsed.get("preset", "b1_v242_62"))
+    base = PRESETS[preset_name]
+    yangyin_scale = float(parsed.get("yangyin_scale", 1.0))
+    yangyin_windows = tuple((window, mult * yangyin_scale) for window, mult in base.yangyin_windows)
+    b1_params = replace(
+        base,
+        yangyin_windows=yangyin_windows,
+        j_max=float(parsed.get("j_max", base.j_max)),
+        line_mult=float(parsed.get("line_mult", base.line_mult)),
+        plry_mult=float(parsed.get("plry_mult", base.plry_mult)),
+        three_sum_min=int(parsed.get("three_sum_min", base.three_sum_min)),
+    )
+    signal = b1(bars, b1_params)["sig_b1"].copy()
+    condition = str(parsed.get("condition", "none"))
+    if condition == "breath_active":
+        signal &= dual_trend(bars)["breath_active"]
+    elif condition == "n_shape":
+        signal &= n_shape(bars, lookback=int(parsed.get("n_lookback", 60)))
+    elif condition == "dual_zone":
+        signal &= dual_trend(bars)["zone_ok"]
+    elif condition != "none":
+        raise ValueError(f"unknown B1 condition: {condition}")
+    return signal.fillna(False).astype(bool)
+
+
+def _parse_case_params(case: str) -> dict[str, Any]:
+    parsed: dict[str, Any] = {}
+    for token in case.split(";"):
+        if not token:
+            continue
+        key, _, raw_value = token.partition("=")
+        if not key or not raw_value:
+            raise ValueError(f"invalid case token: {token}")
+        if key in {"j_max", "line_mult", "plry_mult", "yangyin_scale"}:
+            parsed[key] = float(raw_value)
+        elif key in {"three_sum_min", "n_lookback"}:
+            parsed[key] = int(raw_value)
+        else:
+            parsed[key] = raw_value
+    return parsed
 
 
 def _load_symbol_prices(symbol: str, start: str | None, end: str | None) -> pd.DataFrame:

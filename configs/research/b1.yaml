@@ -1,0 +1,43 @@
+name: b1
+signal: b1_parametric
+universe: stocks_nostar
+exclude_boards: [star, b]
+max_symbols: 300
+is_start: 2015-01-01
+is_end: 2021-12-31
+warmup_days: 275
+horizons: [5]
+objective: profit_factor_h5
+entry_filters: ashare
+regime_by: amv
+ic: false
+grid:
+  case:
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=none
+    - preset=b1_v242b;j_max=13;line_mult=0.985;plry_mult=1.95;three_sum_min=4;yangyin_scale=1.0;condition=none
+    - preset=b1_v242p;j_max=13;line_mult=0.985;plry_mult=1.95;three_sum_min=3;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=20;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=26.5;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=13;line_mult=0.985;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=13;line_mult=0.99;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.75;three_sum_min=2;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=2.15;three_sum_min=2;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.95;three_sum_min=3;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.95;three_sum_min=4;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=0.8;condition=none
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.2;condition=none
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=breath_active
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=n_shape
+    - preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=dual_zone
+    - preset=b1_v242_62;j_max=20;line_mult=0.985;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=none
+    - preset=b1_v242_62;j_max=20;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=breath_active
+    - preset=b1_v242_62;j_max=20;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=n_shape
+    - preset=b1_v242_62;j_max=20;line_mult=0.985;plry_mult=1.75;three_sum_min=2;yangyin_scale=0.8;condition=n_shape
+    - preset=b1_v242_62;j_max=20;line_mult=0.985;plry_mult=2.15;three_sum_min=3;yangyin_scale=1.2;condition=breath_active
+    - preset=b1_v242p;j_max=20;line_mult=0.985;plry_mult=1.95;three_sum_min=3;yangyin_scale=1.0;condition=none
+    - preset=b1_v242p;j_max=20;line_mult=0.995;plry_mult=1.95;three_sum_min=3;yangyin_scale=1.0;condition=breath_active
+    - preset=b1_v242p;j_max=20;line_mult=0.995;plry_mult=1.95;three_sum_min=3;yangyin_scale=1.0;condition=n_shape
+    - preset=b1_v242p;j_max=20;line_mult=0.985;plry_mult=1.75;three_sum_min=2;yangyin_scale=0.8;condition=n_shape
+    - preset=b1_v242p;j_max=20;line_mult=0.985;plry_mult=2.15;three_sum_min=4;yangyin_scale=1.2;condition=breath_active
+baseline:
+  case: preset=b1_v242_62;j_max=13;line_mult=0.995;plry_mult=1.95;three_sum_min=2;yangyin_scale=1.0;condition=none
