@@ -7,7 +7,9 @@ import typer
 
 app = typer.Typer(add_completion=False)
 etl_app = typer.Typer(add_completion=False, help="Data platform ETL commands.")
+dump_app = typer.Typer(add_completion=False, help="Qlib dump commands.")
 app.add_typer(etl_app, name="etl")
+app.add_typer(dump_app, name="dump")
 
 _ETL_STEPS = ("daily", "gbbq", "securities", "blocks", "derive", "flags")
 _ETL_STEP_ALIASES = {"meta": ("gbbq", "securities", "blocks", "flags")}
@@ -137,3 +139,23 @@ def etl_full(
                 raise
         else:
             typer.echo(f"staging flags: {rows} rows")
+
+
+@dump_app.command("cn-daily")
+def dump_cn_daily_cmd(
+    symbols: Annotated[
+        str | None,
+        typer.Option(help="Optional comma-separated internal symbols, e.g. sh600000,sz000001."),
+    ] = None,
+) -> None:
+    """Rebuild qlib cn_daily bin data from staging."""
+    from quant.config import get_settings
+    from quant.etl.qlib_dump import dump_cn_daily
+
+    settings = get_settings()
+    selected = [s.strip() for s in symbols.split(",") if s.strip()] if symbols else None
+    stats = dump_cn_daily(settings.staging_dir, settings.qlib_cn_daily_uri, selected)
+    typer.echo(
+        f"qlib cn_daily: {stats.rows} rows, {stats.instruments} instruments, "
+        f"{stats.fields} fields in {stats.seconds:.1f}s"
+    )

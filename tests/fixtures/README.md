@@ -14,7 +14,7 @@
 | `adjust/pg_sz000001_adjust.csv` | PG 黄金 HFQ 因子（`sz000001` 全历史；为满足 <200KB 省略恒定 symbol 列） | `docker start pg_quant` 后用 psycopg2 导出：`select date,hfq_factor from tdx.adjust_factor where symbol='sz000001' order by date`，CSV 使用 LF 行尾 | 012 |
 | `adjust/pg_sz000001_daily_close.csv` | PG `sz000001` 全历史 close（用于离线重算 HFQ fixture） | 同上，SQL：`select date,close from tdx.daily_kline where symbol='sz000001' order by date` | 012 |
 | `adjust/pg_sz000001_gbbq_xdxr.csv` | PG `sz000001` category=1 GBBQ 事件（c1..c4 原始列） | 同上，SQL：`select date,c1,c2,c3,c4 from tdx.gbbq where symbol='sz000001' and category=1 order by date` | 012 |
-| `staging_mini/**` | 迷你 staging（fixture .day 全流程产物） | `tests/fixtures/make_staging_mini.py`（013 编写） | 013 |
+| `staging_mini/**` | 迷你 staging（由 `sh600000.day` 小样本经 TASK-010 解析 + TASK-012 basics/adjust 生成，另派生一只科创样本用于 universe 断言） | `python tests/fixtures/make_staging_mini.py` | 013 |
 | `goldens/bt_legacy_{symbol}.csv` | v1 backtrader 指标黄金值（sma_3_1/sma_40_4/k/d/j/short_trend/long_trend/avghigh/avglow/activity/brick/brick_xg，200 bar 含 warmup NaN） | `python tests/fixtures/generate_goldens.py`（`--check` 校验可复现） | 020 ✅ |
 | 各 `*_snapshot.*` | 指标命中日回归快照 | 各指标测试首跑生成 | 022/024 |
 
