@@ -7,6 +7,8 @@ from collections.abc import Callable
 import pandas as pd
 
 from quant.indicators.amv import amv, amv_timing_signal
+from quant.indicators.dual_trend import dual_trend
+from quant.indicators.kdj import kdj
 
 SignalFunc = Callable[[pd.DataFrame], pd.Series]
 
@@ -44,3 +46,15 @@ def names() -> tuple[str, ...]:
 def amv_regime(df: pd.DataFrame) -> pd.Series:
     """0AMV timing regime for index daily bars."""
     return amv_timing_signal(amv(df))["regime"]
+
+
+@register("kdj_oversold")
+def kdj_oversold(df: pd.DataFrame) -> pd.Series:
+    """J < 13 oversold trigger."""
+    return (kdj(df)["j"] < 13.0).fillna(False).astype(bool)
+
+
+@register("dual_trend_entry")
+def dual_trend_entry(df: pd.DataFrame) -> pd.Series:
+    """Dual-trend XG trigger, excluding universe-level board filters."""
+    return dual_trend(df)["sig_dual_trend_entry"]
