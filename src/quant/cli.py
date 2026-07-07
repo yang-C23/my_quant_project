@@ -187,3 +187,24 @@ def update_cmd(
         f"update: {stats.new_rows} rows, {stats.symbols} symbols, "
         f"qlib_rebuilt={stats.qlib_rebuilt}, {stats.seconds:.1f}s"
     )
+
+
+@app.command("validate")
+def validate_cmd() -> None:
+    """Run the PG-vs-v2 validation report."""
+    from importlib.util import module_from_spec, spec_from_file_location
+    from pathlib import Path
+    import sys
+
+    script = Path(__file__).resolve().parents[2] / "scripts" / "validate_vs_pg.py"
+    spec = spec_from_file_location("validate_vs_pg", script)
+    if spec is None or spec.loader is None:
+        raise typer.Exit(code=2)
+    module = module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    code = module.main()
+    if code:
+        raise typer.Exit(code=code)
+    typer.echo("validate_vs_pg: PASS")
