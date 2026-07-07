@@ -52,3 +52,11 @@ kdj/dual_trend 的接口、白线/黄线/金叉死叉、registry 骨架、输入
 ## 结论
 
 **CHANGES_REQUESTED**（修改项 1–4）。
+
+---
+
+# 第 2 轮（返工审查，2026-07-07）
+
+审查者独立重跑：11 指标测试 + 53 全套 + ruff + golden `--check` 全绿。**恒等复核**：`_rolling_tdx_volume_breath` 与审查者的字面语义参考实现在两只 fixture 上逐位一致（rtol 1e-12）；一字板窗口（12 根 H==L==C）RSV=0、K 恒 0 行为正确；registry 与 amv 注册共存无冲突。开发者留档的 v1 sorted 差异快照（149/171、171/171，active 翻转 13/40）与审查者第 1 轮实证完全吻合。修改项 1–4 全部落实。
+
+**PASS** —— 已合并至 v2。
