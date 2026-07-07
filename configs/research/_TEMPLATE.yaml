@@ -1,0 +1,17 @@
+name: template_kdj_oversold
+signal: kdj_oversold
+universe: stocks_nostar
+exclude_boards: [star, b]
+max_symbols: 10
+is_start: 2015-01-01
+is_end: 2021-12-31
+horizons: [1, 3, 5, 10, 20]
+objective: h5_avg_x_profit_factor
+entry_filters: ashare
+regime_by: amv
+ic: true
+min_signals_per_year: 0
+grid:
+  j_threshold: [0, 5, 13, 20, 26.5]
+baseline:
+  j_threshold: 13
