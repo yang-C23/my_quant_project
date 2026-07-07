@@ -157,8 +157,17 @@ def run_event_study(
     *,
     prices: pd.DataFrame | None = None,
     regime: pd.Series | None = None,
+    entry_filters: Literal["ashare", "none"] = "ashare",
 ) -> EventStudyResult:
-    """Run a t signal -> t+1 open -> h-day close forward-return study."""
+    """Run a t signal -> t+1 open entry -> close(entry+h) forward-return study.
+
+    ``ret_h = close(entry_bar + h) / open(entry_bar) - 1`` — hold h trading
+    days after the entry day (v1-engine convention, backtest_platform.md §2).
+    ``entry_filters="ashare"`` drops entries suspended or opening at the
+    limit-up price; ``"none"`` replicates the unfiltered v1 KDJ study
+    (parity mode). The ``signals`` statistic counts valid entries
+    (entry bar exists and passes filters), matching v1 ``signal_count``.
+    """
     if entry != "next_open":
         raise ValueError("only entry='next_open' is supported")
     horizon_tuple = tuple(sorted({int(h) for h in horizons}))
@@ -170,7 +179,7 @@ def run_event_study(
         prices = _load_prices(sig["symbol"].drop_duplicates().tolist(), start, end)
     px = _normalize_prices(prices)
     px_by_symbol = {symbol: group.reset_index(drop=True) for symbol, group in px.groupby("symbol")}
-    signal_counts = sig.groupby("symbol")["sig"].size()
+    valid_signal_counts: dict[str, int] = {}
     exclusions = {
         "entry_missing": 0,
         "entry_suspended": 0,
@@ -193,22 +202,27 @@ def run_event_study(
                 continue
             entry_pos = signal_pos + 1
             entry_row = bars.iloc[entry_pos]
-            if bool(entry_row.get("is_suspended", False)) or pd.isna(entry_row["open"]):
-                exclusions["entry_suspended"] += 1
+            if entry_filters == "ashare":
+                if bool(entry_row.get("is_suspended", False)) or pd.isna(entry_row["open"]):
+                    exclusions["entry_suspended"] += 1
+                    continue
+                limit_up = entry_row.get("limit_up_price", np.nan)
+                if (
+                    pd.notna(limit_up)
+                    and pd.notna(entry_row["raw_open"])
+                    and entry_row["raw_open"] >= limit_up
+                ):
+                    exclusions["entry_limit_up"] += 1
+                    continue
+            elif pd.isna(entry_row["open"]):
+                exclusions["entry_missing"] += 1
                 continue
-            limit_up = entry_row.get("limit_up_price", np.nan)
-            if (
-                pd.notna(limit_up)
-                and pd.notna(entry_row["raw_open"])
-                and entry_row["raw_open"] >= limit_up
-            ):
-                exclusions["entry_limit_up"] += 1
-                continue
+            valid_signal_counts[symbol] = valid_signal_counts.get(symbol, 0) + 1
 
             entry_open = float(entry_row["open"])
             entry_date = pd.Timestamp(entry_row["date"])
             for horizon in horizon_tuple:
-                exit_pos = entry_pos + horizon - 1
+                exit_pos = entry_pos + horizon
                 if exit_pos >= len(bars) or pd.isna(bars.iloc[exit_pos]["close"]):
                     exclusions["exit_missing"] += 1
                     continue
@@ -225,6 +239,7 @@ def run_event_study(
                     }
                 )
 
+    signal_counts = pd.Series(valid_signal_counts, dtype=int)
     events_df = pd.DataFrame(events)
     if not events_df.empty and regime is not None:
         regime_s = regime.copy()

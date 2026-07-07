@@ -172,7 +172,10 @@ def study_cmd(config_path: str) -> None:
 
     config = load_config(config_path)
     exclude = set(config.get("exclude_boards") or [])
-    symbols = list_symbols(exclude_boards=exclude or frozenset({"star"}), at=config.get("end"))
+    # 全期宇宙（at=None 含期内退市股）——单日时点宇宙会引入幸存者偏差
+    symbols = config.get("symbols") or list_symbols(
+        exclude_boards=exclude or frozenset({"star"}), at=None
+    )
     signals = compute_signal(
         str(config["signal"]),
         symbols,
@@ -187,6 +190,7 @@ def study_cmd(config_path: str) -> None:
         start=config.get("start"),
         end=config.get("end"),
         entry=config.get("entry", "next_open"),
+        entry_filters=config.get("entry_filters", "ashare"),
     )
     paths = write_event_study_report(
         result,

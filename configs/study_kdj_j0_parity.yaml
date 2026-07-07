@@ -3,9 +3,11 @@
 # v1 来源：run_pipeline.py + configs/pipeline_kdj_j0.yaml（J<0，前一bar J，horizons 1/3/5）
 signal: kdj_oversold
 signal_params:
-  j_threshold: 0              # v1 口径：REF(J,1) < 0 触发（信号取前一 bar 的 J，实现须核对 v1 源码）
+  j_threshold: 0              # v1 口径：J_t < 0 → t+1 开盘入场（等价于 v1 的 REF(J,1)<0 在入场 bar 判定）
+  sma_mode: simple            # v1 kdj_j0 研究用的是 bt.indicators.SMA（滚动均值），非 TDX 递归——parity 专用
 universe: nostar
 exclude_boards: [star]
+entry_filters: none           # v1 KDJForwardReturn 策略不做停牌/一字板过滤——parity 专用（生产默认 ashare）
 start: "2015-01-01"
 end: "2024-12-31"
 horizons: [1, 3, 5]

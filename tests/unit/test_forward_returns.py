@@ -41,14 +41,17 @@ def test_event_study_three_manual_return_cases() -> None:
     third = events[(events["symbol"].eq("sh600000")) & (events["horizon"].eq(3))].iloc[0]
     second_symbol = events[(events["symbol"].eq("sz000001")) & (events["horizon"].eq(1))].iloc[0]
 
+    # v1 口径：ret_h = close(entry+h) / open(entry) − 1（入场日之后再持有 h 天）
     assert first["entry_date"] == pd.Timestamp("2020-01-02")
-    assert first["exit_date"] == pd.Timestamp("2020-01-02")
-    assert first["return"] == (102.0 / 101.0) - 1.0
-    assert third["exit_date"] == pd.Timestamp("2020-01-04")
-    assert third["return"] == (104.0 / 101.0) - 1.0
-    assert second_symbol["return"] == (203.0 / 202.0) - 1.0
+    assert first["exit_date"] == pd.Timestamp("2020-01-03")
+    assert first["return"] == (103.0 / 101.0) - 1.0
+    assert third["exit_date"] == pd.Timestamp("2020-01-05")
+    assert third["return"] == (105.0 / 101.0) - 1.0
+    assert second_symbol["return"] == (204.0 / 202.0) - 1.0
     assert result.pooled.set_index("horizon").loc[1, "count"] == 3
     assert result.pooled.set_index("horizon").loc[3, "count"] == 3
+    # signals 统计 = 有效入场数（v1 signal_count 语义）
+    assert result.per_symbol["signals"].tolist() == [1, 1, 1, 1, 1, 1]
 
 
 def test_entry_filters_and_exit_missing_counts() -> None:
@@ -62,7 +65,7 @@ def test_entry_filters_and_exit_missing_counts() -> None:
     signals = pd.DataFrame(
         {
             "symbol": ["sh600000", "sz000001", "sh601318", "sh601318"],
-            "date": pd.to_datetime(["2020-01-01", "2020-01-02", "2020-01-07", "2020-01-08"]),
+            "date": pd.to_datetime(["2020-01-01", "2020-01-02", "2020-01-06", "2020-01-08"]),
             "sig": [True, True, True, True],
         }
     )
@@ -75,6 +78,12 @@ def test_entry_filters_and_exit_missing_counts() -> None:
     assert result.exclusions["exit_missing"] == 1
     assert result.events["symbol"].tolist() == ["sh601318"]
     assert result.events["horizon"].tolist() == [1]
+
+    # parity 模式：entry_filters="none" 复刻 v1（不剔除停牌/一字板）
+    unfiltered = run_event_study(signals, horizons=[1, 3], prices=prices, entry_filters="none")
+    assert unfiltered.exclusions["entry_suspended"] == 0
+    assert unfiltered.exclusions["entry_limit_up"] == 0
+    assert set(unfiltered.events["symbol"]) == {"sh600000", "sz000001", "sh601318"}
 
 
 def test_by_year_split_uses_entry_year() -> None:
