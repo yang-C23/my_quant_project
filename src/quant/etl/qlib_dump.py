@@ -76,7 +76,7 @@ def _write_lines(path: Path, lines: list[str]) -> None:
 
 
 def build_instruments(staging_dir: Path, out_dir: Path) -> None:
-    """Write qlib instruments files: all, nostar, and main_only."""
+    """Write qlib instruments files: all, nostar, stocks_nostar, and main_only."""
     securities = _read_staging_table(staging_dir, "securities").copy()
     securities["list_date"] = pd.to_datetime(securities["list_date"])
     securities["delist_date"] = pd.to_datetime(securities["delist_date"])
@@ -97,6 +97,11 @@ def build_instruments(staging_dir: Path, out_dir: Path) -> None:
     inst_dir = out_dir / "instruments"
     _write_lines(inst_dir / "all.txt", lines_for(securities))
     _write_lines(inst_dir / "nostar.txt", lines_for(securities[~securities["board"].eq("star")]))
+    stocks = securities[securities["sec_type"].eq("stock")]
+    _write_lines(
+        inst_dir / "stocks_nostar.txt",
+        lines_for(stocks[~stocks["board"].isin({"star", "b"})]),
+    )
     _write_lines(
         inst_dir / "main_only.txt",
         lines_for(securities[securities["sec_type"].eq("stock") & securities["board"].eq("main")]),
@@ -130,7 +135,7 @@ def _prepare_features(staging_dir: Path, symbols: set[str] | None = None) -> pd.
     def bool_feature(column: str) -> pd.Series:
         if column not in base.columns:
             return pd.Series(False, index=base.index, dtype=bool)
-        return base[column].fillna(False).astype(bool)
+        return base[column].astype("boolean").fillna(False).astype(bool)
 
     base["st"] = bool_feature("is_st").astype(float)
     base["suspended"] = bool_feature("is_suspended").astype(float)
