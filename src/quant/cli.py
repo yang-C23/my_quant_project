@@ -216,6 +216,7 @@ def ic_cmd(
     path = ic_report(signal_name, factor)
     typer.echo(f"ic report: {path}")
 
+
 @app.command("update")
 def update_cmd(
     dry_run: Annotated[
