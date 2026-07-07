@@ -83,8 +83,10 @@ def compare_raw_ohlcv(
     merged = _keyed(v2_daily, pg_daily)
     issues: list[ValidationIssue] = []
     missing = merged[merged["_merge"].ne("both")]
-    for row in missing.itertuples(index=False):
-        issues.append(ValidationIssue("C4", row.symbol, row.date, "_merge", row._merge, "both"))
+    for row in missing[["symbol", "date", "_merge"]].to_dict("records"):
+        issues.append(
+            ValidationIssue("C4", row["symbol"], row["date"], "_merge", str(row["_merge"]), "both")
+        )
     both = merged[merged["_merge"].eq("both")]
     for col in columns:
         lv = pd.to_numeric(both[f"{col}_v2"], errors="coerce")
@@ -256,6 +258,9 @@ def main() -> int:
 
     v2_daily = pd.read_parquet(settings.staging_dir / "daily")
     v2_adjust = pd.read_parquet(settings.staging_dir / "adjust.parquet")
+    # 统一 date dtype（parquet 为 date object，PG 为 datetime）：merge 键必须同型
+    for frame in (pg_daily, pg_adjust, pg_hfq, v2_daily, v2_adjust):
+        frame["date"] = pd.to_datetime(frame["date"])
     v2_daily, pg_daily, max_date = truncate_to_common_window(v2_daily, pg_daily)
     v2_adjust = v2_adjust[pd.to_datetime(v2_adjust["date"]) <= max_date]
     pg_adjust = pg_adjust[pd.to_datetime(pg_adjust["date"]) <= max_date]

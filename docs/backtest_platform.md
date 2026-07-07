@@ -19,7 +19,7 @@ Tier1 显著 → Tier2 组合仍显著 → Tier3 交易级仍成立 → 才是�
   - t+1 停牌（`$suspended`）；
   - t+1 开盘即一字涨停（open == limit_up_price，买不进）；
   - t+1 为退市后日期 / 数据缺失。
-- **前向收益**：horizon h ∈ {1,3,5,10,20}，`ret_h = close_{t+1+h-1} / open_{t+1} - 1`（与 v1 引擎的"次日开盘入场、h 日收盘出场"口径一致，见 parity 说明 §5）。
+- **前向收益**（2026-07-07 修订，以 v1 参照实现为准）：horizon h ∈ {1,3,5,10,20}，`ret_h = close(entry_bar + h) / open(entry_bar) - 1`，entry_bar = t+1——**入场日之后再持有 h 个交易日**。本文档旧版写的 entry+h−1 是错的（M2 gate 审查时对照 bt_legacy 源码修正）。
 - **输出统计**：样本数、胜率、mean/median/p25/p75、profit factor；支持按年份/市况分组。
 - **接口**：
   ```python
@@ -59,7 +59,7 @@ A股约束（Tier3 强制，Tier1 以样本过滤形式体现）：
 - **黄金参照文件**：固化于 `docs/parity/`（来源与口径见其 README）。
 - **M2 gate（TASK-025）**：用相同 universe/区间重跑 KDJ J<0 研究，对照 `docs/parity/pipeline_kdj_forward_return_20260311_225334_summary.csv`（另有 5 只样本股小对拍文件）：**样本数完全一致**、胜率差 ≤0.1pp、均值差 ≤5bps。超差必须逐项解释（书面，进 review 文件），禁止静默放宽容差。
 - **M3 gate（TASK-032）**：DualTrend bt 策略重跑对照 `docs/parity/dualtrend_breath_full_20260224_220316_summary.csv`，同样本一致性要求。
-- v1 引擎口径备忘（对齐时的已知事实）：v1 在 Backtrader 里"信号日次 bar 开盘记入场，之后按 close 计 h 日收益"，并已过滤停牌/一字板；v2 Tier1 必须复刻同一口径。
+- v1 引擎口径备忘（M2 审查实证修正）：v1 KDJ 前向收益策略**不做任何停牌/一字板过滤**（过滤逻辑只存在于 DualTrend 策略），且用的是**简单均线 KDJ**（bt.indicators.SMA）而非 TDX 递归——parity 运行必须 `entry_filters: none` + `sma_mode: simple`；生产研究默认 `ashare` 过滤 + TDX KDJ。
 
 ## 6. 报告
 
