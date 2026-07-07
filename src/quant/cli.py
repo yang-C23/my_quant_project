@@ -10,6 +10,7 @@ etl_app = typer.Typer(add_completion=False, help="Data platform ETL commands.")
 app.add_typer(etl_app, name="etl")
 
 _ETL_STEPS = ("daily", "gbbq", "securities", "blocks", "derive", "flags")
+_ETL_STEP_ALIASES = {"meta": ("gbbq", "securities", "blocks", "flags")}
 
 
 def get_version() -> str:
@@ -56,20 +57,37 @@ def etl_full(
     """Full ETL load: mirror TDX data and build Parquet staging tables."""
     from quant.config import get_settings
     from quant.etl.mirror import extract_zip_baseline, mirror_vipdoc
-    from quant.etl.staging import build_daily_staging
+    from quant.etl.staging import (
+        build_blocks_staging,
+        build_daily_staging,
+        build_flags_staging,
+        build_gbbq_staging,
+        build_securities_staging,
+    )
 
     settings = get_settings()
     requested = [s.strip() for s in steps.split(",") if s.strip()]
-    unknown = [s for s in requested if s not in _ETL_STEPS]
+    valid_steps = _ETL_STEPS + tuple(_ETL_STEP_ALIASES)
+    unknown = [s for s in requested if s not in valid_steps]
     if unknown:
-        typer.echo(f"unknown steps: {unknown}; valid: {_ETL_STEPS}", err=True)
+        typer.echo(f"unknown steps: {unknown}; valid: {valid_steps}", err=True)
         raise typer.Exit(code=2)
 
+    expanded: list[str] = []
+    aliased_steps: set[str] = set()
     for step in requested:
-        if step != "daily":
+        alias_steps = _ETL_STEP_ALIASES.get(step)
+        if alias_steps is None:
+            expanded.append(step)
+        else:
+            expanded.extend(alias_steps)
+            aliased_steps.update(alias_steps)
+
+    for step in expanded:
+        if step == "derive":
             raise NotImplementedError(f"etl step '{step}' arrives in a later task card")
 
-    if "daily" in requested:
+    if "daily" in expanded:
         if mirror:
             if settings.tdx_zip is not None and settings.tdx_zip.exists():
                 zstats = extract_zip_baseline(settings.tdx_zip, settings.mirror_dir)
@@ -92,3 +110,26 @@ def etl_full(
             f"{sstats.rows_deduped} overlap rows deduped) "
             f"in {sstats.seconds:.1f}s | by exchange: {sstats.by_exchange}"
         )
+
+    if "gbbq" in expanded:
+        rows = build_gbbq_staging(settings.tdx_home, settings.staging_dir)
+        typer.echo(f"staging gbbq: {rows} rows")
+
+    if "securities" in expanded:
+        rows = build_securities_staging(settings.staging_dir)
+        typer.echo(f"staging securities: {rows} rows")
+
+    if "blocks" in expanded:
+        rows = build_blocks_staging(settings.tdx_home, settings.staging_dir)
+        typer.echo(f"staging blocks/holidays: {rows} rows")
+
+    if "flags" in expanded:
+        try:
+            rows = build_flags_staging(settings.staging_dir)
+        except FileNotFoundError as exc:
+            if "flags" in aliased_steps and "basics" in str(exc):
+                typer.echo("staging flags: skipped (requires basics from TASK-012)")
+            else:
+                raise
+        else:
+            typer.echo(f"staging flags: {rows} rows")

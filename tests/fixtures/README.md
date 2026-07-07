@@ -10,7 +10,7 @@
 | `tdx/lday/sz000001.day` | 平安银行 200 条（2021-08-02 起） | 同上（sz 目录） | 010 ✅ |
 | `tdx/lday/sh999999.day` | 上证指数 300 条（2021-08-02 ~ 2022-10-28） | `head -c 9600 ...` | 010/023 ✅ |
 | `tdx/expected/{symbol}.csv` | 上述三文件的 v1 逐条解析器输出（黄金对照） | v1 `parse_day_file`（commit 326bf99 时点）一次性生成；再生成需 `git show` 取回 v1 实现 | 010 ✅ |
-| `tdx/gbbq_sample.*` | GBBQ 小样本（或解码后 CSV） | 见 TASK-011 | 011 |
+| `tdx/gbbq_sample_decoded.csv` | GBBQ 解码后小样本（category/symbol/date/c1..c4） | 从 v1 `decode_gbbq_file` 输出 schema 手工截取两条代表性记录：category=1 除权、category=5 股本变更；本卡只验证 staging schema 与写盘，不提交加密原始样本 | 011 ✅ |
 | `adjust/pg_sz000001_adjust.csv` | PG 黄金复权因子 | `psql "$QUANT_DB_DSN" -c "\copy (select symbol,date,hfq_factor,qfq_factor from tdx.adjust_factor where symbol='sz000001' order by date) to stdout csv header"` | 012 |
 | `staging_mini/**` | 迷你 staging（fixture .day 全流程产物） | `tests/fixtures/make_staging_mini.py`（013 编写） | 013 |
 | `goldens/bt_legacy_{symbol}.csv` | v1 backtrader 指标黄金值（sma_3_1/sma_40_4/k/d/j/short_trend/long_trend/avghigh/avglow/activity/brick/brick_xg，200 bar 含 warmup NaN） | `python tests/fixtures/generate_goldens.py`（`--check` 校验可复现） | 020 ✅ |
