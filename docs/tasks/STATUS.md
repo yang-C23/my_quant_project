@@ -21,7 +21,7 @@
 | TASK-022 | B1 三版本 | M2 | done | merged | 021 | review PASS + 审查者 fixup 1e98259（or2 的 THREE_SUM 分支归属，A1 结构见 b1.md 修订注） |
 | TASK-023 | 活跃市值 0AMV | M2 | done | merged | 020 | review PASS；924 行情信号复现 |
 | TASK-024 | 倍量/单针/MACD/砖形 | M2 | done | merged | 021 | review PASS；brick zxt 黄金对齐 |
-| TASK-025 | 事件研究引擎（gate 卡） | M2 | ready | — | 014, 021 | **堆叠**：从 task/TASK-014-data-api 切出（需要 data.api）；parity 见 docs/parity |
+| TASK-025 | 事件研究引擎（gate 卡） | M2 | review | task/TASK-025-event-study | 014, 021 | stacked on 014；test_forward_returns 4 passed / 126 non-integration / ruff OK；bt_legacy 10股对拍 h1 589vs593 均值差19.82bps、h3 584vs585 1.54bps、h5 581vs582 0.94bps（h1 受 legacy pending 口径影响） |
 | TASK-026 | IC / 分层分析 | M2 | ready | — | 025 | **堆叠**：从 task/TASK-025-event-study 切出 |
 
 M3–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）。

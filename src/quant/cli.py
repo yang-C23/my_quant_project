@@ -159,3 +159,42 @@ def dump_cn_daily_cmd(
         f"qlib cn_daily: {stats.rows} rows, {stats.instruments} instruments, "
         f"{stats.fields} fields in {stats.seconds:.1f}s"
     )
+
+
+@app.command("study")
+def study_cmd(config_path: str) -> None:
+    """Run a configured event study."""
+    from quant.config import load_config
+    from quant.data.universe import list_symbols
+    from quant.reporting.report import write_event_study_report
+    from quant.research.forward_returns import run_event_study
+    from quant.signals.factors import compute_signal
+
+    config = load_config(config_path)
+    exclude = set(config.get("exclude_boards") or [])
+    # 全期宇宙（at=None 含期内退市股）——单日时点宇宙会引入幸存者偏差
+    symbols = config.get("symbols") or list_symbols(
+        exclude_boards=exclude or frozenset({"star"}), at=None
+    )
+    signals = compute_signal(
+        str(config["signal"]),
+        symbols,
+        start=config.get("start"),
+        end=config.get("end"),
+        signal_params=config.get("signal_params") or None,
+    )
+    result = run_event_study(
+        signals,
+        horizons=config.get("horizons", (1, 3, 5, 10, 20)),
+        universe=str(config.get("universe", "nostar")),
+        start=config.get("start"),
+        end=config.get("end"),
+        entry=config.get("entry", "next_open"),
+        entry_filters=config.get("entry_filters", "ashare"),
+    )
+    paths = write_event_study_report(
+        result,
+        config.get("report_dir", "backtest_results"),
+        config.get("report_prefix", "study"),
+    )
+    typer.echo(f"study report: {paths['md']}")
