@@ -31,9 +31,42 @@ def test_build_calendar_and_instruments(tmp_path: Path) -> None:
     assert (tmp_path / "instruments" / "nostar.txt").read_text(encoding="utf-8").splitlines() == [
         "SH600000\t2021-08-02\t2021-08-09"
     ]
+    assert (tmp_path / "instruments" / "stocks_nostar.txt").read_text(
+        encoding="utf-8"
+    ).splitlines() == ["SH600000\t2021-08-02\t2021-08-09"]
     assert (tmp_path / "instruments" / "main_only.txt").read_text(
         encoding="utf-8"
     ).splitlines() == ["SH600000\t2021-08-02\t2021-08-09"]
+
+
+def test_build_instruments_stocks_nostar_excludes_non_a_stocks(tmp_path: Path) -> None:
+    staging = tmp_path / "staging"
+    staging.mkdir()
+    dates = pd.to_datetime(["2021-01-04", "2021-01-05"])
+    symbols = ["sh600000", "sh688001", "sz200001", "sh113001", "sh510050", "bj830799"]
+    daily = pd.DataFrame([{"symbol": symbol, "date": date} for symbol in symbols for date in dates])
+    securities = pd.DataFrame(
+        {
+            "symbol": symbols,
+            "name": [None] * len(symbols),
+            "exchange": ["sh", "sh", "sz", "sh", "sh", "bj"],
+            "sec_type": ["stock", "stock", "stock", "bond", "etf", "stock"],
+            "board": ["main", "star", "b", "bond", "etf", "bse"],
+            "list_date": [dates[0]] * len(symbols),
+            "delist_date": [pd.NaT, pd.NaT, pd.Timestamp("2021-01-05"), pd.NaT, pd.NaT, pd.NaT],
+        }
+    )
+    daily.to_parquet(staging / "daily", index=False)
+    securities.to_parquet(staging / "securities.parquet", index=False)
+
+    build_instruments(staging, tmp_path)
+
+    assert (tmp_path / "instruments" / "stocks_nostar.txt").read_text(
+        encoding="utf-8"
+    ).splitlines() == [
+        "BJ830799\t2021-01-04\t2021-01-05",
+        "SH600000\t2021-01-04\t2021-01-05",
+    ]
 
 
 def test_dump_cn_daily_readable_by_qlib(tmp_path: Path) -> None:
