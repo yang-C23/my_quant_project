@@ -9,6 +9,7 @@ import pandas as pd
 
 from quant.config import get_settings
 from quant.data.api import get_ohlcv
+from quant.data.symbols import to_qlib
 from quant.indicators.b1 import B1Params, b1
 from quant.indicators.kdj import kdj
 
@@ -70,3 +71,17 @@ def compute_signal(
     return (
         pd.concat(frames, ignore_index=True).sort_values(["symbol", "date"]).reset_index(drop=True)
     )
+
+
+def to_factor(
+    name: str, symbols: Sequence[str], start: str | None = None, end: str | None = None
+) -> pd.Series:
+    """Return a qlib-compatible factor Series indexed by (datetime, instrument)."""
+    signals = compute_signal(name, symbols, start, end)
+    if signals.empty:
+        return pd.Series(dtype=float, name=name)
+    frame = signals.copy()
+    frame["datetime"] = pd.to_datetime(frame["date"])
+    frame["instrument"] = frame["symbol"].map(to_qlib)
+    frame[name] = frame["sig"].astype(float)
+    return frame.set_index(["datetime", "instrument"])[name].sort_index()
