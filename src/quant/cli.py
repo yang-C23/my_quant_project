@@ -56,6 +56,8 @@ def etl_full(
 ) -> None:
     """Full ETL load: mirror TDX data and build Parquet staging tables."""
     from quant.config import get_settings
+    from quant.etl.adjust import build_adjust_staging
+    from quant.etl.basics import build_basics_staging
     from quant.etl.mirror import extract_zip_baseline, mirror_vipdoc
     from quant.etl.staging import (
         build_blocks_staging,
@@ -82,10 +84,6 @@ def etl_full(
         else:
             expanded.extend(alias_steps)
             aliased_steps.update(alias_steps)
-
-    for step in expanded:
-        if step == "derive":
-            raise NotImplementedError(f"etl step '{step}' arrives in a later task card")
 
     if "daily" in expanded:
         if mirror:
@@ -122,6 +120,12 @@ def etl_full(
     if "blocks" in expanded:
         rows = build_blocks_staging(settings.tdx_home, settings.staging_dir)
         typer.echo(f"staging blocks/holidays: {rows} rows")
+
+    if "derive" in expanded:
+        basics_rows = build_basics_staging(settings.staging_dir)
+        adjust_rows = build_adjust_staging(settings.staging_dir)
+        typer.echo(f"staging basics: {basics_rows} rows")
+        typer.echo(f"staging adjust: {adjust_rows} rows")
 
     if "flags" in expanded:
         try:
