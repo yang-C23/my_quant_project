@@ -5,6 +5,8 @@ from typing import Iterable
 
 import pandas as pd
 
+from quant.research.forward_returns import EventStudyResult
+
 
 def _build_rows(results: Iterable[dict], horizons: Iterable[int]) -> list[dict]:
     rows: list[dict] = []
@@ -98,3 +100,20 @@ def write_report(df: pd.DataFrame, output_dir: str | Path, prefix: str) -> dict:
     md_path.write_text(df.to_markdown(index=False), encoding="utf-8")
 
     return {"csv": csv_path, "md": md_path}
+
+
+def write_event_study_report(
+    result: EventStudyResult, output_dir: str | Path, prefix: str
+) -> dict[str, Path]:
+    """Write EventStudyResult pooled/per-symbol CSVs and markdown summary."""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    pooled_path = output_path / f"{prefix}_pooled.csv"
+    symbol_path = output_path / f"{prefix}_summary.csv"
+    md_path = output_path / f"{prefix}_summary.md"
+
+    result.pooled.to_csv(pooled_path, index=False)
+    result.per_symbol.to_csv(symbol_path, index=False)
+    md_path.write_text(result.to_report(), encoding="utf-8")
+    return {"pooled": pooled_path, "csv": symbol_path, "md": md_path}
