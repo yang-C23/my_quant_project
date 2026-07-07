@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import numpy as np
 import pandas as pd
 
 from quant.config import get_settings
@@ -12,6 +13,30 @@ from quant.data.api import get_ohlcv
 from quant.data.symbols import to_qlib
 from quant.indicators.b1 import B1Params, b1
 from quant.indicators.kdj import kdj
+from quant.indicators.volume_patterns import volume_patterns
+
+FactorFunc = Callable[[pd.DataFrame, dict | None], pd.Series]
+
+_FACTOR_REGISTRY: dict[str, FactorFunc] = {}
+
+
+def register_factor(name: str) -> Callable[[FactorFunc], FactorFunc]:
+    """Register a continuous factor function."""
+    if not name:
+        raise ValueError("factor name must be non-empty")
+
+    def decorator(func: FactorFunc) -> FactorFunc:
+        if name in _FACTOR_REGISTRY:
+            raise ValueError(f"factor already registered: {name}")
+        _FACTOR_REGISTRY[name] = func
+        return func
+
+    return decorator
+
+
+def factor_names() -> tuple[str, ...]:
+    """Return registered continuous factor names."""
+    return tuple(sorted(_FACTOR_REGISTRY))
 
 
 def b1_signal_with_universe(
@@ -72,7 +97,58 @@ def compute_signal(
             for symbol in symbols
         }
         for future in as_completed(futures):
-            frames.append(future.result())
+            frame = future.result()
+            if not frame.empty:
+                frames.append(frame)
+    if not frames:
+        return pd.DataFrame(columns=["symbol", "date", "sig"])
+    return (
+        pd.concat(frames, ignore_index=True).sort_values(["symbol", "date"]).reset_index(drop=True)
+    )
+
+
+def _compute_one_factor(
+    name: str,
+    symbol: str,
+    start: str | None,
+    end: str | None,
+    params: dict | None,
+) -> pd.DataFrame:
+    try:
+        data = get_ohlcv(symbol, start=start, end=end, adjust="qfq")
+    except ValueError:
+        return pd.DataFrame(columns=["symbol", "date", "factor"])
+    factor = _FACTOR_REGISTRY[name](data, params).astype(float)
+    return pd.DataFrame({"symbol": symbol, "date": data.index, "factor": factor.to_numpy()})
+
+
+def compute_factor_frame(
+    name: str,
+    symbols: Sequence[str],
+    start: str | None = None,
+    end: str | None = None,
+    *,
+    params: dict | None = None,
+    workers: int | None = None,
+) -> pd.DataFrame:
+    """Compute a registered continuous factor for many symbols."""
+    if name not in _FACTOR_REGISTRY:
+        raise KeyError(f"unknown factor: {name}")
+    if not symbols:
+        return pd.DataFrame(columns=["symbol", "date", "factor"])
+    max_workers = workers or get_settings().etl_workers
+    frames: list[pd.DataFrame] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {
+            pool.submit(_compute_one_factor, name, symbol, start, end, params): symbol
+            for symbol in symbols
+        }
+        for future in as_completed(futures):
+            frame = future.result().dropna(subset=["factor"])
+            if not frame.empty:
+                frames.append(frame)
+    if not frames:
+        return pd.DataFrame(columns=["symbol", "date", "factor"])
     return (
         pd.concat(frames, ignore_index=True).sort_values(["symbol", "date"]).reset_index(drop=True)
     )
@@ -90,3 +166,55 @@ def to_factor(
     frame["instrument"] = frame["symbol"].map(to_qlib)
     frame[name] = frame["sig"].astype(float)
     return frame.set_index(["datetime", "instrument"])[name].sort_index()
+
+
+@register_factor("washout_area_ratio")
+def factor_washout_area_ratio(df: pd.DataFrame, params: dict | None = None) -> pd.Series:
+    """Green/red volume area ratio over a rolling window."""
+    window = int((params or {}).get("window", 60))
+    return volume_patterns(df, dead_window=window)["washout_area_ratio"]
+
+
+@register_factor("red_green_vol_ratio")
+def factor_red_green_vol_ratio(df: pd.DataFrame, params: dict | None = None) -> pd.Series:
+    """Rolling positive-candle volume divided by negative-candle volume."""
+    window = int((params or {}).get("window", 28))
+    volume = df["volume"].astype(float)
+    red = volume.where(df["close"].astype(float) >= df["open"].astype(float), 0.0).rolling(window).sum()
+    green = volume.where(df["close"].astype(float) < df["open"].astype(float), 0.0).rolling(window).sum()
+    return (red / green).where(green != 0)
+
+
+@register_factor("bottom_area_score")
+def factor_bottom_area_score(df: pd.DataFrame, params: dict | None = None) -> pd.Series:
+    """Washout area ratio gated to the lower price area."""
+    params = params or {}
+    window = int(params.get("window", 60))
+    price_window = int(params.get("price_window", 120))
+    close = df["close"].astype(float)
+    q30 = close.rolling(price_window).quantile(0.3)
+    return factor_washout_area_ratio(df, {"window": window}).where(close <= q30)
+
+
+@register_factor("turnover_weighted_cost")
+def factor_turnover_weighted_cost(df: pd.DataFrame, params: dict | None = None) -> pd.Series:
+    """Close relative to rolling turnover-weighted cost."""
+    window = int((params or {}).get("window", 60))
+    if "turnover" not in df.columns:
+        return pd.Series(np.nan, index=df.index)
+    turnover = df["turnover"].astype(float).where(df["turnover"].astype(float) > 0)
+    close = df["close"].astype(float)
+    cost = (close * turnover).rolling(window).sum() / turnover.rolling(window).sum()
+    return close / cost - 1.0
+
+
+@register_factor("chip_concentration")
+def factor_chip_concentration(df: pd.DataFrame, params: dict | None = None) -> pd.Series:
+    """Rolling amount-weighted price dispersion divided by weighted mean."""
+    window = int((params or {}).get("window", 60))
+    weight = df["amount"].astype(float).where(df["amount"].astype(float) > 0)
+    price = df["close"].astype(float)
+    mean = (price * weight).rolling(window).sum() / weight.rolling(window).sum()
+    second = ((price**2) * weight).rolling(window).sum() / weight.rolling(window).sum()
+    variance = (second - mean**2).clip(lower=0)
+    return np.sqrt(variance) / mean

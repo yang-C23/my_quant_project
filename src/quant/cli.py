@@ -221,6 +221,7 @@ def research_cmd(
     """Run an IS-only research parameter scan."""
     from quant.config import load_config
     from quant.research.amv_timing import run_amv_research
+    from quant.research.exploratory import run_exploratory_research
     from quant.research.optimize import load_research_config, run_param_scan, write_scan_report
     from quant.research.trade_pairs import run_dual_trend_research, run_shortterm_research
 
@@ -242,6 +243,10 @@ def research_cmd(
         return
     if raw.get("kind") == "shortterm_pairs":
         paths = run_shortterm_research(config_path)
+        typer.echo(f"research scan: {paths['md']}")
+        return
+    if raw.get("kind") == "exploratory_factors":
+        paths = run_exploratory_research(config_path)
         typer.echo(f"research scan: {paths['md']}")
         return
 

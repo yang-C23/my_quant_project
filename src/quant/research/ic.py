@@ -117,6 +117,13 @@ def rank_ic(
     aligned = _forward_returns(factor_s, int(horizon), prices)
     rows: list[dict] = []
     total_dates = int(factor_s.index.get_level_values("date").nunique())
+    if aligned.empty:
+        out = pd.DataFrame(columns=["date", "ic", "n", "nonzero"])
+        out.attrs["summary"] = _summary(out, total_dates)
+        out.attrs["sample_n_distribution"] = {}
+        out.attrs["universe"] = universe
+        out.attrs["horizon"] = int(horizon)
+        return out
     for date, group in aligned.groupby("date", sort=True):
         n = int(len(group))
         nonzero = int((group["factor"] != 0).sum())

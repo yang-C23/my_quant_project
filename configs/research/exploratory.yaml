@@ -1,0 +1,30 @@
+kind: exploratory_factors
+name: exploratory
+universe: stocks_nostar
+exclude_boards: [star, b]
+max_symbols: 300
+is_start: 2015-01-01
+is_end: 2021-12-31
+horizon: 5
+report_dir: backtest_results/research
+factors:
+  - name: washout_area_ratio
+    params: {window: 20}
+  - name: washout_area_ratio
+    params: {window: 40}
+  - name: washout_area_ratio
+    params: {window: 60}
+  - name: red_green_vol_ratio
+    params: {window: 14}
+  - name: red_green_vol_ratio
+    params: {window: 28}
+  - name: red_green_vol_ratio
+    params: {window: 57}
+  - name: bottom_area_score
+    params: {window: 60, price_window: 120}
+  - name: turnover_weighted_cost
+    params: {window: 30}
+  - name: turnover_weighted_cost
+    params: {window: 60}
+  - name: chip_concentration
+    params: {window: 60}
