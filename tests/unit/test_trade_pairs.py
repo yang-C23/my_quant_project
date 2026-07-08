@@ -25,9 +25,7 @@ def _prices() -> pd.DataFrame:
 
 
 def _signal(date: str) -> pd.DataFrame:
-    return pd.DataFrame(
-        {"symbol": ["sh600000"], "date": [pd.Timestamp(date)], "sig": [True]}
-    )
+    return pd.DataFrame({"symbol": ["sh600000"], "date": [pd.Timestamp(date)], "sig": [True]})
 
 
 def test_pair_study_immediate_exit_and_mae_mfe() -> None:

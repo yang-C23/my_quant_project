@@ -10,7 +10,7 @@ from typing import Literal
 import pandas as pd
 
 from quant.config import get_settings
-from quant.data.symbols import to_qlib
+from quant.data.symbols import from_qlib, to_qlib
 
 _INIT_STATE: tuple[str, str, Path] | None = None
 _INIT_LOCK = threading.Lock()
@@ -80,6 +80,33 @@ def _flatten_single_symbol(features: pd.DataFrame, qlib_symbol: str) -> pd.DataF
     return frame
 
 
+def _flatten_multi_symbol(features: pd.DataFrame, symbols: Sequence[str]) -> pd.DataFrame:
+    frame = features.copy()
+    frame.columns = [_field_name(str(col)) for col in frame.columns]
+    field_names = list(frame.columns)
+    if frame.empty:
+        return pd.DataFrame(columns=["symbol", "date", *field_names])
+
+    if isinstance(frame.index, pd.MultiIndex):
+        reset = frame.reset_index()
+        instrument_col = "instrument" if "instrument" in reset.columns else reset.columns[0]
+        date_col = "datetime" if "datetime" in reset.columns else reset.columns[1]
+        out = reset.rename(columns={instrument_col: "instrument", date_col: "date"})
+        out["symbol"] = out["instrument"].map(lambda value: from_qlib(str(value)))
+        out = out.drop(columns=["instrument"])
+    else:
+        if len(symbols) != 1:
+            raise ValueError("multi-symbol features must have an instrument index")
+        date_col = frame.index.name or "index"
+        out = frame.reset_index().rename(columns={date_col: "date"})
+        out["symbol"] = symbols[0]
+
+    out["date"] = pd.to_datetime(out["date"])
+    return (
+        out[["symbol", "date", *field_names]].sort_values(["symbol", "date"]).reset_index(drop=True)
+    )
+
+
 def get_features(
     symbols: Sequence[str],
     fields: Sequence[str],
@@ -115,6 +142,13 @@ def _latest_factor(qlib_symbol: str) -> float:
     if values.empty:
         raise ValueError(f"missing factor for {qlib_symbol}")
     return float(values.iloc[-1])
+
+
+def _latest_factors(symbols: Sequence[str]) -> pd.Series:
+    factor = get_features(symbols, ["factor"])
+    frame = _flatten_multi_symbol(factor, symbols)
+    values = frame.dropna(subset=["factor"]).groupby("symbol", sort=False)["factor"].last()
+    return values.astype(float)
 
 
 def get_ohlcv(
@@ -167,3 +201,60 @@ def get_ohlcv(
     out = out[[_field_name(field) for field in requested]]
     out.index.name = "date"
     return out
+
+
+def get_ohlcv_batch(
+    symbols: Sequence[str],
+    start: str | None = None,
+    end: str | None = None,
+    *,
+    adjust: Literal["qfq", "hfq", "raw"] = "qfq",
+    fields: Sequence[str] | None = None,
+) -> pd.DataFrame:
+    """Load OHLCV for many symbols as a sorted long table.
+
+    The returned columns are ``symbol``, ``date`` and the requested fields.
+    Symbols with no rows in the requested window are absent, matching callers
+    that currently catch ``ValueError`` from per-symbol ``get_ohlcv``.
+    """
+    if adjust not in {"qfq", "hfq", "raw"}:
+        raise ValueError(f"unsupported adjust: {adjust!r}")
+    symbol_list = list(dict.fromkeys(str(symbol) for symbol in symbols))
+    requested = tuple(fields or _DEFAULT_FIELDS)
+    requested_names = [_field_name(field) for field in requested]
+    if not symbol_list:
+        return pd.DataFrame(columns=["symbol", "date", *requested_names])
+
+    fetch_fields = list(dict.fromkeys([*requested, "factor"]))
+    features = get_features(symbol_list, fetch_fields, start, end)
+    out = _flatten_multi_symbol(features, symbol_list)
+    if out.empty:
+        return pd.DataFrame(columns=["symbol", "date", *requested_names])
+
+    price_cols = [col for col in _PRICE_COLUMNS if col in out.columns]
+    numeric_cols = [*price_cols, "factor"]
+    if "volume" in out.columns:
+        numeric_cols.append("volume")
+    for col in numeric_cols:
+        out[col] = out[col].astype(float)
+
+    factor = out["factor"]
+    if adjust == "raw":
+        out.loc[:, price_cols] = out.loc[:, price_cols].astype(float).div(factor, axis=0)
+        if "volume" in out.columns:
+            out["volume"] = out["volume"].astype(float) * factor
+    elif adjust == "qfq":
+        latest = _latest_factors(symbol_list)
+        out = out[out["symbol"].isin(latest.index)].copy()
+        if out.empty:
+            return pd.DataFrame(columns=["symbol", "date", *requested_names])
+        latest_by_row = out["symbol"].map(latest).astype(float)
+        out.loc[:, price_cols] = out.loc[:, price_cols].astype(float).div(latest_by_row, axis=0)
+        if "volume" in out.columns:
+            out["volume"] = out["volume"].astype(float) * latest_by_row
+
+    return (
+        out[["symbol", "date", *requested_names]]
+        .sort_values(["symbol", "date"])
+        .reset_index(drop=True)
+    )
