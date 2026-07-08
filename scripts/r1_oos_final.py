@@ -144,9 +144,12 @@ def main() -> int:
         print("protected OOS path: reviewer confirmation flag required", file=sys.stderr)
         return 2
 
-    # 候选注册表：与各 findings 的 Candidate params JSON 一一对应，OOS 各跑一次
-    dual_candidates: list[dict] = []  # 由审查者按 findings/TASK-063.md 填写
-    short_candidates: list[dict] = []  # 由审查者按 findings/TASK-064.md 填写
+    # 候选注册表：与各 findings（审查者修订版）的 Candidate params JSON 一一对应。
+    # 063/064 修复重跑后均无候选；双线 z哥原版基线按协议（基线 1 组）跑一次留档。
+    dual_candidates: list[dict] = [
+        {"entry": "golden_cross", "exit": "dead_cross", "max_hold": 120}
+    ]
+    short_candidates: list[dict] = []
 
     lines = [
         "# R1 Final Report — OOS 裁定（TASK-066）",

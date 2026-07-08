@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 
@@ -16,26 +17,29 @@ def n_shape(df: pd.DataFrame, *, lookback: int = 60, rebound_pct: float = 0.08) 
         raise ValueError("lookback must be at least 3")
     if rebound_pct <= 0:
         raise ValueError("rebound_pct must be positive")
-    low = df["low"].astype(float) if "low" in df.columns else df["close"].astype(float)
-    high = df["high"].astype(float) if "high" in df.columns else df["close"].astype(float)
-    out: list[bool] = []
-    for end_pos in range(len(df)):
+    low = (df["low"] if "low" in df.columns else df["close"]).astype(float).to_numpy()
+    high = (df["high"] if "high" in df.columns else df["close"]).astype(float).to_numpy()
+    n = len(df)
+    out = np.zeros(n, dtype=bool)
+    mult = 1.0 + rebound_pct
+    for end_pos in range(n):
         start_pos = max(0, end_pos - lookback + 1)
-        found = False
-        for rebound_pos in range(start_pos + 1, end_pos):
-            prior_lows = low.iloc[start_pos:rebound_pos]
-            base_low = float(prior_lows.min())
-            if pd.isna(base_low) or base_low <= 0:
-                continue
-            if float(high.iloc[rebound_pos]) < base_low * (1.0 + rebound_pct):
-                continue
-            pullback_lows = low.iloc[rebound_pos + 1 : end_pos + 1]
-            if pullback_lows.empty:
-                continue
-            if float(pullback_lows.min()) >= base_low and float(pullback_lows.min()) < float(
-                high.iloc[rebound_pos]
-            ):
-                found = True
-                break
-        out.append(found)
+        if end_pos - start_pos < 2:
+            continue
+        window_low = low[start_pos : end_pos + 1]
+        # fmin.accumulate = pandas nanmin 语义（跳过 NaN，全 NaN 才得 NaN）
+        prefix_min = np.fmin.accumulate(window_low)
+        suffix_min = np.fmin.accumulate(window_low[::-1])[::-1]
+        rel = np.arange(1, end_pos - start_pos)
+        base = prefix_min[rel - 1]
+        high_r = high[start_pos + rel]
+        pull = suffix_min[rel + 1]
+        ok = (
+            ~np.isnan(base)
+            & (base > 0)
+            & ~(high_r < base * mult)
+            & (pull >= base)
+            & (pull < high_r)
+        )
+        out[end_pos] = bool(ok.any())
     return pd.Series(out, index=df.index, dtype=bool, name="n_shape")

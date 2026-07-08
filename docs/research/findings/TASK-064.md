@@ -1,6 +1,10 @@
-# TASK-064 Findings
+# TASK-064 Findings（审查者修订版）
 
-IS window: 2015-01-01 to 2021-12-31. Research sample: first 300 `stocks_nostar` symbols with 180 warmup days.
+IS window: 2015-01-01 to 2021-12-31。样本 = 800 只 `stocks_nostar` 种子化随机抽样
+（seed=42，warmup 180 天）。首轮两处失效经审查者修复后重跑
+（docs/reviews/R1-batch1-review.md）：F-1 前 300 符号全为北交所股；
+F-2 `entry_low` 止损在入场日恒真、"跌破买入 bar 低点"从未被真实测试。
+**首轮结论（single_needle hold4/stop3% 候选）全部作废。**
 
 Reproduce:
 
@@ -8,30 +12,37 @@ Reproduce:
 myquant research configs/research/shortterm.yaml
 ```
 
-Top IS rows:
+## 单针代理（405 笔，全持有×止损网格要点）
 
-| entry | hold | stop | trades | win | avg | median | profit_factor | MAE | MFE |
-|:---|---:|:---|---:|---:|---:|---:|---:|---:|---:|
-| single_needle_proxy | 4 | 0.03 | 45 | 0.488889 | 0.045300 | 0.000000 | 3.58659 | -0.033342 | 0.101842 |
-| single_needle_proxy | 3 | 0.03 | 45 | 0.533333 | 0.038105 | 0.008197 | 3.38326 | -0.031723 | 0.073131 |
-| brick_relaxed_smallup_0.02 | 6 | 0.02 | 88 | 0.329545 | 0.015771 | -0.006329 | 2.37443 | -0.019873 | 0.045725 |
-| brick_len_smallup_0.04 | 6 | none | 60 | 0.416667 | 0.021533 | -0.008389 | 2.31279 | -0.028607 | 0.068119 |
+| hold | stop | trades | win | avg | median | PF |
+|---:|:---|---:|---:|---:|---:|---:|
+| 1 | 任意 | 405 | 0.484 | **0.0022** | −0.0002 | **1.178** |
+| 2 | 0.02 | 405 | 0.432 | 0.0023 | −0.0060 | 1.143 |
+| 2 | 0.03 | 405 | 0.462 | 0.0020 | −0.0028 | 1.115 |
+| 3 | 任意 | 403 | 0.39–0.46 | **负** | 负 | 0.85–0.94 |
+| 4 | 任意 | 402 | 0.37–0.41 | **负** | 负 | 0.88–0.96 |
+| 6 | 0.02/0.03 | 402 | 0.33–0.35 | ~0 | 负 | ~1.02 |
 
-Single-needle prior check:
+结构清晰：**信号的全部边际集中在次日开盘→再次日开盘的一天里**（hold=1 时止损维度
+不起作用，四行同值），持有 3–4 天反而转负。首轮报出的"hold 4 最优"是北交所废样本
+的幻觉。
 
-| hold | stop | trades | win | win CI | profit_factor | PF CI |
-|---:|:---|---:|---:|:---|---:|:---|
-| 4 | 0.03 | 45 | 0.488889 | [0.355000, 0.622222] | 3.58659 | [1.33495, 8.05786] |
+笔记先验对照（37% 胜率 / 3:1 盈亏比）：实际 win 48.4%（CI [0.437, 0.533]）但盈亏比
+远低于 3:1；先验的"低胜率高赔率"画像**不成立**，实际是"半对半、微弱右偏"。
+最优行 bootstrap PF CI = **[0.897, 1.546]，横跨 1.0，不显著**。
 
-The proxy beats the note prior point estimate for win rate and payoff in this sample, but the CI is wide because there are only 45 trades.
+## 砖形三变体
 
-GEM excluded check for top-2 rows was unchanged in this sample slice.
+全网格 PF ≤ 1.08、笔均 ≤ 0.09%（2012 笔），smallup_pct 三档无实质分化——费前已近
+噪声。gem 剔除对照未改变结论。
 
-Candidate params JSON:
+## 结论与候选
+
+最优行笔均 +0.22%（费前）对 A股 ~0.15–0.3% 双边成本无生存空间，且 PF 置信区间含 1.0：
 
 ```json
-[
-  {"entry": "single_needle_proxy", "max_hold": 4, "stop": 0.03, "two_day_no_profit": true},
-  {"entry": "single_needle_proxy", "max_hold": 3, "stop": 0.03, "two_day_no_profit": true}
-]
+[]
 ```
+
+**无候选进入 OOS。** 单针/砖形按 Tier1 证据不具备独立短线策略价值；若未来复用，
+方向是把"单针下 20"作为其他体系（B1/双线）的入场时点微调因子，而非独立信号。

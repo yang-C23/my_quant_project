@@ -29,6 +29,6 @@
 | TASK-063 | 研究：双线成对交易/退出策略 | R1 | done | merged | 060 | review PASS；真实样本 5250 笔：无退出规则击败原版死叉（PF 1.15、笔均 +0.93%、中位数负）；候选为空 |
 | TASK-064 | 研究：单针/砖形 持有期×止损 | R1 | done | merged | 063 | review PASS + 审查者修 entry_low 止损入场日恒真 bug（F-2）；800 样本重跑后候选见 findings 修订版 |
 | TASK-065 | 探索：红绿量占比/筹码代理有效性 | R1 | done | merged | 060 | review PASS + 审查者修 turnover 字段未加载假阴性（F-3）与单调性判定（F-4）；全部因子未过门槛，washout/turnover_cost 两家族留档 M6 |
-| TASK-066 | R1 汇总：OOS 裁定+最终报告 | R1 | in_progress | — | 061-065 | 规划者执行中：scripts/r1_oos_final.py --i-am-the-reviewer |
+| TASK-066 | R1 汇总：OOS 裁定+最终报告 | R1 | done | — | 061-065 | 规划者执行完毕：**R1 零候选进入 Tier3**（AMV confirm_life OOS 输基线不采纳）；报告 docs/reviews/R1-final-report.md；**R1 收官**（tag v2.0-r1） |
 
 M3–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
