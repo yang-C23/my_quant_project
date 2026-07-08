@@ -2,6 +2,7 @@
 
 > 公告：当前开发环境 = `my_quant_env`（若 TASK-001 触发新建 `my_quant_v2`，由其 review 更新本行）。
 > 状态机与流程见 `docs/workflow.md`；`backlog` 的卡不许认领。
+> **冷接手**：先读 `docs/ONBOARDING.md` 按角色分流。开发者只做**状态=ready 且指派给你（或无指派）**的一张卡；改动文件不得超出该卡 `## Files to touch` 白名单（由 CI `scripts/check_whitelist.py` 强制）；提交前须跑通卡内全部验收命令 + 质量门（`ruff`、`pytest -m "not integration"`）。
 
 | ID | 标题 | 里程碑 | 状态 | 分支 | 依赖 | 备注 |
 |---|---|---|---|---|---|---|

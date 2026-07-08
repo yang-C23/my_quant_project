@@ -2,6 +2,7 @@
 
 你是本仓库的**开发代理**。规划与审查由另一个代理（Claude，见 `CLAUDE.md`）负责。
 你的全部工作以 `docs/tasks/` 下的任务卡为准；本文件定义你必须遵守的环境、命令与纪律。
+状态机与流程见 `docs/workflow.md`，活状态看板见 `docs/tasks/STATUS.md`（唯一状态源）；空白上下文冷启动先读 `docs/ONBOARDING.md`。
 
 ## 1. 项目一句话
 
@@ -27,7 +28,7 @@ pytest -q -m integration
 ```
 
 运行时路径一律来自 `.env`（模板见 `.env.example`），经 `quant.config.Settings` 读取。
-**严禁在代码中硬编码 `/mnt/d`、`/home/yang` 等绝对路径。**
+**严禁在代码中硬编码 `/mnt/d`、`/home/yang` 等绝对路径。**（`src/quant/` 由 `scripts/check_no_hardcoded_paths.py` 在 pre-commit + CI 强制；legacy `scripts/` 豁免）
 
 ## 3. 任务协议（必须逐条遵守）
 
@@ -45,7 +46,7 @@ pytest -q -m integration
 - [ ] 卡中每条 Acceptance criteria 的命令在本地可运行且结果符合预期；
 - [ ] 新增/修改的代码有对应单元测试；`pytest -q -m "not integration"` 全绿；
 - [ ] `ruff check .` 与 `ruff format --check .` 全绿；
-- [ ] 改动文件不超出卡中 Files-to-touch 白名单（`docs/tasks/STATUS.md` 中自己那一行除外）；
+- [ ] 改动文件不超出卡中 Files-to-touch 白名单（`docs/tasks/STATUS.md` 中自己那一行除外）；由 `scripts/check_whitelist.py` 在 CI（`task/**`）强制，本地可 `python scripts/check_whitelist.py` 自查；
 - [ ] 公共函数有类型注解与简短 docstring；无 `print` 调试残留（用 `logging`）。
 
 ## 5. 硬规则（违反 = 直接打回）
@@ -53,7 +54,7 @@ pytest -q -m integration
 - **不改**：`pyproject.toml` 的依赖、`.github/`（CI）、`AGENTS.md`、`docs/decisions/`、`docs/workflow.md`——除非任务卡明确授权。
 - **不新增依赖**，除非卡中列出（含版本）。
 - **不写 `DATA_ROOT`**（`/home/yang/quant_data`）下的任何文件，除非通过卡中指定的 CLI 入口；单元测试只用 `tests/fixtures/` 与 `tmp_path`。
-- **不提交任何 >200KB 的数据文件**；fixture 必须小而真实（生成方法写进 `tests/fixtures/README.md`）。
+- **不提交任何 >200KB 的数据文件**；fixture 必须小而真实（生成方法写进 `tests/fixtures/README.md`）。（由 pre-commit `check-added-large-files` 强制，maxkb=200；`docs/parity/` 黄金基线目录豁免）
 - **单元测试不联网**；需要网络的逻辑（如 yfinance）必须 mock。
 - **不跑全量历史 ETL/回测当测试**——那是审查者在集成阶段做的事。
 - **金融正确性红线**：任何指标/信号只准使用 ≤ t 的数据（禁止未来函数）；入场一律 t 日信号 → t+1 开盘；有涨跌停/停牌标记时必须过滤不可成交样本。语义细节见 `docs/conventions.md` 与 `docs/backtest_platform.md`。

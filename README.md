@@ -6,6 +6,16 @@ validated with Backtrader where trading constraints matter.
 
 v1 历史见 `main` 分支。
 
+## AI agents start here
+
+本仓库用双代理开发流程，全部流程存在于仓库内、跟 git 走。按角色分流：
+
+- **开发者**（写代码 + 单测）→ 读 `AGENTS.md`
+- **规划者 / 审查者**（写卡、审查、合并）→ 读 `CLAUDE.md`
+- 两者随后都读 `docs/workflow.md`（状态机）+ `docs/tasks/STATUS.md`（活状态，唯一状态源）
+
+空白上下文接手：直接从 **`docs/ONBOARDING.md`** 开始，它是可粘贴进任意工具的引导语。
+
 ## Installation
 
 ```bash

@@ -30,5 +30,34 @@ jobs:
       - name: Lint and format check
         run: ruff check . && ruff format --check .
 
+      - name: No hardcoded paths in src/quant
+        run: python scripts/check_no_hardcoded_paths.py
+
+      - name: qlib import smoke
+        run: python -c "import qlib, quant"
+
       - name: Run unit tests
         run: pytest -q -m "not integration" --cov=quant --cov-report=term
+
+  whitelist:
+    # File-whitelist gate: task branches must not touch files outside their
+    # card's `## Files to touch`. Only runs on task/** pushes.
+    if: startsWith(github.ref, 'refs/heads/task/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch v2 base
+        run: git fetch --no-tags origin v2:refs/remotes/origin/v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Check file whitelist
+        run: python scripts/check_whitelist.py --base origin/v2

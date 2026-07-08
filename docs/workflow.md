@@ -56,3 +56,24 @@ backlog ──(规划者: 依赖就绪)──▶ ready ──(开发者认领)�
 - 卡内容与 `docs/` 冲突 → 以卡为准并在 review 时由规划者修文档；
 - 卡与 ADR 冲突 → 停止，报告规划者（ADR 优先级最高）；
 - 实现中发现卡的设计不可行 → 不要绕路自行发明，在 STATUS.md 备注列说明并置 `review`，等规划者改卡。
+
+## 机器强制门（冷接手鲁棒性来源）
+
+流程红线尽量由检查强制，不依赖模型自觉。任何工具/模型在空白上下文只要能跑绿这些门，交付就满足硬约束：
+
+| 门 | 强制什么 | 触发 |
+|---|---|---|
+| `ruff check .` / `ruff format --check .` | lint + 格式 | pre-commit + CI |
+| `pytest -q -m "not integration"` | 单测全绿 | CI |
+| `python -c "import qlib, quant"` | 依赖冒烟（M0 gate 门） | CI |
+| `scripts/check_no_hardcoded_paths.py` | `src/quant/` 字符串字面量无硬编码绝对路径（legacy `scripts/` 豁免） | pre-commit + CI |
+| `check-added-large-files`（maxkb=200） | 无 >200KB 数据文件（`docs/parity/` 豁免） | pre-commit |
+| `scripts/check_whitelist.py` | 改动文件不超任务卡 `## Files to touch` | CI（`task/**`）+ 审查者/开发者本地 |
+
+金融正确性红线（未来函数、不可成交过滤、口径对齐）仍靠任务卡验收命令 + 规划者审查把守——这些是语义门，无法用通用脚本机器化，是审查的核心价值所在（见 `CLAUDE.md` 关键红线）。
+
+## 建议的分支保护（由用户在 GitHub 手动启用，非自动）
+
+- `v2`：要求 PR 且 CI 全绿方可合并；`test` 与 `whitelist` 两 job 设为 required checks。
+- `main`：受保护，仅用户手动决定何时把 `v2` 合回。
+- `task/**`：不设保护，短命分支。

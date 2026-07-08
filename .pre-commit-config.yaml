@@ -4,3 +4,20 @@ repos:
     hooks:
       - id: ruff
       - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # AGENTS.md §5: no data blobs. docs/parity/ holds reviewer-managed golden
+      # baselines and is exempt (grandfathered).
+      - id: check-added-large-files
+        args: [--maxkb=200]
+        exclude: ^docs/parity/
+  - repo: local
+    hooks:
+      # AGENTS.md §2: no hardcoded absolute paths in business logic.
+      - id: no-hardcoded-paths
+        name: no hardcoded absolute paths in src/quant
+        entry: python scripts/check_no_hardcoded_paths.py
+        language: system
+        pass_filenames: false
+        files: ^src/quant/.*\.py$
