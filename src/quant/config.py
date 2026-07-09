@@ -47,6 +47,11 @@ class Settings(BaseSettings):
         return self.data_root / "qlib" / "us_daily"
 
     @property
+    def mlruns_uri(self) -> Path:
+        """Directory containing local mlflow tracking runs."""
+        return self.data_root / "mlruns"
+
+    @property
     def archive_dir(self) -> Path:
         """Directory containing archived exports and dumps."""
         return self.data_root / "archive"

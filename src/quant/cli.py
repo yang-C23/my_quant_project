@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import os
 from importlib.metadata import PackageNotFoundError, version as package_version
+import subprocess
+import sys
 from typing import Annotated
 
 import typer
@@ -8,8 +11,10 @@ import typer
 app = typer.Typer(add_completion=False)
 etl_app = typer.Typer(add_completion=False, help="Data platform ETL commands.")
 dump_app = typer.Typer(add_completion=False, help="Qlib dump commands.")
+backtest_app = typer.Typer(add_completion=False, help="Portfolio backtest commands.")
 app.add_typer(etl_app, name="etl")
 app.add_typer(dump_app, name="dump")
+app.add_typer(backtest_app, name="backtest")
 
 _ETL_STEPS = ("daily", "gbbq", "securities", "blocks", "derive", "flags")
 _ETL_STEP_ALIASES = {"meta": ("gbbq", "securities", "blocks", "flags")}
@@ -159,6 +164,31 @@ def dump_cn_daily_cmd(
         f"qlib cn_daily: {stats.rows} rows, {stats.instruments} instruments, "
         f"{stats.fields} fields in {stats.seconds:.1f}s"
     )
+
+
+def _rerun_with_hash_seed_zero(command_args: list[str]) -> None:
+    """Restart hash-sensitive qlib commands under a deterministic hash seed."""
+    if os.environ.get("PYTHONHASHSEED") == "0":
+        return
+    env = os.environ.copy()
+    env["PYTHONHASHSEED"] = "0"
+    completed = subprocess.run([sys.executable, "-m", "quant.cli", *command_args], env=env)
+    raise typer.Exit(code=completed.returncode)
+
+
+@backtest_app.command("topk")
+def backtest_topk_cmd(config_path: str) -> None:
+    """Run a qlib TopkDropout portfolio backtest."""
+    _rerun_with_hash_seed_zero(["backtest", "topk", config_path])
+
+    from quant.backtest.qlib_topk import run_topk_backtest
+
+    result = run_topk_backtest(config_path)
+    typer.echo(f"mlflow_run_id: {result.mlflow_run_id}")
+    for name, value in sorted(result.metrics.items()):
+        typer.echo(f"{name}: {value:.12g}")
+    for name, path in sorted(result.report_paths.items()):
+        typer.echo(f"{name}: {path}")
 
 
 @app.command("study")

@@ -152,6 +152,13 @@ def to_factor(
     return frame.set_index(["datetime", "instrument"])[name].sort_index()
 
 
+@register_factor("mom_20")
+def factor_mom_20(df: pd.DataFrame, params: dict | None = None) -> pd.Series:
+    """Close-to-close momentum over the trailing 20 trading days."""
+    window = int((params or {}).get("window", 20))
+    return df["close"].astype(float).pct_change(window, fill_method=None)
+
+
 @register_factor("washout_area_ratio")
 def factor_washout_area_ratio(df: pd.DataFrame, params: dict | None = None) -> pd.Series:
     """Green/red volume area ratio over a rolling window."""
