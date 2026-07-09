@@ -19,6 +19,8 @@
 | `goldens/bt_legacy_{symbol}.csv` | v1 backtrader 指标黄金值（sma_3_1/sma_40_4/k/d/j/short_trend/long_trend/avghigh/avglow/activity/brick/brick_xg，200 bar 含 warmup NaN） | `python tests/fixtures/generate_goldens.py`（`--check` 校验可复现） | 020 ✅ |
 | 各 `*_snapshot.*` | 指标命中日回归快照 | 各指标测试首跑生成 | 022/024 |
 
+| `bt_ashare_bars.csv` | 20 根完全合成的 A 股 bar（普通/一字涨跌停/停牌/缺失旗标；价格恒定便于佣金桥 cash 对账） | 手工固定 CSV；不得从真实数据再生成 | 031 |
+
 ## 纪律
 
 - fixture 一经黄金化不许静默更新：更新必须在 commit message 说明原因并同步更新依赖测试。
