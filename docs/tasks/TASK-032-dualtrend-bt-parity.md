@@ -1,6 +1,6 @@
 # TASK-032: DualTrend bt 策略移植 + 历史报告 parity（M3 gate 卡）
 
-- Milestone: M3　|　State: backlog
+- Milestone: M3　|　State: ready
 - Branch: `task/TASK-032-dualtrend-bt-parity`　|　Depends: TASK-031
 
 ## Context
@@ -46,7 +46,17 @@ def run_dualtrend_backtest(config_path: str | Path) -> dict[str, Path]:
 3. 全量：`myquant backtest dualtrend configs/backtest/dualtrend_parity.yaml` 跑通（耗时记 STATUS 备注），`scripts/compare_parity.py` 输出：signals/count 完全一致、win_rate ≤0.1pp、avg_return ≤5bps，结论 PASS。超差 → 不许改容差，把逐项差异分析写进 STATUS 备注并置 review。
 4. `pytest -q -m "not integration"` + `ruff check .` 全绿。
 
+## 验收如何被作弊/退化满足？
+
+1. **容差静默放宽**：`compare_parity.py` 若先四舍五入再比、或阈值写松，判据形同虚设——阈值必须硬编码为卡面数字（count 全等/0.1pp/5bps）并逐行打印差异；审查者会绕过脚本直接从两份 CSV 复算判据。
+2. **改黄金参照**：把 `docs/parity/` 的黄金 CSV 改成与新跑一致——该目录不在白名单，`check_whitelist.py` 会拦；审查者另以 git 历史核对黄金文件未动。
+3. **join 吞样本**：对照若先 inner-join 再比较，缺行被静默丢弃、"count 一致"恒真——必须先断言两侧行数/signals 总数相等，再逐行比。
+4. **parity_mode 语义漂移**：parity 验收跑成生产 TDX 指标口径（或反之），对不齐时"顺手"换模式凑数——config 落盘记录 mode，审查者核对 yaml 与代码分支；两模式差异属预期，不许混用凑判据。
+5. **filter_untradable 恒真**：合成用例若旗标从不触发，过滤形同虚设——AC1 三场景必须成对断言（剔除场景样本消失 + 对照场景样本保留），并沿 068 模式先在关闭过滤的路径上确认用例会失败。
+6. **缩样冒烟顶替全量**：AC3 必须全量 universe 跑（耗时写 STATUS 备注），审查者亲自重跑全量对照。
+
 ## Notes / risks
 - **数据口径是最大风险**：v1 跑在 PG qfq（TDX 减法式）上，v2 是乘法 hfq/qfq（data_platform.md §6）。KDJ/均线对复权方式敏感度低但非零；若对不齐先查复权口径再查指标语义（M2 gate 时 KDJ parity 已趟过一遍，参照 `configs/study_kdj_j0_parity.yaml` 与 TASK-025 review 的处理）。
 - 黄金 CSV 的 `signals=42637, count(h1)=42568` 差值来自 horizon 尾部截断——对照时按 horizon 逐行比。
 - 本卡是 M3 gate 的三报告之一（016/025/032），PASS 后才轮到 TASK-033。
+- **费用口径提醒（TASK-031 review）**：parity 为无费用口径，不挂佣金桥；但若任何调试性带费运行落在 2023-08-28 之前，`AShareCommission` 默认新税率，必须逐 bar `set_trade_date`，否则每笔卖出差 0.05%。
