@@ -131,7 +131,9 @@ def run_amv_research(config_path: str | Path) -> AmvResearchResult:
     symbol = str(raw_cfg.get("symbol", "sh999999"))
     k_grid = _grid_values(raw_cfg.get("k_grid", {"start": 1.8, "stop": 2.6, "step": 0.05}))
     buy_values = _grid_values(raw_cfg.get("buy_th", {"start": 2.5, "stop": 6.0, "step": 0.5}))
-    sell_values = [float(item) for item in raw_cfg.get("sell_th", [-4.0, -3.5, -3.0, -2.5, -2.3, -2.0, -1.5])]
+    sell_values = [
+        float(item) for item in raw_cfg.get("sell_th", [-4.0, -3.5, -3.0, -2.5, -2.3, -2.0, -1.5])
+    ]
     variants = tuple(str(item) for item in raw_cfg.get("variants", VARIANTS))
     baseline_params = dict(
         raw_cfg.get(
@@ -409,14 +411,15 @@ def _stable_top(table: pd.DataFrame, baseline: pd.Series, *, metric: str) -> pd.
         sell_neighbors = same_variant["sell_th"].sub(float(row["sell_th"])).abs().le(0.5)
         neighbors = same_variant[buy_neighbors & sell_neighbors]
         neighbors = neighbors[
-            ~(
-                neighbors["buy_th"].eq(row["buy_th"])
-                & neighbors["sell_th"].eq(row["sell_th"])
-            )
+            ~(neighbors["buy_th"].eq(row["buy_th"]) & neighbors["sell_th"].eq(row["sell_th"]))
         ]
         metric_values = neighbors[metric].astype(float).dropna()
-        floor_ok = bool((metric_values >= 0.7 * float(row[metric])).all()) if len(metric_values) else False
-        median_ok = bool(metric_values.median() > float(baseline[metric])) if len(metric_values) else False
+        floor_ok = (
+            bool((metric_values >= 0.7 * float(row[metric])).all()) if len(metric_values) else False
+        )
+        median_ok = (
+            bool(metric_values.median() > float(baseline[metric])) if len(metric_values) else False
+        )
         stable.append(floor_ok and median_ok)
     top["stable_neighborhood"] = stable
     return top.reset_index(drop=True)

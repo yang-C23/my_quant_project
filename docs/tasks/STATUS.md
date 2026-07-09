@@ -37,6 +37,6 @@
 | TASK-031 | bt costs/feed/constraints | M3 | ready | — | 014 | Tier3 基础件，纯库无 CLI；费用表以 backtest_platform.md §3 为准 |
 | TASK-032 | DualTrend bt 移植 + parity | M3 | backlog | — | 031 | **M3 gate 卡**：对照 docs/parity/dualtrend_breath_full CSV，样本数全等/胜率≤0.1pp/均值≤5bps |
 | TASK-033 | PG 归档退役 | M3 | backlog | — | 016,025,032+gate | 016/025/032 三报告全绿 + 规划者写 M3-gate-report 后才置 ready（ADR-0002） |
-| TASK-069 | 工程债：ruff format 全绿 | M3 | ready | — | 067,068 | 067/068 合并后残余集已由规划者重验 = 卡面 5 文件不变（r1_oos_final/amv_timing/optimize/test_amv_timing/test_optimize）；纯格式，diff 须 format-only |
+| TASK-069 | 工程债：ruff format 全绿 | M3 | review | task/TASK-069-ruff-format-debt | 067,068 | Codex 完成；仅对卡面 5 文件跑 ruff format；ruff format --check/ruff check/pytest -m "not integration" 全绿，diff 为 format-only |
 
 推荐认领顺序：**069 → 030 → 031 → 032**（069 最小卡先清质量门红灯；032/033 由规划者在依赖合并后置 ready）。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。Tier3 首个验证对象 = AMV **原版 immediate** 组合级仓位开关（R1-final-report 裁定，非 confirm_life），030/031 合并后由规划者补 TASK-034 卡。

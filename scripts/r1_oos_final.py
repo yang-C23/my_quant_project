@@ -40,7 +40,10 @@ def _amv_section() -> list[str]:
     )
     amv_df = amv(index_df, k=2.13)
     rows = []
-    for tag, variant in (("baseline_immediate", "immediate"), ("candidate_confirm_life", "confirm_life")):
+    for tag, variant in (
+        ("baseline_immediate", "immediate"),
+        ("candidate_confirm_life", "confirm_life"),
+    ):
         signal = build_variant_signal(
             amv_df, index_df["close"], buy_th=4.0, sell_th=-2.3, variant=variant
         )
@@ -66,7 +69,9 @@ def _amv_section() -> list[str]:
     return ["## AMV（TASK-061 候选）", "", frame.round(4).to_markdown(index=False), ""]
 
 
-def _pair_prices_and_signals(kind: str) -> tuple[pd.DataFrame, dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
+def _pair_prices_and_signals(
+    kind: str,
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame], dict[str, pd.DataFrame]]:
     from quant.data.universe import list_symbols
     from quant.indicators.dual_trend import dual_trend
     from quant.research.optimize import sample_symbols
@@ -89,7 +94,9 @@ def _pair_prices_and_signals(kind: str) -> tuple[pd.DataFrame, dict[str, pd.Data
         frames.append(frame[frame["date"].ge(signal_start)].copy())
         dt = dt.loc[dt.index >= signal_start]
         entry_parts["golden_cross"].append(_signal_frame(symbol, dt.index, dt["sig_golden_cross"]))
-        entry_parts["dual_entry"].append(_signal_frame(symbol, dt.index, dt["sig_dual_trend_entry"]))
+        entry_parts["dual_entry"].append(
+            _signal_frame(symbol, dt.index, dt["sig_dual_trend_entry"])
+        )
         exit_parts["dead_cross"].append(_signal_frame(symbol, dt.index, dt["sig_dead_cross"]))
     prices = pd.concat(frames, ignore_index=True)
     entries = {k: pd.concat(v, ignore_index=True) for k, v in entry_parts.items()}
@@ -131,7 +138,9 @@ def _shortterm_section(candidates: list[dict]) -> list[str]:
             two_day_no_profit=bool(cand.get("two_day_no_profit", True)),
         )
         summary = result.summary.iloc[0].to_dict()
-        rows.append({"entry": cand["entry"], "max_hold": cand["max_hold"], "stop": cand["stop"], **summary})
+        rows.append(
+            {"entry": cand["entry"], "max_hold": cand["max_hold"], "stop": cand["stop"], **summary}
+        )
     frame = pd.DataFrame(rows)
     return ["## 单针/砖形（TASK-064 候选）", "", frame.round(4).to_markdown(index=False), ""]
 
@@ -146,9 +155,7 @@ def main() -> int:
 
     # 候选注册表：与各 findings（审查者修订版）的 Candidate params JSON 一一对应。
     # 063/064 修复重跑后均无候选；双线 z哥原版基线按协议（基线 1 组）跑一次留档。
-    dual_candidates: list[dict] = [
-        {"entry": "golden_cross", "exit": "dead_cross", "max_hold": 120}
-    ]
+    dual_candidates: list[dict] = [{"entry": "golden_cross", "exit": "dead_cross", "max_hold": 120}]
     short_candidates: list[dict] = []
 
     lines = [

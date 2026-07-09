@@ -134,9 +134,11 @@ def test_config_rejects_is_end_beyond_bound() -> None:
 
 
 def test_sample_symbols_is_deterministic_and_unbiased() -> None:
-    universe = [f"bj{i:06d}" for i in range(300)] + [f"sh{i:06d}" for i in range(300)] + [
-        f"sz{i:06d}" for i in range(300)
-    ]
+    universe = (
+        [f"bj{i:06d}" for i in range(300)]
+        + [f"sh{i:06d}" for i in range(300)]
+        + [f"sz{i:06d}" for i in range(300)]
+    )
 
     got = sample_symbols(universe, 300, seed=42)
     again = sample_symbols(universe, 300, seed=42)
