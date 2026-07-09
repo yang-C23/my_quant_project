@@ -32,7 +32,7 @@
 | TASK-065 | 探索：红绿量占比/筹码代理有效性 | R1 | done | merged | 060 | review PASS + 审查者修 turnover 字段未加载假阴性（F-3）与单调性判定（F-4）；全部因子未过门槛，washout/turnover_cost 两家族留档 M6 |
 | TASK-066 | R1 汇总：OOS 裁定+最终报告 | R1 | done | — | 061-065 | 规划者执行完毕：**R1 零候选进入 Tier3**（AMV confirm_life OOS 输基线不采纳）；报告 docs/reviews/R1-final-report.md；**R1 收官**（tag v2.0-r1） |
 | TASK-067 | 工程债：qlib 批量 IO + CLI 守卫 | M3 | done | merged fae98f4 | — | review PASS；审查者独立复跑 branch=662s vs 基线 894s（1.35×，瓶颈=IC/分层/top-event 计算层，卡面条款豁免）；CSV 三方逐位一致；30 真实符号批量等价性精确相等 |
-| TASK-068 | R1 协议一致性修复（入场严格 t+1 + 065 ashare） | R1 | ready | — | 067 | **建议下一张认领**；trade_pairs 入场顺延违反 PLAN §1、065 top 分位未过滤；exploratory 改造须走 067 的 batch API；结论若翻转须停下报告 |
+| TASK-068 | R1 协议一致性修复（入场严格 t+1 + 065 ashare） | R1 | review | task/TASK-068-r1-protocol-fixes | 067 | Codex 完成；新增单测已红→绿；三卡 IS 已复跑（dual 342.94s、shortterm 439.06s、exploratory 720.27s），结论方向均未翻转 |
 | TASK-030 | qlib TopkDropout 基线 + mlflow | M3 | ready | — | 026 | Tier2 管线卡；基线因子 mom_20；后续 AMV 仓位开关（TASK-034，届时补卡）挂载于此 |
 | TASK-031 | bt costs/feed/constraints | M3 | ready | — | 014 | Tier3 基础件，纯库无 CLI；费用表以 backtest_platform.md §3 为准 |
 | TASK-032 | DualTrend bt 移植 + parity | M3 | backlog | — | 031 | **M3 gate 卡**：对照 docs/parity/dualtrend_breath_full CSV，样本数全等/胜率≤0.1pp/均值≤5bps |

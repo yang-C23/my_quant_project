@@ -47,7 +47,12 @@ def run_pair_study(
     signals = _normalize_signal(entry_sig, "entry")
     exits = {name: _normalize_signal(rule, name) for name, rule in exit_rules.items()}
     px = _normalize_prices(prices)
-    exclusions = {"entry_missing": 0, "entry_filtered": 0, "exit_missing": 0}
+    exclusions = {
+        "entry_missing": 0,
+        "entry_suspended": 0,
+        "entry_limit_up": 0,
+        "exit_missing": 0,
+    }
     rows: list[dict[str, Any]] = []
     for symbol, bars in px.groupby("symbol", sort=True):
         bars = bars.reset_index(drop=True)
@@ -58,12 +63,20 @@ def run_pair_study(
             signal_pos = positions.get(pd.Timestamp(entry.date))
             if signal_pos is None or signal_pos < next_available_entry_pos:
                 continue
-            entry_pos = _next_tradable_pos(bars, signal_pos + 1, entry_filters=entry_filters)
-            if entry_pos is None:
+            entry_pos = signal_pos + 1
+            if entry_pos >= len(bars):
                 exclusions["entry_missing"] += 1
                 continue
-            if entry_filters == "ashare" and _blocked_entry(bars.iloc[entry_pos]):
-                exclusions["entry_filtered"] += 1
+            entry_row = bars.iloc[entry_pos]
+            if entry_filters == "ashare":
+                if bool(entry_row.get("is_suspended", False)) or pd.isna(entry_row["open"]):
+                    exclusions["entry_suspended"] += 1
+                    continue
+                if _blocked_entry(entry_row):
+                    exclusions["entry_limit_up"] += 1
+                    continue
+            elif pd.isna(entry_row["open"]):
+                exclusions["entry_missing"] += 1
                 continue
             trade = _exit_trade(
                 symbol=symbol,

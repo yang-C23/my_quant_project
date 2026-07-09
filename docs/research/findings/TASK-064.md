@@ -36,6 +36,22 @@ myquant research configs/research/shortterm.yaml
 全网格 PF ≤ 1.08、笔均 ≤ 0.09%（2012 笔），smallup_pct 三档无实质分化——费前已近
 噪声。gem 剔除对照未改变结论。
 
+## 2026-07 协议修复后复跑
+
+复跑命令：`myquant research configs/research/shortterm.yaml`（real 439.06s）。入场严格 t+1
+后，单针和砖形样本数小幅下降，结论方向未翻转：单针边际仍集中在 hold=1，砖形仍是
+费前近噪声。
+
+| key row | trades old/new | avg old/new | median old/new | PF old/new |
+|:---|---:|---:|---:|---:|
+| single_needle hold=1 任意 stop | 405 / 404 | 0.0022 / 0.0020 | -0.0002 / -0.0002 | 1.178 / 1.159 |
+| single_needle hold=2 stop=0.02 | 405 / 404 | 0.0023 / 0.0021 | -0.0060 / -0.0060 | 1.143 / 1.134 |
+| single_needle hold=2 stop=0.03 | 405 / 404 | 0.0020 / 0.0018 | -0.0028 / -0.0030 | 1.115 / 1.106 |
+| single_needle hold=3 best PF | 403 / 402 | 负 / -0.0014 | 负 / -0.0104 | 0.85-0.94 / 0.932 |
+| single_needle hold=4 best PF | 402 / 401 | 负 / -0.0009 | 负 / -0.0104 | 0.88-0.96 / 0.963 |
+| single_needle hold=6 best PF | 402 / 401 | ~0 / 0.0004 | 负 / -0.0144 | ~1.02 / 1.016 |
+| brick best PF | 2012 / 2009 | 0.0008 / 0.0009 | 0.0000 / 0.0000 | 1.080 / 1.085 |
+
 ## 结论与候选
 
 最优行笔均 +0.22%（费前）对 A股 ~0.15–0.3% 双边成本无生存空间，且 PF 置信区间含 1.0：
