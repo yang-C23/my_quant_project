@@ -62,3 +62,8 @@ myquant research configs/research/shortterm.yaml
 
 **无候选进入 OOS。** 单针/砖形按 Tier1 证据不具备独立短线策略价值；若未来复用，
 方向是把"单针下 20"作为其他体系（B1/双线）的入场时点微调因子，而非独立信号。
+
+## 2026-07-09 审查者注（TASK-070 universe 净化后复跑）
+
+净化样本复跑：single_needle hold=1 408 笔 / PF 1.146 / 笔均 0.17%（原 404 / 1.146 / 0.20%）。
+结论不变。详见 R1-final-report 勘误 2。

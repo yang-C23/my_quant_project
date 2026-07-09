@@ -66,3 +66,10 @@ Candidate params JSON:
 ```json
 []
 ```
+
+## 2026-07-09 审查者注（TASK-070 universe 净化后复跑）
+
+净化样本复跑：全部因子 decision 仍为 invalid_or_uncertain。**留档理由勘误**：washout_area_ratio
+的"完美正单调"不复现（w40 分位 Spearman 1.0→0.1、w60 ICIR 0.257→0.222），单调性对样本构成敏感，
+M6 复启时仅按普通弱正 IC 因子对待；turnover_weighted_cost 负单调保持（Spearman −0.9/−1.0），
+留档理由不变。详见 R1-final-report 勘误 2。
