@@ -1,6 +1,6 @@
 # TASK-068: R1 协议一致性修复 — 配对交易入场严格 t+1 + 探索卡 ashare 过滤
 
-- Milestone: R1（收官后修正）　|　State: backlog
+- Milestone: R1（收官后修正）　|　State: ready
 - Branch: `task/TASK-068-r1-protocol-fixes`　|　Depends: TASK-067
 
 ## Context
@@ -36,6 +36,15 @@ R1 收官后复审确认两处偏离 `docs/research/PLAN.md` §1 的 Tier1 协�
 2. `pytest -q tests/unit/test_exploratory_factors.py`：top 分位事件研究在含停牌/一字板的合成数据上剔除对应样本。
 3. 三条 `myquant research` 命令跑通出报告；三份 findings 的增补节存在且含新旧对照表。
 4. `pytest -q -m "not integration"` + `ruff check .` 全绿。
+
+## 验收如何被作弊/退化满足？
+
+1. **键名换皮**：把 `entry_filtered` 改名 `entry_limit_up` 但入场逻辑仍是顺延——AC1(a) 的合成停牌序列必须断言"样本消失且计入 `entry_suspended`"，不是只断言键存在。
+2. **测试造在实现上而非协议上**：合成数据若停牌日恰无信号，用例恒真通过（参 TASK-064 F-2 恒真止损教训）——每个新用例必须先在**未修复代码**上跑一次确认它失败（红→绿）。
+3. **过滤加在测试辅助层**：AC2 若在 test helper 里预过滤停牌行，生产路径 `_top_quantile_event` 仍是 `entry_filters="none"` 也能绿——用例必须直接调用生产函数并喂含停牌/一字板的原始帧。
+4. **复跑造假/换样本**：findings 增补表若沿用旧数字或换 seed/样本量跑出"方向不变"，对照失效——复跑必须同配置同 800 股 seed=42（参 TASK-062 样本作废教训），审查者将同引擎重跑核对。
+5. **方向翻转被措辞掩盖**：卡面已给"预期结论方向不变"，存在把翻转写成"微调"的激励——翻转即停、置 review 报告，结论文字不许自行改动（Notes 红线）。
+6. **顺手"统一"出场逻辑**：把出场侧 `_next_tradable_pos` 顺延也改成剔除会静默改变持仓语义——AC1(c) 反向守护，出场顺延必须保留。
 
 ## Notes / risks
 - **预期结论方向不变**（063 无退出规则胜原版死叉；064 候选表微调；065 全部未过门槛）。若任何一张卡结论**翻转**：停止，置 review 并在 STATUS 备注写明，等规划者裁定（可能需重开 R1 裁定，不许自行改结论文字）。
