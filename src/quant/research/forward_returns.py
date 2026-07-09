@@ -8,7 +8,7 @@ from typing import Literal, Sequence
 import numpy as np
 import pandas as pd
 
-from quant.data.api import get_ohlcv
+from quant.data.api import get_ohlcv_batch
 
 
 @dataclass(frozen=True)
@@ -78,35 +78,18 @@ def _normalize_prices(prices: pd.DataFrame) -> pd.DataFrame:
     return frame.sort_values(["symbol", "date"]).reset_index(drop=True)
 
 
-def _load_one_price(symbol: str, start: str | None, end: str | None) -> pd.DataFrame | None:
-    try:
-        qfq = get_ohlcv(symbol, start=start, end=end, adjust="qfq", fields=["open", "close"])
-        raw = get_ohlcv(
-            symbol,
-            start=start,
-            end=end,
-            adjust="raw",
-            fields=["open", "suspended", "limit_up_price"],
-        ).rename(columns={"open": "raw_open", "suspended": "is_suspended"})
-    except ValueError:
-        return None  # 窗口内无数据：由事件归入 entry_missing
-    frame = qfq.join(raw, how="left").reset_index()
-    frame["symbol"] = symbol
-    return frame
-
-
 def _load_prices(symbols: Sequence[str], start: str | None, end: str | None) -> pd.DataFrame:
-    from concurrent.futures import ThreadPoolExecutor
-
-    from quant.config import get_settings
-
-    with ThreadPoolExecutor(max_workers=get_settings().etl_workers) as pool:
-        frames = [
-            f for f in pool.map(lambda s: _load_one_price(s, start, end), symbols) if f is not None
-        ]
-    if not frames:
+    qfq = get_ohlcv_batch(symbols, start=start, end=end, adjust="qfq", fields=["open", "close"])
+    raw = get_ohlcv_batch(
+        symbols,
+        start=start,
+        end=end,
+        adjust="raw",
+        fields=["open", "suspended", "limit_up_price"],
+    ).rename(columns={"open": "raw_open", "suspended": "is_suspended"})
+    if qfq.empty:
         raise ValueError("no symbols to load")
-    return pd.concat(frames, ignore_index=True)
+    return qfq.merge(raw, on=["symbol", "date"], how="left")
 
 
 def _profit_factor(values: pd.Series) -> float:

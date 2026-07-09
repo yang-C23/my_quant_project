@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
 
-from quant.config import get_settings
-from quant.data.api import get_ohlcv
+from quant.data.api import get_ohlcv_batch
 from quant.data.symbols import to_qlib
 from quant.indicators.b1 import B1Params, b1
 from quant.indicators.kdj import kdj
@@ -57,15 +55,9 @@ def b1_signal_with_universe(
 def _compute_one_signal(
     name: str,
     symbol: str,
-    start: str | None,
-    end: str | None,
+    data: pd.DataFrame,
     signal_params: dict | None,
 ) -> pd.DataFrame:
-    try:
-        data = get_ohlcv(symbol, start=start, end=end, adjust="qfq")
-    except ValueError:
-        # 窗口内无数据（如晚上市的北证股）：贡献零信号，不中断批量研究
-        return pd.DataFrame(columns=["symbol", "date", "sig"])
     if name == "kdj_oversold" and signal_params and "j_threshold" in signal_params:
         frame = kdj(data, sma_mode=signal_params.get("sma_mode", "tdx"))
         signal = (frame["j"] < float(signal_params["j_threshold"])).fillna(False)
@@ -86,20 +78,17 @@ def compute_signal(
     workers: int | None = None,
 ) -> pd.DataFrame:
     """Compute a registered signal for many symbols."""
+    del workers
     if not symbols:
         return pd.DataFrame(columns=["symbol", "date", "sig"])
 
-    max_workers = workers or get_settings().etl_workers
     frames: list[pd.DataFrame] = []
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = {
-            pool.submit(_compute_one_signal, name, symbol, start, end, signal_params): symbol
-            for symbol in symbols
-        }
-        for future in as_completed(futures):
-            frame = future.result()
-            if not frame.empty:
-                frames.append(frame)
+    prices = get_ohlcv_batch(symbols, start=start, end=end, adjust="qfq")
+    for symbol, group in prices.groupby("symbol", sort=True):
+        data = group.drop(columns=["symbol"]).set_index("date")
+        frame = _compute_one_signal(name, symbol, data, signal_params)
+        if not frame.empty:
+            frames.append(frame)
     if not frames:
         return pd.DataFrame(columns=["symbol", "date", "sig"])
     return (
@@ -113,14 +102,9 @@ _FACTOR_FIELDS = ("open", "high", "low", "close", "volume", "amount", "factor", 
 def _compute_one_factor(
     name: str,
     symbol: str,
-    start: str | None,
-    end: str | None,
+    data: pd.DataFrame,
     params: dict | None,
 ) -> pd.DataFrame:
-    try:
-        data = get_ohlcv(symbol, start=start, end=end, adjust="qfq", fields=_FACTOR_FIELDS)
-    except ValueError:
-        return pd.DataFrame(columns=["symbol", "date", "factor"])
     factor = _FACTOR_REGISTRY[name](data, params).astype(float)
     return pd.DataFrame({"symbol": symbol, "date": data.index, "factor": factor.to_numpy()})
 
@@ -135,21 +119,18 @@ def compute_factor_frame(
     workers: int | None = None,
 ) -> pd.DataFrame:
     """Compute a registered continuous factor for many symbols."""
+    del workers
     if name not in _FACTOR_REGISTRY:
         raise KeyError(f"unknown factor: {name}")
     if not symbols:
         return pd.DataFrame(columns=["symbol", "date", "factor"])
-    max_workers = workers or get_settings().etl_workers
+    prices = get_ohlcv_batch(symbols, start=start, end=end, adjust="qfq", fields=_FACTOR_FIELDS)
     frames: list[pd.DataFrame] = []
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = {
-            pool.submit(_compute_one_factor, name, symbol, start, end, params): symbol
-            for symbol in symbols
-        }
-        for future in as_completed(futures):
-            frame = future.result().dropna(subset=["factor"])
-            if not frame.empty:
-                frames.append(frame)
+    for symbol, group in prices.groupby("symbol", sort=True):
+        data = group.drop(columns=["symbol"]).set_index("date")
+        frame = _compute_one_factor(name, symbol, data, params).dropna(subset=["factor"])
+        if not frame.empty:
+            frames.append(frame)
     if not frames:
         return pd.DataFrame(columns=["symbol", "date", "factor"])
     return (
@@ -183,8 +164,16 @@ def factor_red_green_vol_ratio(df: pd.DataFrame, params: dict | None = None) -> 
     """Rolling positive-candle volume divided by negative-candle volume."""
     window = int((params or {}).get("window", 28))
     volume = df["volume"].astype(float)
-    red = volume.where(df["close"].astype(float) >= df["open"].astype(float), 0.0).rolling(window).sum()
-    green = volume.where(df["close"].astype(float) < df["open"].astype(float), 0.0).rolling(window).sum()
+    red = (
+        volume.where(df["close"].astype(float) >= df["open"].astype(float), 0.0)
+        .rolling(window)
+        .sum()
+    )
+    green = (
+        volume.where(df["close"].astype(float) < df["open"].astype(float), 0.0)
+        .rolling(window)
+        .sum()
+    )
     return (red / green).where(green != 0)
 
 

@@ -320,3 +320,7 @@ def validate_cmd() -> None:
     if code:
         raise typer.Exit(code=code)
     typer.echo("validate_vs_pg: PASS")
+
+
+if __name__ == "__main__":
+    app()

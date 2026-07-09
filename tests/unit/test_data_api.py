@@ -48,6 +48,22 @@ def test_get_ohlcv_adjust_identities(monkeypatch, tmp_path: Path) -> None:
     assert hfq.index.name == "date"
 
 
+def test_get_ohlcv_batch_matches_single_symbol_paths(monkeypatch, tmp_path: Path) -> None:
+    staging = FIXTURES / "staging_mini"
+    qlib_dir = tmp_path / "qlib"
+    dump_cn_daily(staging, qlib_dir)
+    _patch_settings(monkeypatch, staging, qlib_dir)
+
+    symbols = ["sh600000", "sh688001"]
+    fields = ("open", "high", "low", "close", "volume", "amount", "factor")
+    for adjust in ("qfq", "hfq", "raw"):
+        batch = data_api.get_ohlcv_batch(symbols, adjust=adjust, fields=fields)
+        for symbol in symbols:
+            got = batch[batch["symbol"].eq(symbol)].drop(columns=["symbol"]).set_index("date")
+            expected = data_api.get_ohlcv(symbol, adjust=adjust, fields=fields)
+            pd.testing.assert_frame_equal(got, expected, check_exact=True)
+
+
 def test_get_features_multi_symbol(monkeypatch, tmp_path: Path) -> None:
     staging = FIXTURES / "staging_mini"
     qlib_dir = tmp_path / "qlib"

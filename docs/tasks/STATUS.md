@@ -31,7 +31,7 @@
 | TASK-064 | 研究：单针/砖形 持有期×止损 | R1 | done | merged | 063 | review PASS + 审查者修 entry_low 止损入场日恒真 bug（F-2）；800 样本重跑后候选见 findings 修订版 |
 | TASK-065 | 探索：红绿量占比/筹码代理有效性 | R1 | done | merged | 060 | review PASS + 审查者修 turnover 字段未加载假阴性（F-3）与单调性判定（F-4）；全部因子未过门槛，washout/turnover_cost 两家族留档 M6 |
 | TASK-066 | R1 汇总：OOS 裁定+最终报告 | R1 | done | — | 061-065 | 规划者执行完毕：**R1 零候选进入 Tier3**（AMV confirm_life OOS 输基线不采纳）；报告 docs/reviews/R1-final-report.md；**R1 收官**（tag v2.0-r1） |
-| TASK-067 | 工程债：qlib 批量 IO + CLI 守卫 | M3 | ready | — | — | **建议首先认领**；验收含 v2 基线前后耗时对比与结果逐位不变 |
+| TASK-067 | 工程债：qlib 批量 IO + CLI 守卫 | M3 | review | task/TASK-067-io-batch-cli-guard | — | Codex 完成；exploratory v2=893.89s、branch=648.63s（1.38×）；CSV 逐位一致；未达 3×，剩余热点=IC/分层/top-event 逐因子 Python 计算；format --check . 仅剩非白名单既有文件 |
 | TASK-068 | R1 协议一致性修复（入场严格 t+1 + 065 ashare） | R1 | backlog | — | 067 | 复审定性：trade_pairs 入场顺延违反 PLAN §1、065 top 分位未过滤；067 合并后置 ready；结论若翻转须停下报告 |
 | TASK-030 | qlib TopkDropout 基线 + mlflow | M3 | ready | — | 026 | Tier2 管线卡；基线因子 mom_20；后续 AMV 仓位开关（TASK-034，届时补卡）挂载于此 |
 | TASK-031 | bt costs/feed/constraints | M3 | ready | — | 014 | Tier3 基础件，纯库无 CLI；费用表以 backtest_platform.md §3 为准 |

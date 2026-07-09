@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from quant.config import load_config
-from quant.data.api import get_ohlcv
+from quant.data.api import get_ohlcv_batch
 from quant.data.universe import list_symbols
 from quant.research.forward_returns import run_event_study
 from quant.research.ic import quantile_returns, rank_ic
@@ -84,19 +84,12 @@ def _to_factor_series(frame: pd.DataFrame, name: str) -> pd.Series:
 
 
 def _load_prices(symbols: list[str], start: str, end: str) -> pd.DataFrame:
-    frames = []
-    for symbol in symbols:
-        try:
-            frame = get_ohlcv(symbol, start=start, end=end, adjust="qfq", fields=("open", "close"))
-        except ValueError:
-            continue
-        frame = frame.reset_index()
-        frame["symbol"] = symbol
-        frames.append(frame)
-    return pd.concat(frames, ignore_index=True)
+    return get_ohlcv_batch(symbols, start=start, end=end, adjust="qfq", fields=("open", "close"))
 
 
-def _top_quantile_event(factor_frame: pd.DataFrame, prices: pd.DataFrame, *, horizon: int) -> dict[str, float]:
+def _top_quantile_event(
+    factor_frame: pd.DataFrame, prices: pd.DataFrame, *, horizon: int
+) -> dict[str, float]:
     frame = factor_frame.dropna(subset=["factor"]).copy()
     if frame.empty:
         return {"avg_return": np.nan, "profit_factor": np.nan}
@@ -117,7 +110,9 @@ def _quantile_spearman(qret: pd.DataFrame) -> float:
     mean_by_q = qret.groupby("quantile")["mean_return"].mean()
     if len(mean_by_q) < 5:
         return np.nan
-    return float(pd.Series(mean_by_q.index, index=mean_by_q.index).corr(mean_by_q, method="spearman"))
+    return float(
+        pd.Series(mean_by_q.index, index=mean_by_q.index).corr(mean_by_q, method="spearman")
+    )
 
 
 def _write_report(name: str, table: pd.DataFrame, report_dir: Path) -> dict[str, Path]:

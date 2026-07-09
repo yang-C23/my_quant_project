@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from quant.config import load_config
-from quant.data.api import get_ohlcv
+from quant.data.api import get_ohlcv_batch
 from quant.data.universe import list_symbols
 from quant.indicators.brick_osc import PRESETS as BRICK_PRESETS
 from quant.indicators.brick_osc import brick_osc
@@ -107,11 +107,9 @@ def run_dual_trend_research(config_path: str | Path) -> dict[str, Path]:
         "close_lt_white_2d": [],
         "close_lt_yellow": [],
     }
-    for symbol in symbols:
-        try:
-            frame = _load_prices(symbol, load_start, end)
-        except ValueError:
-            continue
+    all_prices = _load_prices_batch(symbols, load_start, end)
+    for symbol, frame in all_prices.groupby("symbol", sort=True):
+        frame = frame.reset_index(drop=True)
         dt = dual_trend(frame.set_index("date"))
         trade_frame = frame[frame["date"].ge(pd.Timestamp(start))].copy()
         frames.append(trade_frame)
@@ -126,7 +124,9 @@ def run_dual_trend_research(config_path: str | Path) -> dict[str, Path]:
         )
         exit_frames["close_lt_yellow"].append(_signal_frame(symbol, dt.index, close < yellow))
         entry_frames["golden_cross"].append(_signal_frame(symbol, dt.index, dt["sig_golden_cross"]))
-        entry_frames["dual_entry"].append(_signal_frame(symbol, dt.index, dt["sig_dual_trend_entry"]))
+        entry_frames["dual_entry"].append(
+            _signal_frame(symbol, dt.index, dt["sig_dual_trend_entry"])
+        )
     prices = pd.concat(frames, ignore_index=True)
     entries = {name: pd.concat(parts, ignore_index=True) for name, parts in entry_frames.items()}
     exits = {name: pd.concat(parts, ignore_index=True) for name, parts in exit_frames.items()}
@@ -151,7 +151,9 @@ def run_dual_trend_research(config_path: str | Path) -> dict[str, Path]:
             matrix_rows.append({"entry": entry_name, "exit": exit_name, **row})
     matrix = pd.DataFrame(matrix_rows)
     fake = _fake_golden_cross(entries["golden_cross"], exits["dead_cross"], prices)
-    return _write_dual_report(name, matrix, fake, Path(str(raw.get("report_dir", "backtest_results/research"))))
+    return _write_dual_report(
+        name, matrix, fake, Path(str(raw.get("report_dir", "backtest_results/research")))
+    )
 
 
 def run_shortterm_research(config_path: str | Path) -> dict[str, Path]:
@@ -258,13 +260,10 @@ def _exit_trade(
         row = bars.iloc[pos]
         # "entry_low" 语义=跌破买入 bar 低点（严格 <，否则入场日 low<=own low 恒真、
         # 全部交易退化为次日开盘卖出）；数值止损保留 <=（入场日盘中触及即有效）。
-        stop_hit = (
-            stop_price is not None
-            and (
-                float(row["low"]) < stop_price
-                if stop_loss == "entry_low"
-                else float(row["low"]) <= stop_price
-            )
+        stop_hit = stop_price is not None and (
+            float(row["low"]) < stop_price
+            if stop_loss == "entry_low"
+            else float(row["low"]) <= stop_price
         )
         if stop_hit:
             exit_signal_pos = pos
@@ -377,7 +376,9 @@ def _next_tradable_pos(
 
 def _blocked_entry(row: pd.Series) -> bool:
     limit_up = row.get("limit_up_price", np.nan)
-    return bool(pd.notna(limit_up) and pd.notna(row.get("raw_open", np.nan)) and row["raw_open"] >= limit_up)
+    return bool(
+        pd.notna(limit_up) and pd.notna(row.get("raw_open", np.nan)) and row["raw_open"] >= limit_up
+    )
 
 
 def _signal_true_on(rule: pd.DataFrame, symbol: str, date: pd.Timestamp) -> bool:
@@ -426,24 +427,31 @@ def _profit_factor(values: pd.Series) -> float:
     return float(gains / abs(losses))
 
 
-def _load_prices(symbol: str, start: str, end: str) -> pd.DataFrame:
-    qfq = get_ohlcv(
-        symbol,
+def _load_prices_batch(symbols: list[str], start: str, end: str) -> pd.DataFrame:
+    qfq = get_ohlcv_batch(
+        symbols,
         start=start,
         end=end,
         adjust="qfq",
         fields=("open", "high", "low", "close", "volume", "amount"),
     )
-    raw = get_ohlcv(
-        symbol,
+    raw = get_ohlcv_batch(
+        symbols,
         start=start,
         end=end,
         adjust="raw",
         fields=("open", "suspended", "limit_up_price", "limit_down_price"),
     ).rename(columns={"open": "raw_open", "suspended": "is_suspended"})
-    frame = qfq.join(raw, how="left")
-    frame["symbol"] = symbol
-    return frame.reset_index()
+    if qfq.empty:
+        raise ValueError("no symbols to load")
+    return qfq.merge(raw, on=["symbol", "date"], how="left")
+
+
+def _load_prices(symbol: str, start: str, end: str) -> pd.DataFrame:
+    frame = _load_prices_batch([symbol], start, end)
+    if frame.empty:
+        raise ValueError(f"no OHLCV data for {symbol}")
+    return frame.drop(columns=["symbol"]).set_index("date").reset_index().assign(symbol=symbol)
 
 
 def _shortterm_inputs(
@@ -456,11 +464,9 @@ def _shortterm_inputs(
         ("brick_relaxed", "relaxed"),
         ("brick_len", "len_checked"),
     ]
-    for symbol in symbols:
-        try:
-            frame = _load_prices(symbol, load_start, end)
-        except ValueError:
-            continue
+    all_prices = _load_prices_batch(symbols, load_start, end)
+    for symbol, frame in all_prices.groupby("symbol", sort=True):
+        frame = frame.reset_index(drop=True)
         indexed = frame.set_index("date")
         frames.append(frame[frame["date"].ge(signal_start)].copy())
         for entry_name, preset_name in brick_specs:
@@ -469,9 +475,7 @@ def _shortterm_inputs(
                 signal = brick_osc(indexed, params)[params.signal_col]
                 key = f"{entry_name}_smallup_{smallup:.2f}"
                 signal = signal.loc[signal.index >= signal_start]
-                entry_parts.setdefault(key, []).append(
-                    _signal_frame(symbol, signal.index, signal)
-                )
+                entry_parts.setdefault(key, []).append(_signal_frame(symbol, signal.index, signal))
         single = single_needle_proxy(indexed)["sig_single_needle"]
         single = single.loc[single.index >= signal_start]
         entry_parts.setdefault("single_needle_proxy", []).append(
@@ -491,7 +495,9 @@ def _coerce_stop_value(raw: str) -> StopLoss | None:
 
 
 def _signal_frame(symbol: str, index: pd.Index, values: pd.Series) -> pd.DataFrame:
-    return pd.DataFrame({"symbol": symbol, "date": pd.to_datetime(index), "sig": values.to_numpy(bool)})
+    return pd.DataFrame(
+        {"symbol": symbol, "date": pd.to_datetime(index), "sig": values.to_numpy(bool)}
+    )
 
 
 def _fake_golden_cross(
@@ -509,13 +515,23 @@ def _fake_golden_cross(
             pos = positions.get(pd.Timestamp(item.date))
             if pos is None:
                 continue
-            near_dead = any(pd.Timestamp(bars.iloc[i]["date"]) in dead_dates for i in range(pos + 1, min(len(bars), pos + days + 1)))
+            near_dead = any(
+                pd.Timestamp(bars.iloc[i]["date"]) in dead_dates
+                for i in range(pos + 1, min(len(bars), pos + days + 1))
+            )
             rows.append(near_dead)
     values = pd.Series(rows, dtype=bool)
-    return pd.Series({"golden_crosses": int(len(values)), "fake_ratio_5d": float(values.mean()) if len(values) else np.nan})
+    return pd.Series(
+        {
+            "golden_crosses": int(len(values)),
+            "fake_ratio_5d": float(values.mean()) if len(values) else np.nan,
+        }
+    )
 
 
-def _write_dual_report(name: str, matrix: pd.DataFrame, fake: pd.Series, report_dir: Path) -> dict[str, Path]:
+def _write_dual_report(
+    name: str, matrix: pd.DataFrame, fake: pd.Series, report_dir: Path
+) -> dict[str, Path]:
     report_dir.mkdir(parents=True, exist_ok=True)
     csv_path = report_dir / f"{name}_pairs.csv"
     md_path = report_dir / f"{name}_pairs.md"
