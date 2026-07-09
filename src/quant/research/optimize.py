@@ -53,7 +53,9 @@ class ResearchConfig:
     sample_seed: int = 42
 
     @classmethod
-    def from_mapping(cls, data: Mapping[str, Any], *, default_name: str = "research") -> "ResearchConfig":
+    def from_mapping(
+        cls, data: Mapping[str, Any], *, default_name: str = "research"
+    ) -> "ResearchConfig":
         """Build and validate a research config mapping."""
         _reject_post_is_dates(data)
         grid = {
@@ -87,9 +89,7 @@ class ResearchConfig:
             ic=bool(data.get("ic", False)),
             universe=str(data.get("universe", "stocks_nostar")),
             symbols=symbols,
-            max_symbols=(
-                int(data["max_symbols"]) if data.get("max_symbols") is not None else None
-            ),
+            max_symbols=(int(data["max_symbols"]) if data.get("max_symbols") is not None else None),
             exclude_boards=exclude_boards,
             entry_filters=str(data.get("entry_filters", "ashare")),
             regime_by=data.get("regime_by"),
@@ -142,7 +142,9 @@ def _validate_is_window(start: str, end: str) -> None:
 
 def _param_product(grid: Mapping[str, Sequence[Any]]) -> list[dict[str, Any]]:
     keys = list(grid)
-    return [dict(zip(keys, combo, strict=True)) for combo in itertools.product(*(grid[k] for k in keys))]
+    return [
+        dict(zip(keys, combo, strict=True)) for combo in itertools.product(*(grid[k] for k in keys))
+    ]
 
 
 def _default_signal_builder(name: str, bars: pd.DataFrame, params: Mapping[str, Any]) -> pd.Series:
@@ -300,16 +302,26 @@ def _signals_for_params(
         signal = signal[pd.to_datetime(signal.index) >= is_start]
         rows.append(
             pd.DataFrame(
-                {"symbol": symbol, "date": pd.to_datetime(signal.index), "sig": signal.to_numpy(bool)}
+                {
+                    "symbol": symbol,
+                    "date": pd.to_datetime(signal.index),
+                    "sig": signal.to_numpy(bool),
+                }
             )
         )
-    return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame(columns=["symbol", "date", "sig"])
+    return (
+        pd.concat(rows, ignore_index=True)
+        if rows
+        else pd.DataFrame(columns=["symbol", "date", "sig"])
+    )
 
 
 def _prices_frame(price_cache: Mapping[str, pd.DataFrame], cfg: ResearchConfig) -> pd.DataFrame:
     start = pd.Timestamp(cfg.is_start)
     frames = [frame[frame["date"] >= start].copy() for frame in price_cache.values()]
-    return pd.concat(frames, ignore_index=True).sort_values(["symbol", "date"]).reset_index(drop=True)
+    return (
+        pd.concat(frames, ignore_index=True).sort_values(["symbol", "date"]).reset_index(drop=True)
+    )
 
 
 def _factor_from_signals(signals: pd.DataFrame, name: str) -> pd.Series:
@@ -483,7 +495,9 @@ def neighborhood_stability(
         stable = False
     else:
         metric_values = neighbors[metric].astype(float).dropna()
-        floor_ok = bool((metric_values >= floor * best_value).all()) if not metric_values.empty else False
+        floor_ok = (
+            bool((metric_values >= floor * best_value).all()) if not metric_values.empty else False
+        )
         median_ok = True
         if baseline_value is not None and not np.isnan(baseline_value):
             median_ok = bool(metric_values.median() > baseline_value)
@@ -512,9 +526,9 @@ def write_scan_report(result: ScanResult, out_dir: str | Path, name: str) -> dic
         result.top.to_markdown(index=False),
         "",
         "## Grid",
-        result.table.sort_values("objective_value", ascending=False).head(20).to_markdown(
-            index=False
-        ),
+        result.table.sort_values("objective_value", ascending=False)
+        .head(20)
+        .to_markdown(index=False),
     ]
     md_path.write_text("\n".join(lines), encoding="utf-8")
     return {"csv": csv_path, "md": md_path}

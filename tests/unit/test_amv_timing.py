@@ -89,7 +89,9 @@ def test_right_side_cost_counts_missed_and_avoided_false_entries() -> None:
 def test_amv_smoke_with_variant_signal() -> None:
     frame = _index_frame()
     amv_df = amv(frame)
-    signal = build_variant_signal(amv_df, frame["close"], buy_th=2.0, sell_th=-2.0, variant="immediate")
+    signal = build_variant_signal(
+        amv_df, frame["close"], buy_th=2.0, sell_th=-2.0, variant="immediate"
+    )
 
     assert signal.index.equals(frame.index)
     assert not np.isinf(signal["regime"].to_numpy(dtype=float)).any()
