@@ -35,10 +35,12 @@
 | TASK-068 | R1 协议一致性修复（入场严格 t+1 + 065 ashare） | R1 | done | merged | 067 | review PASS；审查者独立红灯复核（旧码 3 failed→新码全绿）+ 三卡 IS 同配置复跑数字与 findings 增补表逐项吻合；无结论翻转；OOS 勘误核对见 TASK-068-review.md |
 | TASK-030 | qlib TopkDropout 基线 + mlflow | M3 | done | merged | 026 | review PASS（管线）；审查者双跑 67s 确定性逐位复核；**基线 metrics 判定无效**（universe 混入 258 个非股票代码，回撤 −116% 物理不可能）→ 根因在 TASK-011 分类兜底，修复卡 TASK-070；070 后重跑基线 |
 | TASK-031 | bt costs/feed/constraints | M3 | done | merged | 014 | review PASS；审查者按 §3 独立复算全部费用字面量（5.01/5.51/26/76/6.01）+ cerebro 期末现金复算一致；-1 哨兵仅限 is_suspended、limit 缺失走 NaN→跳过（分层干净）；`set_trade_date` 提醒已写入 032 卡 |
-| TASK-032 | DualTrend bt 移植 + parity | M3 | ready | — | 031 | **M3 gate 卡，建议认领**：对照 docs/parity/dualtrend_breath_full CSV，样本数全等/胜率≤0.1pp/均值≤5bps；反作弊栏 6 条已补（容差硬编码、join 吞样本、parity_mode 漂移等）；超差不许放宽，写差异分析置 review |
+| TASK-032 | DualTrend bt 移植 + parity | M3 | changes_requested | task/TASK-032-dualtrend-bt-parity | 031 | 第一轮裁定（TASK-032-review.md）：交付纪律合格（判据未放宽、全量 42m 跑完、诊断如实），三轴根因已定——A universe 错配→**钉死黄金 CSV 4564 只符号集**；B bar 流语义→**parity 只喂真实成交 bar**（v1 PG 视图无日历填充，审查者复核 53f72fd^ loader）；C RSV→**parity 逐条复刻 v1**，修完 B 仍崩溃则停下报告，safe RSV 只准生产模式。修完重跑全量，判据不变 |
 | TASK-033 | PG 归档退役 | M3 | backlog | — | 016,025,032+gate | 016/025/032 三报告全绿 + 规划者写 M3-gate-report 后才置 ready（ADR-0002） |
 | TASK-069 | 工程债：ruff format 全绿 | M3 | done | merged | 067,068 | review PASS；审查者逐字节验证 diff ≡ ruff format 输出（v2 原文件 format 后 cmp 全 IDENTICAL）；**质量门首次全绿**（88 files formatted） |
 | TASK-070 | 数据卫生：证券分类兜底修复 | M3 | done | merged | 030 | review PASS；审查者红灯复核 + 独立复验 AC2/AC3；universe 5723→5465（恰 −258）；030 基线重跑有效（review 附录）；R1 敏感性复跑完毕→勘误 2（washout 单调性留档理由降级，零候选结论不变） |
 | TASK-034 | AMV 组合级仓位开关（Tier2 overlay 预检） | M3 | done | merged | 030,070 | review PASS；审查者独立双跑 14 项 metrics 逐位一致 + regime 独立重建（exposure 0.4637/switches 96 逐位相同）+ base 与 030 附录逐位回归；**防御价值组合层复现**（mdd −2.25→−0.92、年化 −16.6%→+0.6%），系风险控制而非 alpha，Tier3 排位不变 |
+| TASK-071 | 工程债：研究计算层向量化（IC/分层/top-event） | M3 | ready | — | 067,068 | 067 瓶颈分析的后续；CSV 逐位一致为总闸，目标 ≥2×；既有单测断言零改动；与 032/072 白名单零交集可并行 |
+| TASK-072 | 数据卫生：分类器号段补漏（302/201/395） | M3 | ready | — | 070 | 032 parity 暴露：中航成飞(302)误分 other 被踢出 universe、招港B(201)同、sz395xxx 统计码应归 index；前缀规则修复+元数据再生；合并后审查者更新 030/034 基线锚点 |
 
-推荐认领顺序：**032 → 033**（032 是 M3 gate 卡；033 由规划者在三报告全绿 + gate report 后置 ready）。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
+推荐认领顺序：**032 返工（原分支）∥ 071 ∥ 072**（三者白名单零交集，可三窗口并行）；033 由规划者在 032 过 gate + 三报告全绿后置 ready。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
