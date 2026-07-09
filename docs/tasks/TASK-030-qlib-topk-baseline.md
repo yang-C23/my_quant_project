@@ -43,6 +43,15 @@ def run_topk_backtest(config_path: str | Path) -> TopkResult:
 4. `pytest -q tests/unit/test_qlib_topk.py`：配置解析/校验、因子编码（signal→{1,0}、factor→float、index=(datetime,instrument)）、exchange kwargs 构造；qlib 回测本体不 mock 进单测（集成级由验收 1 覆盖）。
 5. `pytest -q -m "not integration"` + `ruff check .` 全绿。
 
+## 验收如何被作弊/退化满足？
+
+1. **缩水配置跑通**：config 由本卡新建（在白名单内），universe 缩成 10 只/窗口缩成 3 个月也能让 AC1"跑通"——审查者将核对 `topk_baseline.yaml` = 卡面默认（全市场 universe、2015–2021、topk=50、卡面费率四元组），任何偏离须书面理由。
+2. **确定性假验证**：AC3 若只读同一份报告两遍即"逐位一致"——必须是**两次完整命令调用**，mlflow 出现两个不同 run_id 且 metrics 逐位相同。
+3. **mlflow 手灌指标**：AC2 可用 `mlflow.log_metric` 手写数字而与回测脱钩——审查者将比对 mlflow metrics 与报告 CSV 的 qlib 原生输出是否同源一致。
+4. **费率归零美化**：exchange 成本调低可让基线数字变好并绕开 qlib 成本路径——费率以卡面数字为准并写入报告头，审查逐项核对。
+5. **mom_20 未来函数**：实现若混入 `shift(-1)`/未来窗口即违反红线——沿用 065 的 look-ahead 单测模式（尾行扰动不改历史值）。
+6. **绕开批量 IO**：因子计算绕过 `compute_factor_frame` 手写逐符号 qlib 调用 = 静默回退 067 成果——审查者 diff 检查 IO 路径。
+
 ## Test plan
 单测聚焦纯函数（config → 组件参数）；真实回测走验收 1/3。fixtures 用合成因子 Series 验证编码与 index 约定。
 
