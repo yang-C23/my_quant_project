@@ -216,3 +216,119 @@ def test_mom_20_registered_and_tail_perturbation_does_not_change_history() -> No
 
     pd.testing.assert_series_equal(base.iloc[:-1], changed.iloc[:-1])
     assert base.iloc[20] == pytest.approx(20.0)
+
+
+def _regime_raw() -> dict:
+    raw = _baseline_raw()
+    raw["name"] = "topk_amv_switch"
+    raw["regime"] = {
+        "kind": "amv_immediate",
+        "index": "sh999999",
+        "k": 2.13,
+        "buy_th": 4.0,
+        "sell_th": -2.3,
+    }
+    return raw
+
+
+def _overlay_inputs() -> tuple[pd.DataFrame, pd.Series, pd.DatetimeIndex]:
+    dates = pd.date_range("2020-01-01", periods=5)
+    report = pd.DataFrame(
+        {
+            "return": [0.10, 0.20, -0.10, 0.05, 0.30],
+            "bench": [0.0, 0.0, 0.0, 0.0, 0.0],
+            "cost": [0.01, 0.02, 0.03, 0.04, 0.05],
+            "turnover": [0.1, 0.2, 0.3, 0.4, 0.5],
+        },
+        index=dates,
+    )
+    regime = pd.Series([0, 1, 1, 0, 1], index=dates)
+    return report, regime, dates
+
+
+def test_apply_regime_overlay_uses_tplus1_position_and_switch_costs() -> None:
+    report, regime, _dates = _overlay_inputs()
+
+    got = qlib_topk.apply_regime_overlay(
+        report,
+        regime,
+        open_cost=0.001,
+        close_cost=0.002,
+    )
+
+    assert list(got["position"]) == [0.0, 0.0, 1.0, 1.0, 0.0]
+    assert list(got["overlay_return"]) == pytest.approx([0.0, 0.0, -0.10, 0.05, 0.0])
+    assert list(got["overlay_cost"]) == pytest.approx([0.0, 0.0, 0.031, 0.04, 0.002])
+
+
+def test_apply_regime_overlay_shift_delays_same_day_flips() -> None:
+    report, regime, dates = _overlay_inputs()
+
+    got = qlib_topk.apply_regime_overlay(
+        report,
+        regime,
+        open_cost=0.001,
+        close_cost=0.002,
+    )
+
+    assert got.loc[dates[1], "position"] == 0.0
+    assert got.loc[dates[2], "position"] == 1.0
+    assert got.loc[dates[3], "position"] == 1.0
+    assert got.loc[dates[4], "position"] == 0.0
+
+
+def test_parse_topk_config_without_regime_keeps_baseline_shape() -> None:
+    cfg = parse_topk_config(_baseline_raw())
+
+    assert cfg.regime is None
+    assert cfg.name == "topk_baseline"
+    assert cfg.score == "mom_20"
+
+
+def test_parse_topk_config_validates_regime_schema() -> None:
+    cfg = parse_topk_config(_regime_raw())
+
+    assert cfg.regime == qlib_topk.RegimeConfig(
+        kind="amv_immediate",
+        index="sh999999",
+        k=2.13,
+        buy_th=4.0,
+        sell_th=-2.3,
+    )
+
+    invalid = _regime_raw()
+    invalid["regime"]["kind"] = "confirm_life"
+    with pytest.raises(ValueError, match="regime.kind"):
+        parse_topk_config(invalid)
+
+    missing = _regime_raw()
+    del missing["regime"]["sell_th"]
+    with pytest.raises(ValueError, match="regime.sell_th"):
+        parse_topk_config(missing)
+
+
+def test_amv_switch_config_matches_task_defaults() -> None:
+    cfg = load_topk_config(Path("configs/backtest/topk_amv_switch.yaml"))
+
+    assert cfg.name == "topk_amv_switch"
+    assert cfg.kind == "factor"
+    assert cfg.score == "mom_20"
+    assert cfg.start == "2015-01-01"
+    assert cfg.end == "2021-12-31"
+    assert cfg.universe.exclude_boards == ("star", "b")
+    assert cfg.topk == 50
+    assert cfg.n_drop == 5
+    assert cfg.benchmark == "sh000001"
+    assert build_exchange_kwargs(cfg) == {
+        "open_cost": 0.0005,
+        "close_cost": 0.0015,
+        "min_cost": 5.0,
+        "limit_threshold": 0.095,
+    }
+    assert cfg.regime == qlib_topk.RegimeConfig(
+        kind="amv_immediate",
+        index="sh999999",
+        k=2.13,
+        buy_th=4.0,
+        sell_th=-2.3,
+    )

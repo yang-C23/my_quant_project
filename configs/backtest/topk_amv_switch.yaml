@@ -1,0 +1,25 @@
+# TASK-034 qlib TopkDropout baseline with AMV immediate position switch.
+# Tier2 overlay approximation: one-step full portfolio on/off at report level.
+name: topk_amv_switch
+kind: factor
+score: mom_20
+start: "2015-01-01"
+end: "2021-12-31"
+universe:
+  source: list_symbols
+  exclude_boards: ["star", "b"]
+  at:
+topk: 50
+n_drop: 5
+benchmark: sh000001
+exchange:
+  open_cost: 0.0005
+  close_cost: 0.0015
+  min_cost: 5
+  limit_threshold: 0.095
+regime:
+  kind: amv_immediate
+  index: sh999999
+  k: 2.13
+  buy_th: 4.0
+  sell_th: -2.3

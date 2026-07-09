@@ -12,14 +12,18 @@ import numpy as np
 import pandas as pd
 
 from quant.config import get_settings, load_config
-from quant.data.api import init_qlib
+from quant.data.api import get_ohlcv, init_qlib
 from quant.data.symbols import to_qlib
+from quant.indicators.amv import amv
+from quant.research.amv_timing import build_variant_signal
 from quant.signals.factors import compute_factor_frame, to_factor
 
 BacktestKind = Literal["signal", "factor"]
+RegimeKind = Literal["amv_immediate"]
 
 EXPERIMENT_NAME = "topk_baseline"
 REPORT_DIR = Path("backtest_results/backtest")
+_REGIME_WARMUP_BDAYS = 200
 _INDEX_NAMES = ["datetime", "instrument"]
 _CONFIG_KEYS = {
     "name",
@@ -32,9 +36,11 @@ _CONFIG_KEYS = {
     "n_drop",
     "benchmark",
     "exchange",
+    "regime",
 }
 _UNIVERSE_KEYS = {"source", "exclude_boards", "at"}
 _EXCHANGE_KEYS = {"open_cost", "close_cost", "min_cost", "limit_threshold"}
+_REGIME_KEYS = {"kind", "index", "k", "buy_th", "sell_th"}
 
 
 @dataclass(frozen=True)
@@ -71,6 +77,17 @@ class ExchangeConfig:
 
 
 @dataclass(frozen=True)
+class RegimeConfig:
+    """Optional portfolio-level AMV timing overlay configuration."""
+
+    kind: RegimeKind
+    index: str
+    k: float
+    buy_th: float
+    sell_th: float
+
+
+@dataclass(frozen=True)
 class TopkConfig:
     """Validated TopkDropout baseline configuration."""
 
@@ -84,6 +101,7 @@ class TopkConfig:
     n_drop: int = 5
     benchmark: str = "sh000001"
     exchange: ExchangeConfig = ExchangeConfig()
+    regime: RegimeConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -121,6 +139,13 @@ def _float_value(value: Any, field: str) -> float:
     return parsed
 
 
+def _required_value(raw: Mapping[str, Any], key: str, label: str) -> Any:
+    value = raw.get(key)
+    if value is None:
+        raise ValueError(f"{label}.{key} is required")
+    return value
+
+
 def _parse_universe(raw: Any) -> UniverseConfig:
     if raw is None:
         return UniverseConfig()
@@ -156,6 +181,30 @@ def _parse_exchange(raw: Any) -> ExchangeConfig:
         limit_threshold=_float_value(
             raw.get("limit_threshold", default.limit_threshold), "exchange.limit_threshold"
         ),
+    )
+
+
+def _parse_regime(raw: Any) -> RegimeConfig | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, Mapping):
+        raise ValueError("regime must be a mapping")
+
+    _unknown_keys(raw, _REGIME_KEYS, "regime")
+    kind = str(_required_value(raw, "kind", "regime")).strip()
+    if kind != "amv_immediate":
+        raise ValueError("only regime.kind=amv_immediate is supported")
+
+    index = str(_required_value(raw, "index", "regime")).strip()
+    if not index:
+        raise ValueError("regime.index is required")
+
+    return RegimeConfig(
+        kind="amv_immediate",
+        index=index,
+        k=_float_value(_required_value(raw, "k", "regime"), "regime.k"),
+        buy_th=_float_value(_required_value(raw, "buy_th", "regime"), "regime.buy_th"),
+        sell_th=_float_value(_required_value(raw, "sell_th", "regime"), "regime.sell_th"),
     )
 
 
@@ -201,6 +250,7 @@ def parse_topk_config(raw: Mapping[str, Any]) -> TopkConfig:
         n_drop=n_drop,
         benchmark=benchmark,
         exchange=_parse_exchange(raw.get("exchange")),
+        regime=_parse_regime(raw.get("regime")),
     )
 
 
@@ -275,6 +325,76 @@ def build_exchange_kwargs(config: TopkConfig) -> dict[str, float]:
     return config.exchange.to_kwargs()
 
 
+def build_regime_series(config: RegimeConfig, start: str, end: str) -> pd.Series:
+    """Build the configured AMV regime over the requested report window."""
+    if config.kind != "amv_immediate":
+        raise ValueError(f"unsupported regime kind: {config.kind}")
+
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
+    load_start = (start_ts - pd.tseries.offsets.BDay(_REGIME_WARMUP_BDAYS)).strftime("%Y-%m-%d")
+    index_df = get_ohlcv(
+        config.index,
+        start=load_start,
+        end=end,
+        adjust="qfq",
+        fields=("open", "high", "low", "close", "volume", "amount"),
+    ).sort_index()
+    amv_df = amv(index_df, k=config.k)
+    signal = build_variant_signal(
+        amv_df,
+        index_df["close"],
+        buy_th=config.buy_th,
+        sell_th=config.sell_th,
+        variant="immediate",
+    )
+    regime = signal["regime"].astype("int8").sort_index()
+    return regime.loc[(regime.index >= start_ts) & (regime.index <= end_ts)]
+
+
+def apply_regime_overlay(
+    report: pd.DataFrame,
+    regime: pd.Series,
+    *,
+    open_cost: float,
+    close_cost: float,
+) -> pd.DataFrame:
+    """Apply t signal -> t+1 portfolio exposure and open/close costs to a report."""
+    required = {"return", "cost"}
+    missing = sorted(required - set(report.columns))
+    if missing:
+        raise ValueError(f"qlib report missing columns: {missing}")
+
+    open_cost_value = float(open_cost)
+    close_cost_value = float(close_cost)
+    if not np.isfinite(open_cost_value) or not np.isfinite(close_cost_value):
+        raise ValueError("open_cost and close_cost must be finite")
+
+    regime_values = regime.dropna().astype(int)
+    invalid = sorted(set(regime_values.unique()) - {0, 1})
+    if invalid:
+        raise ValueError(f"regime must contain only 0/1 values, got {invalid}")
+
+    out = report.copy()
+    position = regime_values.reindex(out.index).ffill().fillna(0).shift(1).fillna(0).astype(float)
+    position_change = position.diff().fillna(position)
+    open_fee = position_change.eq(1.0).astype(float) * open_cost_value
+    close_fee = position_change.eq(-1.0).astype(float) * close_cost_value
+
+    out["position"] = position
+    out["overlay_return"] = out["return"].astype(float) * position
+    out["overlay_cost"] = out["cost"].astype(float) * position + open_fee + close_fee
+    return out
+
+
+def _switched_report(report: pd.DataFrame) -> pd.DataFrame:
+    switched = report.copy()
+    switched["return"] = switched["overlay_return"].astype(float)
+    switched["cost"] = switched["overlay_cost"].astype(float)
+    switched["turnover"] = switched["turnover"].astype(float) * switched["position"].astype(float)
+    return switched
+
+
 def _run_qlib_backtest(config: TopkConfig, score: pd.Series) -> pd.DataFrame:
     if score.empty:
         raise ValueError("score Series is empty")
@@ -330,6 +450,19 @@ def extract_metrics(report: pd.DataFrame) -> dict[str, float]:
     }
 
 
+def _overlay_metrics(report: pd.DataFrame) -> dict[str, float]:
+    base = extract_metrics(report)
+    switched = extract_metrics(_switched_report(report))
+    position = report["position"].astype(float)
+    switches = position.diff().abs().fillna(0).sum()
+
+    metrics = {f"base_{key}": value for key, value in base.items()}
+    metrics.update({f"switched_{key}": value for key, value in switched.items()})
+    metrics["switched_exposure"] = float(position.mean())
+    metrics["switches"] = float(switches)
+    return metrics
+
+
 def _mlflow_params(
     config: TopkConfig, config_path: Path, symbol_count: int
 ) -> dict[str, str | int | float]:
@@ -351,6 +484,16 @@ def _mlflow_params(
     }
     for key, value in config.exchange.to_kwargs().items():
         params[f"exchange.{key}"] = value
+    if config.regime is not None:
+        params.update(
+            {
+                "regime.kind": config.regime.kind,
+                "regime.index": config.regime.index,
+                "regime.k": config.regime.k,
+                "regime.buy_th": config.regime.buy_th,
+                "regime.sell_th": config.regime.sell_th,
+            }
+        )
     return params
 
 
@@ -358,6 +501,19 @@ def _format_metrics(metrics: Mapping[str, float]) -> str:
     frame = pd.DataFrame([metrics]).T.reset_index()
     frame.columns = ["metric", "value"]
     return frame.to_markdown(index=False, floatfmt=".12g")
+
+
+def _format_overlay_comparison(metrics: Mapping[str, float]) -> str:
+    metric_names = [key.removeprefix("base_") for key in metrics if key.startswith("base_")]
+    rows = [
+        {
+            "metric": name,
+            "base": metrics[f"base_{name}"],
+            "switched": metrics[f"switched_{name}"],
+        }
+        for name in metric_names
+    ]
+    return pd.DataFrame(rows).to_markdown(index=False, floatfmt=".12g")
 
 
 def _write_reports(
@@ -393,16 +549,34 @@ def _write_reports(
             f"open_cost={exchange.open_cost}, close_cost={exchange.close_cost}, "
             f"min_cost={exchange.min_cost}, limit_threshold={exchange.limit_threshold}"
         ),
-        "",
-        "## Metrics",
-        "",
-        _format_metrics(metrics),
-        "",
-        "## Qlib Report",
-        "",
-        f"- raw_report_csv: {report_csv}",
-        f"- metrics_csv: {metrics_csv}",
     ]
+    if config.regime is not None:
+        regime = config.regime
+        lines.extend(
+            [
+                (
+                    "- regime: "
+                    f"kind={regime.kind}, index={regime.index}, k={regime.k}, "
+                    f"buy_th={regime.buy_th}, sell_th={regime.sell_th}"
+                ),
+                (
+                    "- overlay: Tier2 overlay 近似（一步全仓切换 + "
+                    "开/平仓单边计费），Tier3 以 backtrader 为准"
+                ),
+            ]
+        )
+    lines.extend(["", "## Metrics", "", _format_metrics(metrics)])
+    if config.regime is not None:
+        lines.extend(["", "## Base vs Switched", "", _format_overlay_comparison(metrics)])
+    lines.extend(
+        [
+            "",
+            "## Qlib Report",
+            "",
+            f"- raw_report_csv: {report_csv}",
+            f"- metrics_csv: {metrics_csv}",
+        ]
+    )
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {"csv": report_csv, "metrics_csv": metrics_csv, "md": md_path}
 
@@ -439,7 +613,17 @@ def run_topk_backtest(config_path: str | Path) -> TopkResult:
     symbols = resolve_universe(config.universe)
     score = build_score_series(config, symbols)
     report = _run_qlib_backtest(config, score)
-    metrics = extract_metrics(report)
+    if config.regime is None:
+        metrics = extract_metrics(report)
+    else:
+        regime = build_regime_series(config.regime, config.start, config.end)
+        report = apply_regime_overlay(
+            report,
+            regime,
+            open_cost=config.exchange.open_cost,
+            close_cost=config.exchange.close_cost,
+        )
+        metrics = _overlay_metrics(report)
     mlflow_run_id, report_paths = _record_mlflow_and_reports(
         config, path, report, metrics, len(symbols)
     )
