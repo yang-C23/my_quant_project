@@ -1,6 +1,6 @@
 # TASK-069: 工程债 — ruff format 全绿（既有文件格式化）
 
-- Milestone: M3（工程债）　|　State: backlog
+- Milestone: M3（工程债）　|　State: ready
 - Branch: `task/TASK-069-ruff-format-debt`　|　Depends: TASK-067, TASK-068
 
 ## Context
