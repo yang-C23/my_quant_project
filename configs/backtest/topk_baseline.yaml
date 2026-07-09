@@ -1,0 +1,19 @@
+# TASK-030 qlib TopkDropout baseline.
+# Full staging symbol universe via list_symbols(exclude_boards={"star", "b"}, at=None).
+name: topk_baseline
+kind: factor
+score: mom_20
+start: "2015-01-01"
+end: "2021-12-31"
+universe:
+  source: list_symbols
+  exclude_boards: ["star", "b"]
+  at:
+topk: 50
+n_drop: 5
+benchmark: sh000001
+exchange:
+  open_cost: 0.0005
+  close_cost: 0.0015
+  min_cost: 5
+  limit_threshold: 0.095
