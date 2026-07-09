@@ -34,7 +34,7 @@
 | TASK-067 | 工程债：qlib 批量 IO + CLI 守卫 | M3 | done | merged fae98f4 | — | review PASS；审查者独立复跑 branch=662s vs 基线 894s（1.35×，瓶颈=IC/分层/top-event 计算层，卡面条款豁免）；CSV 三方逐位一致；30 真实符号批量等价性精确相等 |
 | TASK-068 | R1 协议一致性修复（入场严格 t+1 + 065 ashare） | R1 | done | merged | 067 | review PASS；审查者独立红灯复核（旧码 3 failed→新码全绿）+ 三卡 IS 同配置复跑数字与 findings 增补表逐项吻合；无结论翻转；OOS 勘误核对见 TASK-068-review.md |
 | TASK-030 | qlib TopkDropout 基线 + mlflow | M3 | done | merged | 026 | review PASS（管线）；审查者双跑 67s 确定性逐位复核；**基线 metrics 判定无效**（universe 混入 258 个非股票代码，回撤 −116% 物理不可能）→ 根因在 TASK-011 分类兜底，修复卡 TASK-070；070 后重跑基线 |
-| TASK-031 | bt costs/feed/constraints | M3 | ready | — | 014 | Tier3 基础件，纯库无 CLI；费用表以 backtest_platform.md §3 为准 |
+| TASK-031 | bt costs/feed/constraints | M3 | in_progress | Codex | 014 | Tier3 基础件，纯库无 CLI；费用表以 backtest_platform.md §3 为准 |
 | TASK-032 | DualTrend bt 移植 + parity | M3 | backlog | — | 031 | **M3 gate 卡**：对照 docs/parity/dualtrend_breath_full CSV，样本数全等/胜率≤0.1pp/均值≤5bps |
 | TASK-033 | PG 归档退役 | M3 | backlog | — | 016,025,032+gate | 016/025/032 三报告全绿 + 规划者写 M3-gate-report 后才置 ready（ADR-0002） |
 | TASK-069 | 工程债：ruff format 全绿 | M3 | done | merged | 067,068 | review PASS；审查者逐字节验证 diff ≡ ruff format 输出（v2 原文件 format 后 cmp 全 IDENTICAL）；**质量门首次全绿**（88 files formatted） |
