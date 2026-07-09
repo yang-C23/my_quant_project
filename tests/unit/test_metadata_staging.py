@@ -28,7 +28,35 @@ def _write_daily(staging_dir: Path, df: pd.DataFrame) -> None:
     df.to_parquet(daily / "part-000.parquet", index=False)
 
 
-def test_build_securities_staging_classifies_prefixes(tmp_path: Path) -> None:
+def _tnf_record(code: str, name: str) -> bytes:
+    record = bytearray(staging_mod._TNF_RECORD_SIZE)
+    record[: len(code)] = code.encode("ascii")
+    name_bytes = name.encode("gbk")
+    start = staging_mod._TNF_NAME_OFFSET
+    record[start : start + len(name_bytes)] = name_bytes
+    return bytes(record)
+
+
+def test_read_tnf_names_decodes_fixed_width_records(tmp_path: Path) -> None:
+    tnf = tmp_path / "shs.tnf"
+    tnf.write_bytes(
+        (b"\0" * staging_mod._TNF_HEADER_SIZE)
+        + _tnf_record("600000", "浦发银行")
+        + _tnf_record("688001", "华兴源创")
+    )
+
+    assert staging_mod._read_tnf_names(tnf, "sh") == {
+        "sh600000": "浦发银行",
+        "sh688001": "华兴源创",
+    }
+
+
+def test_build_securities_staging_classifies_prefixes(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        staging_mod,
+        "_tdx_security_names",
+        lambda: {"sh600000": "浦发银行", "sz000001": "平安银行"},
+    )
     dates = pd.date_range("2024-01-01", periods=30, freq="D")
     cases = {
         "sh600000": ("sh", "stock", "main"),
@@ -54,19 +82,30 @@ def test_build_securities_staging_classifies_prefixes(tmp_path: Path) -> None:
         "sh887001": ("sh", "index", "index"),
         "sh888001": ("sh", "index", "index"),
         "sh110001": ("sh", "bond", "bond"),
+        "sh111001": ("sh", "bond", "bond"),
         "sh113001": ("sh", "bond", "bond"),
         "sh118001": ("sh", "bond", "bond"),
+        "sh132001": ("sh", "bond", "bond"),
         "sz123001": ("sz", "bond", "bond"),
+        "sz125001": ("sz", "bond", "bond"),
+        "sz126001": ("sz", "bond", "bond"),
         "sz127001": ("sz", "bond", "bond"),
         "sz128001": ("sz", "bond", "bond"),
+        "sh204001": ("sh", "repo", "other"),
+        "sz131001": ("sz", "repo", "other"),
         "sh900901": ("sh", "stock", "b"),
         "sz200001": ("sz", "stock", "b"),
-        "sh500001": ("sh", "etf", "etf"),
+        "sh500001": ("sh", "fund", "other"),
+        "sh520001": ("sh", "fund", "other"),
+        "sh530001": ("sh", "fund", "other"),
+        "sh551001": ("sh", "fund", "other"),
         "sh510001": ("sh", "etf", "etf"),
         "sh560001": ("sh", "etf", "etf"),
         "sh580001": ("sh", "etf", "etf"),
         "sz159001": ("sz", "etf", "etf"),
         "sz160001": ("sz", "etf", "etf"),
+        "sz184001": ("sz", "fund", "other"),
+        "sz395001": ("sz", "other", "other"),
     }
     rows = []
     for symbol in cases:
@@ -87,10 +126,20 @@ def test_build_securities_staging_classifies_prefixes(tmp_path: Path) -> None:
         assert row["board"] == board
         assert pd.isna(row["delist_date"])
 
+    assert securities.loc["sh600000", "name"] == "浦发银行"
+    assert securities.loc["sh601000", "name"] == "sh601000"
+    assert securities.loc["sz000001", "name"] == "平安银行"
+    assert pd.isna(securities.loc["sz395001", "name"])
     assert pd.Timestamp(securities.loc["sz000002", "delist_date"]) == dates[0]
     other = securities[securities["board"].eq("other")]
     assert len(other) <= 500
     assert not other.index.str.startswith("sz002").any()
+    assert securities.loc["sz395001", "sec_type"] != "stock"
+
+
+def test_classify_security_unknown_prefix_is_not_stock() -> None:
+    assert staging_mod._classify_security("sh777777") == ("other", "other")
+    assert staging_mod._classify_security("sz395001") == ("other", "other")
 
 
 def test_build_gbbq_staging_from_decoded_fixture(monkeypatch, tmp_path: Path) -> None:

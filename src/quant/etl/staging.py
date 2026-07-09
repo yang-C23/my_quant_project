@@ -67,6 +67,10 @@ FLAGS_SCHEMA = pa.schema(
 )
 
 _CHUNK_SIZE = 128  # files per worker task
+_TNF_HEADER_SIZE = 50
+_TNF_RECORD_SIZE = 360
+_TNF_NAME_OFFSET = 31
+_TNF_NAME_SIZE = 32
 
 
 @dataclass
@@ -267,6 +271,46 @@ def _resolve_hq_cache(root: Path) -> Path:
     raise FileNotFoundError(f"cannot locate TDX hq_cache under {root}")
 
 
+def _read_tnf_names(path: Path, exchange: str) -> dict[str, str]:
+    """Read symbol names from a TDX fixed-width .tnf security table."""
+    data = path.read_bytes()
+    if len(data) <= _TNF_HEADER_SIZE:
+        return {}
+
+    names: dict[str, str] = {}
+    payload = data[_TNF_HEADER_SIZE:]
+    record_count = len(payload) // _TNF_RECORD_SIZE
+    for idx in range(record_count):
+        record = payload[idx * _TNF_RECORD_SIZE : (idx + 1) * _TNF_RECORD_SIZE]
+        code = record[:16].split(b"\0", 1)[0].decode("ascii", errors="ignore").strip()
+        name = (
+            record[_TNF_NAME_OFFSET : _TNF_NAME_OFFSET + _TNF_NAME_SIZE]
+            .split(b"\0", 1)[0]
+            .decode("gbk", errors="ignore")
+            .strip()
+        )
+        if code and name:
+            names[f"{exchange}{code.lower()}"] = name
+    return names
+
+
+def _tdx_security_names() -> dict[str, str]:
+    """Load TDX symbol names when the local hq_cache is available."""
+    try:
+        from quant.config import get_settings
+
+        hq_cache = _resolve_hq_cache(get_settings().tdx_home)
+    except Exception:  # noqa: BLE001 - names are optional metadata for isolated tests
+        return {}
+
+    names: dict[str, str] = {}
+    for exchange, filename in (("sh", "shs.tnf"), ("sz", "szs.tnf"), ("bj", "bjs.tnf")):
+        path = hq_cache / filename
+        if path.exists():
+            names.update(_read_tnf_names(path, exchange))
+    return names
+
+
 def build_gbbq_staging(tdx_home_or_mirror: Path, staging_dir: Path) -> int:
     """Decode TDX GBBQ records into ``staging/gbbq.parquet``."""
     hq_cache = _resolve_hq_cache(tdx_home_or_mirror)
@@ -288,10 +332,34 @@ def _classify_security(symbol: str) -> tuple[str, str]:
         return "index", "index"
     if exchange == "sh" and code.startswith(("880", "881", "887", "888")):
         return "index", "index"
-    if exchange == "sh" and code.startswith(("110", "113", "118")):
+    if exchange == "sh" and code.startswith(("110", "111", "113", "118", "132")):
         return "bond", "bond"
-    if exchange == "sz" and code.startswith(("123", "127", "128")):
+    if exchange == "sz" and code.startswith(("123", "125", "126", "127", "128")):
         return "bond", "bond"
+    if exchange == "sh" and code.startswith("204"):
+        return "repo", "other"
+    if exchange == "sz" and code.startswith("131"):
+        return "repo", "other"
+    if exchange == "sh" and code.startswith(
+        (
+            "500",
+            "501",
+            "502",
+            "503",
+            "504",
+            "505",
+            "506",
+            "507",
+            "508",
+            "509",
+            "52",
+            "53",
+            "55",
+        )
+    ):
+        return "fund", "other"
+    if exchange == "sz" and code.startswith("18"):
+        return "fund", "other"
     if exchange == "sh" and code.startswith(("50", "51", "56", "58")):
         return "etf", "etf"
     if exchange == "sz" and code.startswith(("15", "16")):
@@ -311,7 +379,7 @@ def _classify_security(symbol: str) -> tuple[str, str]:
         return "stock", "main"
     if exchange == "sz" and code.startswith(("000", "001", "002", "003")):
         return "stock", "main"
-    return "stock", "other"
+    return "other", "other"
 
 
 def build_securities_staging(staging_dir: Path) -> int:
@@ -328,11 +396,12 @@ def build_securities_staging(staging_dir: Path) -> int:
     delist_cutoff = calendar[-21] if len(calendar) > 20 else calendar[0]
 
     classified = grouped["symbol"].map(_classify_security)
+    names = _tdx_security_names()
     securities = pd.DataFrame(
         {
             "symbol": grouped["symbol"].astype("string"),
             "code": grouped["symbol"].str[2:].astype("string"),
-            "name": pd.NA,
+            "name": grouped["symbol"].map(names).astype("string"),
             "exchange": grouped["symbol"].str[:2].astype("string"),
             "sec_type": [item[0] for item in classified],
             "board": [item[1] for item in classified],
@@ -340,6 +409,8 @@ def build_securities_staging(staging_dir: Path) -> int:
             "delist_date": grouped["max"].where(grouped["max"] < delist_cutoff).dt.date,
         }
     )
+    stock_without_name = securities["sec_type"].eq("stock") & securities["name"].isna()
+    securities.loc[stock_without_name, "name"] = securities.loc[stock_without_name, "symbol"]
     _write_parquet(securities, staging_dir / "securities.parquet")
     return len(securities)
 

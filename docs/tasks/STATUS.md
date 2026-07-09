@@ -38,6 +38,6 @@
 | TASK-032 | DualTrend bt 移植 + parity | M3 | backlog | — | 031 | **M3 gate 卡**：对照 docs/parity/dualtrend_breath_full CSV，样本数全等/胜率≤0.1pp/均值≤5bps |
 | TASK-033 | PG 归档退役 | M3 | backlog | — | 016,025,032+gate | 016/025/032 三报告全绿 + 规划者写 M3-gate-report 后才置 ready（ADR-0002） |
 | TASK-069 | 工程债：ruff format 全绿 | M3 | done | merged | 067,068 | review PASS；审查者逐字节验证 diff ≡ ruff format 输出（v2 原文件 format 后 cmp 全 IDENTICAL）；**质量门首次全绿**（88 files formatted） |
-| TASK-070 | 数据卫生：证券分类兜底修复 | M3 | in_progress | task/TASK-070-securities-classify-fix | 030 | **建议下一张认领（阻塞性）**：258 个无元数据历史代码（债/回购/老基金）被兜底成 stock 混入 universe，污染 030 基线与 R1 800 样本（39/800）；合并后审查者做 030 基线重跑 + R1 敏感性复跑 |
+| TASK-070 | 数据卫生：证券分类兜底修复 | M3 | review | task/TASK-070-securities-classify-fix | 030 | securities rows 12169→12169；ETL `myquant etl full --steps securities,flags` output: `staging securities: 12169 rows` / `staging flags: 18371150 rows`；AC2 output: `board`<br>`main    3472`<br>`gem     1433`<br>`star     608`<br>`bse      560`<br>`b        165`<br>`Name: count, dtype: int64`；AC3 output: `800-sample clean` |
 
 推荐认领顺序：**070 → 031 → 032**（070 阻塞 034 与 R1 勘误裁定；031 纯合成 fixture 无数据依赖、与 070 白名单零交集，可并行；032/033 由规划者在依赖合并后置 ready）。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。Tier3 首个验证对象 = AMV **原版 immediate** 组合级仓位开关（R1-final-report 裁定，非 confirm_life），030/031 合并后由规划者补 TASK-034 卡。
