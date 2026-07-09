@@ -28,6 +28,25 @@ myquant research configs/research/dual_trend.yaml
 
 假金叉率（5 bar 内死叉）：5325 个金叉中 8.15%。
 
+## 2026-07 协议修复后复跑
+
+复跑命令：`myquant research configs/research/dual_trend.yaml`（real 342.94s）。修复入场严格
+t+1 后，样本数小幅下降，矩阵方向未翻转：`golden_cross → dead_cross` 仍是原版基线最优，
+提前退出/止损组合仍未击败原版死叉退出。
+
+| entry | exit | trades old/new | avg old/new | median old/new | PF old/new |
+|:---|:---|---:|---:|---:|---:|
+| golden_cross | dead_cross | 5250 / 5240 | 0.0093 / 0.0088 | -0.0440 / -0.0440 | 1.147 / 1.140 |
+| golden_cross | close_lt_white_2d | 5276 / 5265 | 0.0030 / 0.0029 | -0.0222 / -0.0221 | 1.085 / 1.081 |
+| golden_cross | close_lt_yellow | 5278 / 5268 | 0.0038 / 0.0033 | -0.0271 / -0.0271 | 1.094 / 1.083 |
+| golden_cross | stop_8 | 4538 / 4529 | 0.0038 / 0.0035 | -0.0728 / -0.0727 | 1.057 / 1.052 |
+| golden_cross | dead_cross_stop_8 | 5265 / 5254 | 0.0008 / 0.0005 | -0.0562 / -0.0562 | 1.014 / 1.008 |
+| dual_entry | dead_cross | 3192 / 3189 | 0.0099 / 0.0098 | -0.0462 / -0.0463 | 1.151 / 1.149 |
+| dual_entry | close_lt_white_2d | 6627 / 6617 | 0.0002 / 0.0001 | -0.0029 / -0.0029 | 1.014 / 1.010 |
+| dual_entry | close_lt_yellow | 4426 / 4420 | 0.0017 / 0.0015 | -0.0211 / -0.0211 | 1.054 / 1.047 |
+| dual_entry | stop_8 | 3295 / 3291 | 0.0040 / 0.0041 | -0.0723 / -0.0723 | 1.060 / 1.061 |
+| dual_entry | dead_cross_stop_8 | 3467 / 3463 | 0.0006 / 0.0007 | -0.0579 / -0.0579 | 1.010 / 1.011 |
+
 ## 结论
 
 1. **没有退出规则击败 z哥原版死叉退出**——提前退出（白线 2 日 / 黄线 / −8% 止损 /

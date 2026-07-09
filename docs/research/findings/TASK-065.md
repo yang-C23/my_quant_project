@@ -28,6 +28,25 @@ myquant research configs/research/exploratory.yaml
 | turnover_weighted_cost | w60 | −0.0483 | −0.257 | 394 | −1.0 | −0.0010 | 0.967 | invalid_or_uncertain |
 | chip_concentration | w60 | −0.0242 | −0.122 | 416 | 0.8 | 0.0013 | 1.041 | invalid_or_uncertain |
 
+## 2026-07 协议修复后复跑
+
+复跑命令：`myquant research configs/research/exploratory.yaml`（real 720.27s）。`top_h5`
+事件研究改为 ashare 入场过滤后，top-event 数值小幅变化；IC/分层判定未变，所有因子仍为
+`invalid_or_uncertain`，结论方向未翻转。
+
+| factor | params | top_h5 avg old/new | top_h5 PF old/new | decision new |
+|:---|:---|---:|---:|:---|
+| washout_area_ratio | w20 | 0.0041 / 0.0040 | 1.173 / 1.170 | invalid_or_uncertain |
+| washout_area_ratio | w40 | 0.0045 / 0.0044 | 1.191 / 1.188 | invalid_or_uncertain |
+| washout_area_ratio | w60 | 0.0041 / 0.0040 | 1.177 / 1.173 | invalid_or_uncertain |
+| red_green_vol_ratio | w14 | 0.0028 / 0.0028 | 1.103 / 1.103 | invalid_or_uncertain |
+| red_green_vol_ratio | w28 | 0.0026 / 0.0026 | 1.092 / 1.092 | invalid_or_uncertain |
+| red_green_vol_ratio | w57 | 0.0010 / 0.0010 | 1.036 / 1.033 | invalid_or_uncertain |
+| bottom_area_score | w60/p120 | 0.0054 / 0.0054 | 1.265 / 1.263 | invalid_or_uncertain |
+| turnover_weighted_cost | w30 | 0.0006 / 0.0006 | 1.018 / 1.018 | invalid_or_uncertain |
+| turnover_weighted_cost | w60 | -0.0010 / -0.0010 | 0.967 / 0.969 | invalid_or_uncertain |
+| chip_concentration | w60 | 0.0013 / 0.0014 | 1.041 / 1.042 | invalid_or_uncertain |
+
 ## 结论
 
 **没有因子达到预声明有效性门槛，本卡不产生任何 R1 优化卡。**

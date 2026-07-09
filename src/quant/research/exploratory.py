@@ -84,7 +84,23 @@ def _to_factor_series(frame: pd.DataFrame, name: str) -> pd.Series:
 
 
 def _load_prices(symbols: list[str], start: str, end: str) -> pd.DataFrame:
-    return get_ohlcv_batch(symbols, start=start, end=end, adjust="qfq", fields=("open", "close"))
+    qfq = get_ohlcv_batch(
+        symbols,
+        start=start,
+        end=end,
+        adjust="qfq",
+        fields=("open", "close"),
+    )
+    raw = get_ohlcv_batch(
+        symbols,
+        start=start,
+        end=end,
+        adjust="raw",
+        fields=("open", "suspended", "limit_up_price"),
+    ).rename(columns={"open": "raw_open", "suspended": "is_suspended"})
+    if qfq.empty:
+        raise ValueError("no symbols to load")
+    return qfq.merge(raw, on=["symbol", "date"], how="left")
 
 
 def _top_quantile_event(
@@ -96,7 +112,7 @@ def _top_quantile_event(
     frame["date"] = pd.to_datetime(frame["date"])
     cut = frame.groupby("date")["factor"].transform(lambda x: x.quantile(0.8))
     signals = frame.assign(sig=frame["factor"] >= cut)[["symbol", "date", "sig"]]
-    result = run_event_study(signals, horizons=[horizon], prices=prices, entry_filters="none")
+    result = run_event_study(signals, horizons=[horizon], prices=prices, entry_filters="ashare")
     pooled = result.pooled
     if pooled.empty:
         return {"avg_return": np.nan, "profit_factor": np.nan}

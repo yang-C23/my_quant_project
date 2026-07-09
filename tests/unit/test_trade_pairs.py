@@ -85,6 +85,26 @@ def test_exit_suspension_defers_to_next_open() -> None:
     assert trade["return"] == pytest.approx(0.20)
 
 
+def test_entry_suspension_drops_t_plus_1_instead_of_deferring() -> None:
+    prices = _prices()
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-02")), "is_suspended"] = True
+    result = run_pair_study(_signal("2020-01-01"), {}, prices, max_hold=3)
+
+    assert result.trades.empty
+    assert result.exclusions["entry_suspended"] == 1
+    assert result.exclusions["entry_missing"] == 0
+
+
+def test_entry_limit_up_drops_t_plus_1() -> None:
+    prices = _prices()
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-02")), "limit_up_price"] = 10.0
+    result = run_pair_study(_signal("2020-01-01"), {}, prices, max_hold=3)
+
+    assert result.trades.empty
+    assert result.exclusions["entry_limit_up"] == 1
+    assert result.exclusions["entry_missing"] == 0
+
+
 def test_overlapping_entries_are_ignored_until_exit() -> None:
     entries = pd.DataFrame(
         {
