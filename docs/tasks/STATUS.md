@@ -40,7 +40,7 @@
 | TASK-069 | 工程债：ruff format 全绿 | M3 | done | merged | 067,068 | review PASS；审查者逐字节验证 diff ≡ ruff format 输出（v2 原文件 format 后 cmp 全 IDENTICAL）；**质量门首次全绿**（88 files formatted） |
 | TASK-070 | 数据卫生：证券分类兜底修复 | M3 | done | merged | 030 | review PASS；审查者红灯复核 + 独立复验 AC2/AC3；universe 5723→5465（恰 −258）；030 基线重跑有效（review 附录）；R1 敏感性复跑完毕→勘误 2（washout 单调性留档理由降级，零候选结论不变） |
 | TASK-034 | AMV 组合级仓位开关（Tier2 overlay 预检） | M3 | done | merged | 030,070 | review PASS；审查者独立双跑 14 项 metrics 逐位一致 + regime 独立重建（exposure 0.4637/switches 96 逐位相同）+ base 与 030 附录逐位回归；**防御价值组合层复现**（mdd −2.25→−0.92、年化 −16.6%→+0.6%），系风险控制而非 alpha，Tier3 排位不变 |
-| TASK-071 | 工程债：研究计算层向量化（IC/分层/top-event） | M3 | ready | — | 067,068 | 067 瓶颈分析的后续；CSV 逐位一致为总闸，目标 ≥2×；既有单测断言零改动；与 032/072 白名单零交集可并行 |
-| TASK-072 | 数据卫生：分类器号段补漏（302/201/395） | M3 | review | task/TASK-072-classifier-band-gaps | 070 | AC2/AC3：other 命名证券=0；行数 12169；main/gem/star/bse/b=3473/1433/608/560/166；universe=5466；302132=main、201872=b、395001=index |
+| TASK-071 | 工程债：研究计算层向量化（IC/分层/top-event） | M3 | changes_requested | task/TASK-071-research-compute-vectorize | 067,068 | 第一轮裁定（TASK-071-review.md）：审查者独立双侧对照——**AC1 失败**（5/10 行 ic_mean/icir ULP 尾差=求和顺序漂移，须保序实现）；**AC2 基线误测**（88.73s 实为 cProfile 局部，审查者实测 v2≈12m）；分支侧 1m12s 测量正确，**真实加速 ≥7×**。修两项即过 |
+| TASK-072 | 数据卫生：分类器号段补漏（302/201/395） | M3 | done | merged | 070 | review PASS；红灯复核 + 审查者独立复验 AC2/AC3（行数 12169、五板 3473/1433/608/560/166、universe 5466、302132 在内）；连带发现 turnover_cost w60 新样本翻 effective → R1 勘误 3（M6 留档优先级上调） |
 
-推荐认领顺序：**032 返工（原分支）∥ 071 ∥ 072**（三者白名单零交集，可三窗口并行）；033 由规划者在 032 过 gate + 三报告全绿后置 ready。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
+推荐认领顺序：**032 二轮返工（等审查者新黄金）∥ 071 返工（原分支）**；033 由规划者在 032 过 gate + 三报告全绿后置 ready。032 对照目标变更：2 月黄金 CSV 经审查者证实在冻结 PG（2026-03-11，其后 223 条除权）上不可复现（连 v1 自身都无法复现），审查者正用 v1 原码在冻结快照重生成黄金（start=2015-01-01, end=2026-03-11），生成后更新 docs/parity/ 与 032 卡。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。

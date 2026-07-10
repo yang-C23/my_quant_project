@@ -105,3 +105,12 @@ turnover_weighted_cost 家族的负单调（Spearman −0.9/−1.0、ICIR −0.2
 留档理由不变。
 
 **最终结论（R1 零候选进入 Tier3）不变。**
+
+## 勘误 3（2026-07-10，TASK-072 universe 补漏后附注）
+
+TASK-072 将误分类的 `sz302132` 归回 universe（5465→5466）后，seed=42 的 800 样本再次重抽。
+审查者在 TASK-071 对照运行中观察到（v2 与 071 两侧代码一致复现）：`turnover_weighted_cost
+w60` 在新样本上按预声明门槛 decision 翻为 **effective**（ICIR −0.301、分位 Spearman −1.0、
+top_h5 PF 0.962）。处置：R1 已收官不重开；该负单调家族在三次样本组成变化（污染样本→净化
+5465→5466）下持续为最强信号且方向稳定，**M6 留档优先级上调**，届时以全宇宙+费用口径正式
+检验。washout 家族维持勘误 2 的降级结论。其余因子 decision 不变。
