@@ -45,6 +45,6 @@
 | TASK-073 | 快照冻结 manifest + PG 归档 dump | M3 | ready | — | — | ADR-0005 §8：033 前置；dump+manifest 由本卡交付，恢复演练由规划者执行 |
 | TASK-074 | 研究语义 LabelSpec（Tier1/IC 标签统一） | M3.5 | backlog | — | 071 | 白名单与 071 同碰 ic/forward_returns——071 合并后由规划者置 ready |
 | TASK-075 | 稳定哈希抽样（universe 无关采样） | M3.5 | ready | — | — | 可并行开发；**合并排在 071 之后**（保 071 AC1 对照口径，规划者控制） |
-| TASK-076 | trade_pairs 退出语义统一 + MAE/MFE 顺延 | M3.5 | in_progress | task/TASK-076-exit-semantics | — | 已认领；既有断言更新清单将在完成时补入此处。 |
+| TASK-076 | trade_pairs 退出语义统一 + MAE/MFE 顺延 | M3.5 | review | task/TASK-076-exit-semantics | — | AC1a 旧码红灯已复核；既有断言更新清单：无。逐项复核 `test_pair_study_immediate_exit_and_mae_mfe`：MAE −2%→−2%（entry=10、持有最低=9.8，exit=11），MFE +10%→+10%（持有最高=11、exit=11）；其余既有断言未编码旧 MAE/MFE 或旧出场值。 |
 
 推荐认领顺序：**032 二轮返工 ∥ 071 返工（均在原分支）优先**；073/075/076 三卡白名单互斥可并行认领（多卡并行时每张卡独立 worktree，见 TASK-072-review 备注）；074 等 071 合并后置 ready；033 由规划者在 032 过 + 三报告全绿 + 073 恢复演练通过后置 ready。**M3.5 已立项（ADR-0005）**：研究有效性加固，M4 可并行、M6 被其 gate 阻塞；R1 存档冻结，074/075/076 合并后旧研究数字不可复现属预期。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。

@@ -304,14 +304,13 @@ def _exit_trade(
     exit_exec_pos = _next_tradable_pos(
         bars,
         exit_signal_pos + 1,
-        entry_filters="none",
-        block_limit_down=exit_reason == "stop_loss",
+        block_limit_down=True,
     )
     if exit_exec_pos is None:
         return None
     exit_row = bars.iloc[exit_exec_pos]
     exit_price = float(exit_row["open"])
-    held = bars.iloc[entry_pos : exit_signal_pos + 1]
+    held = bars.iloc[entry_pos:exit_exec_pos]
     return {
         "symbol": symbol,
         "signal_date": pd.Timestamp(bars.iloc[signal_pos]["date"]),
@@ -323,8 +322,8 @@ def _exit_trade(
         "return": exit_price / entry_price - 1.0,
         "hold_days": int(exit_signal_pos - entry_pos + 1),
         "exit_reason": exit_reason,
-        "mae": float(held["low"].min() / entry_price - 1.0),
-        "mfe": float(held["high"].max() / entry_price - 1.0),
+        "mae": float(min(held["low"].min(), exit_price) / entry_price - 1.0),
+        "mfe": float(max(held["high"].max(), exit_price) / entry_price - 1.0),
         "exit_exec_pos": int(exit_exec_pos),
     }
 
@@ -366,7 +365,6 @@ def _next_tradable_pos(
     bars: pd.DataFrame,
     start_pos: int,
     *,
-    entry_filters: Literal["ashare", "none"],
     block_limit_down: bool = False,
 ) -> int | None:
     for pos in range(start_pos, len(bars)):
@@ -381,8 +379,6 @@ def _next_tradable_pos(
             and row["raw_open"] <= limit_down
         ):
             continue
-        if entry_filters == "ashare" and _blocked_entry(row):
-            return pos
         return pos
     return None
 
