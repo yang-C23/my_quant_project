@@ -42,5 +42,9 @@
 | TASK-034 | AMV 组合级仓位开关（Tier2 overlay 预检） | M3 | done | merged | 030,070 | review PASS；审查者独立双跑 14 项 metrics 逐位一致 + regime 独立重建（exposure 0.4637/switches 96 逐位相同）+ base 与 030 附录逐位回归；**防御价值组合层复现**（mdd −2.25→−0.92、年化 −16.6%→+0.6%），系风险控制而非 alpha，Tier3 排位不变 |
 | TASK-071 | 工程债：研究计算层向量化（IC/分层/top-event） | M3 | changes_requested | task/TASK-071-research-compute-vectorize | 067,068 | 第一轮裁定（TASK-071-review.md）：审查者独立双侧对照——**AC1 失败**（5/10 行 ic_mean/icir ULP 尾差=求和顺序漂移，须保序实现）；**AC2 基线误测**（88.73s 实为 cProfile 局部，审查者实测 v2≈12m）；分支侧 1m12s 测量正确，**真实加速 ≥7×**。修两项即过 |
 | TASK-072 | 数据卫生：分类器号段补漏（302/201/395） | M3 | done | merged | 070 | review PASS；红灯复核 + 审查者独立复验 AC2/AC3（行数 12169、五板 3473/1433/608/560/166、universe 5466、302132 在内）；连带发现 turnover_cost w60 新样本翻 effective → R1 勘误 3（M6 留档优先级上调） |
+| TASK-073 | 快照冻结 manifest + PG 归档 dump | M3 | ready | — | — | ADR-0005 §8：033 前置；dump+manifest 由本卡交付，恢复演练由规划者执行 |
+| TASK-074 | 研究语义 LabelSpec（Tier1/IC 标签统一） | M3.5 | backlog | — | 071 | 白名单与 071 同碰 ic/forward_returns——071 合并后由规划者置 ready |
+| TASK-075 | 稳定哈希抽样（universe 无关采样） | M3.5 | ready | — | — | 可并行开发；**合并排在 071 之后**（保 071 AC1 对照口径，规划者控制） |
+| TASK-076 | trade_pairs 退出语义统一 + MAE/MFE 顺延 | M3.5 | ready | — | — | 可并行；与 032/071/073/075 白名单零交集 |
 
-推荐认领顺序：**032 二轮返工（等审查者新黄金）∥ 071 返工（原分支）**；033 由规划者在 032 过 gate + 三报告全绿后置 ready。032 对照目标变更：2 月黄金 CSV 经审查者证实在冻结 PG（2026-03-11，其后 223 条除权）上不可复现（连 v1 自身都无法复现），审查者正用 v1 原码在冻结快照重生成黄金（start=2015-01-01, end=2026-03-11），生成后更新 docs/parity/ 与 032 卡。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
+推荐认领顺序：**032 二轮返工 ∥ 071 返工（均在原分支）优先**；073/075/076 三卡白名单互斥可并行认领（多卡并行时每张卡独立 worktree，见 TASK-072-review 备注）；074 等 071 合并后置 ready；033 由规划者在 032 过 + 三报告全绿 + 073 恢复演练通过后置 ready。**M3.5 已立项（ADR-0005）**：研究有效性加固，M4 可并行、M6 被其 gate 阻塞；R1 存档冻结，074/075/076 合并后旧研究数字不可复现属预期。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
