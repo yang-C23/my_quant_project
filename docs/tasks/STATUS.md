@@ -41,6 +41,6 @@
 | TASK-070 | 数据卫生：证券分类兜底修复 | M3 | done | merged | 030 | review PASS；审查者红灯复核 + 独立复验 AC2/AC3；universe 5723→5465（恰 −258）；030 基线重跑有效（review 附录）；R1 敏感性复跑完毕→勘误 2（washout 单调性留档理由降级，零候选结论不变） |
 | TASK-034 | AMV 组合级仓位开关（Tier2 overlay 预检） | M3 | done | merged | 030,070 | review PASS；审查者独立双跑 14 项 metrics 逐位一致 + regime 独立重建（exposure 0.4637/switches 96 逐位相同）+ base 与 030 附录逐位回归；**防御价值组合层复现**（mdd −2.25→−0.92、年化 −16.6%→+0.6%），系风险控制而非 alpha，Tier3 排位不变 |
 | TASK-071 | 工程债：研究计算层向量化（IC/分层/top-event） | M3 | ready | — | 067,068 | 067 瓶颈分析的后续；CSV 逐位一致为总闸，目标 ≥2×；既有单测断言零改动；与 032/072 白名单零交集可并行 |
-| TASK-072 | 数据卫生：分类器号段补漏（302/201/395） | M3 | ready | — | 070 | 032 parity 暴露：中航成飞(302)误分 other 被踢出 universe、招港B(201)同、sz395xxx 统计码应归 index；前缀规则修复+元数据再生；合并后审查者更新 030/034 基线锚点 |
+| TASK-072 | 数据卫生：分类器号段补漏（302/201/395） | M3 | review | task/TASK-072-classifier-band-gaps | 070 | AC2/AC3：other 命名证券=0；行数 12169；main/gem/star/bse/b=3473/1433/608/560/166；universe=5466；302132=main、201872=b、395001=index |
 
 推荐认领顺序：**032 返工（原分支）∥ 071 ∥ 072**（三者白名单零交集，可三窗口并行）；033 由规划者在 032 过 gate + 三报告全绿后置 ready。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
