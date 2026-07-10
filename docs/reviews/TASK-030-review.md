@@ -58,3 +58,12 @@
 
 mom_20 topk50 在 IS 段大幅跑输基准与"A股反转强、短窗动量弱"的共识一致；本卡目标是管线
 基线而非 alpha，**管线判定：有效可用**。TASK-034（AMV 仓位开关）解除阻塞。
+
+## 附录二（2026-07-10，TASK-072 universe 补漏后锚点更新）
+
+universe 5465→5466（+sz302132）重跑双次，metrics 逐位一致（run 3ef258e3…/6cdfecb8…）。
+**当前有效锚点**：annualized_return **−0.166364501763**、information_ratio −0.769732464813、
+max_drawdown −2.252475617、turnover_mean 0.0667483446641、excess_wo/with_cost
+−0.192120990417/−0.207944854149。与附录一相比仅第 5 位小数级微移。
+TASK-034 的 switched_* 全部指标在新 universe 下逐位不变（base 变化日均落在空仓段），
+exposure 0.463657678781/switches 96 维持。后续卡的 base_* 回归以本附录为准。
