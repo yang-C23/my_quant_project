@@ -69,6 +69,7 @@ def test_build_securities_staging_classifies_prefixes(monkeypatch, tmp_path: Pat
         "sz003001": ("sz", "stock", "main"),
         "sz300001": ("sz", "stock", "gem"),
         "sz301001": ("sz", "stock", "gem"),
+        "sz302132": ("sz", "stock", "main"),
         "sh688001": ("sh", "stock", "star"),
         "sh689001": ("sh", "stock", "star"),
         "bj430001": ("bj", "stock", "bse"),
@@ -77,6 +78,7 @@ def test_build_securities_staging_classifies_prefixes(monkeypatch, tmp_path: Pat
         "bj920001": ("bj", "stock", "bse"),
         "sh999999": ("sh", "index", "index"),
         "sz399001": ("sz", "index", "index"),
+        "sz395001": ("sz", "index", "index"),
         "sh880001": ("sh", "index", "index"),
         "sh881001": ("sh", "index", "index"),
         "sh887001": ("sh", "index", "index"),
@@ -95,6 +97,7 @@ def test_build_securities_staging_classifies_prefixes(monkeypatch, tmp_path: Pat
         "sz131001": ("sz", "repo", "other"),
         "sh900901": ("sh", "stock", "b"),
         "sz200001": ("sz", "stock", "b"),
+        "sz201872": ("sz", "stock", "b"),
         "sh500001": ("sh", "fund", "other"),
         "sh520001": ("sh", "fund", "other"),
         "sh530001": ("sh", "fund", "other"),
@@ -105,7 +108,6 @@ def test_build_securities_staging_classifies_prefixes(monkeypatch, tmp_path: Pat
         "sz159001": ("sz", "etf", "etf"),
         "sz160001": ("sz", "etf", "etf"),
         "sz184001": ("sz", "fund", "other"),
-        "sz395001": ("sz", "other", "other"),
     }
     rows = []
     for symbol in cases:
@@ -134,12 +136,12 @@ def test_build_securities_staging_classifies_prefixes(monkeypatch, tmp_path: Pat
     other = securities[securities["board"].eq("other")]
     assert len(other) <= 500
     assert not other.index.str.startswith("sz002").any()
-    assert securities.loc["sz395001", "sec_type"] != "stock"
+    assert securities.loc["sz395001", "sec_type"] == "index"
 
 
 def test_classify_security_unknown_prefix_is_not_stock() -> None:
     assert staging_mod._classify_security("sh777777") == ("other", "other")
-    assert staging_mod._classify_security("sz395001") == ("other", "other")
+    assert staging_mod._classify_security("sz200011") == ("stock", "b")
 
 
 def test_build_gbbq_staging_from_decoded_fixture(monkeypatch, tmp_path: Path) -> None:

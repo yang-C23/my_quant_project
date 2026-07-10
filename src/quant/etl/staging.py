@@ -326,7 +326,7 @@ def _classify_security(symbol: str) -> tuple[str, str]:
 
     if exchange == "sh" and code.startswith(("000", "999")):
         return "index", "index"
-    if exchange == "sz" and code.startswith("399"):
+    if exchange == "sz" and code.startswith(("395", "399")):
         return "index", "index"
     if exchange == "bj" and code.startswith("899"):
         return "index", "index"
@@ -368,11 +368,15 @@ def _classify_security(symbol: str) -> tuple[str, str]:
         return "stock", "b"
     if exchange == "sz" and code.startswith("200"):
         return "stock", "b"
+    if exchange == "sz" and code.startswith("201"):
+        return "stock", "b"
 
     if exchange == "bj" or code.startswith(("43", "83", "87", "920")):
         return "stock", "bse"
     if code.startswith(("300", "301")):
         return "stock", "gem"
+    if exchange == "sz" and code.startswith("302"):
+        return "stock", "main"
     if code.startswith(("688", "689")):
         return "stock", "star"
     if exchange == "sh" and code.startswith(("600", "601", "603", "605")):
