@@ -57,7 +57,10 @@
 | 一批 | TASK-074 | 研究语义契约 LabelSpec：Tier1/IC 标签统一（消 off-by-one、IC 补 ashare 过滤、spec hash 进报告） |
 | 一批 | TASK-075 | 稳定哈希抽样（乱序不变、universe ±1 最多换 1 个成员、均匀性反截断） |
 | 一批 | TASK-076 | trade_pairs 退出语义统一（全部卖出受跌停/停牌约束 + MAE/MFE 顺延窗口） |
-| 二批 | 届时补卡 | 日度 PIT EligibilityPanel；HAC/block bootstrap/聚类推断；trial ledger + holdout 访问台账；signed factor evaluator；FDR/DSR/PBO 报告；canonical 复利净值；executable return（费用/延期/部分成交）；成本容量与冲击；benchmark suite |
+| 一批 | TASK-077 | 工程债：worktree 测试隔离（pytest pythonpath）+ cli `__main__` 守卫 |
+| 二批 | TASK-078 | 日度 PIT EligibilityPanel + UniverseProfile 两档（research 3000万 / tradable 1亿 ADV20；非 ST、上市满 250 交易日、close≥1 元；**禁"未来收益完整"类前视过滤**，退市股留到退市日） |
+| 二批 | TASK-079 | UniverseProfile 接线（optimize/exploratory/qlib_topk 横截面按面板过滤 + 报告带 profile hash；等 071/074/075/078） |
+| 二批 | 届时补卡 | HAC/block bootstrap/聚类推断；trial ledger + holdout 访问台账；signed factor evaluator；FDR/DSR/PBO 报告；canonical 复利净值；executable return（费用/延期/部分成交 + 退市清算语义）；成本容量与冲击；benchmark suite |
 
 **Gate M3.5**（详见 ADR-0005 §2–§7；通过后才开 R2 正式研究与 M6 晋级类卡）：
 ① 事件研究/IC/未来 ML 标签引用同一 LabelSpec 且报告带 spec hash；② 抽样变形测试全过，

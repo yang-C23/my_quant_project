@@ -47,5 +47,7 @@
 | TASK-075 | 稳定哈希抽样（universe 无关采样） | M3.5 | review | task/TASK-075-stable-hash-sampling | — | **review PASS（TASK-075-review.md），合并排队等 071 先合**——分支勿动；审查者已验：变形测试/均匀界/跨 PYTHONHASHSEED 逐位一致 |
 | TASK-076 | trade_pairs 退出语义统一 + MAE/MFE 顺延 | M3.5 | done | merged ee18af8 | — | review PASS；审查者独立手算 AC1 全部期望值 + 红灯复核（旧码 4 failed→新码 15 passed）；退出语义与 Tier3 同构；R1 双线/短线存档自此不可复现（冻结）；审查中发现 editable install 跨 worktree 串扰风险→TASK-077 |
 | TASK-077 | 工程债：worktree 测试隔离 + cli `__main__` 守卫 | M3.5 | ready | — | — | 源自 076 审查（editable 串扰假绿）与 F-7（`python -m quant.cli` 静默空跑）；白名单与在途卡零交集，可并行 |
+| TASK-078 | 日度 PIT EligibilityPanel + UniverseProfile | M3.5 | ready | — | — | 用户需求落地（非ST/250交易日/ADV20 两档 3000万·1亿/close≥1）；**"未来收益完整"被裁定为前视，改标签层处理**；新模块零冲突可并行 |
+| TASK-079 | UniverseProfile 接线（研究/Topk 入口） | M3.5 | backlog | — | 078,071,074,075 | 白名单与 071/075 在途分支同碰——依赖全合后由规划者置 ready 并复核 AC |
 
 推荐认领顺序：**032 二轮返工 ∥ 071 返工（均在原分支）优先**；073/075/076 三卡白名单互斥可并行认领（多卡并行时每张卡独立 worktree，见 TASK-072-review 备注）；074 等 071 合并后置 ready；033 由规划者在 032 过 + 三报告全绿 + 073 恢复演练通过后置 ready。**M3.5 已立项（ADR-0005）**：研究有效性加固，M4 可并行、M6 被其 gate 阻塞；R1 存档冻结，074/075/076 合并后旧研究数字不可复现属预期。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
