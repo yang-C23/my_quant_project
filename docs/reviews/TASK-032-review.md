@@ -66,3 +66,50 @@ M2 已知的减法/乘法 qfq 差异（~2.3% 信号扰动）仍可能残留—�
    如实上报，不许静默。
 3. 轴 B（只喂真实成交 bar）维持第一轮实现不变。
 4. 重跑全量 parity + `compare_parity.py`，判据不变（count 全等 / 0.1pp / 5bps）。
+
+## 第三轮裁定（2026-07-11，审查者独立复跑 + 三组对照实验后的根因分解）
+
+二轮交付本身合格：三项返工全部落实（黄金符号集提取 / RSV 字面 bt.If + engine 级跳过 /
+真实 bar 过滤），判据未放宽，FAIL 如实上报。审查者独立复跑**逐位复现** Codex 数字
+（净 −1069、617 只差异符号、max |Δ|=13、win ≤0.05pp、avg ≤4.14bps），确定性成立。
+随后两组对照实验完成根因分解：
+
+| 实验 | 配置 | 净差 | 结论 |
+|---|---|---|---|
+| run 1 | 二轮交付原样 | −1069（493 负 : 124 正） | 基线 |
+| run 2 | 审查者补丁：parity feed 旗标清零 | −698 | **旗标差解释 371 个信号** |
+| 输入对照 | sh603019 PG v_qfq vs v2 qfq | 2690 根 bar **零根相同** | close 平均相对差 2.1%（max 11.8%）；**volume 差至 4×**（PG 视图对量也复权） |
+| 920 段 | 41 只差异符号 | +87 | PG 无改码前历史（如 bj920974 缺 2021-08~2023-03 共 192 根），v2/TDX 并入全历史 |
+
+**根因三分**（全部是输入差异或 v1 运行时语义复刻问题，非引擎移植 bug）：
+
+1. **v1 的 `filter_untradable` 是运行时空转**：v1 `load_symbol_db` 只查 OHLCV 六列，
+   `build_data_feed` 把 `is_suspended/is_upper_limit/is_lower_limit` **全部填常数 0**
+   （审查者读 `53f72fd^:src/quant/data/loader.py` 实证）——黄金从未剔除过任何信号；
+   v2 用真实旗标真剔 → 单向 −371。
+2. **输入流每根 bar 都不同**：PG v_qfq 为减法式且**对 volume 也做调整**，v2 为乘法
+   qfq + 原始 volume——KDJ/均线/双量启动/呼吸度全部吃到不同输入（M2 判例同款现象，
+   当年 KDJ 上 −2.3%）。
+3. **920 段覆盖差**：PG 只有北交所改码后历史（279 只在黄金内，41 只受影响，+87）。
+
+**裁定**：按 M2 gate 判例执行（M2-gate-report：同 PG 输入 → count 全等证引擎；qlib 输入
+差异单独量化归档为定义差）。**判据数字不变（count 全等 / 0.1pp / 5bps），改变的是对照
+输入源**——这是隔离变量的修正，不是放宽容差。
+
+## 第三轮返工项（原分支继续；卡面已由规划者同步修订）
+
+1. `dualtrend.py`：把逐符号 cerebro 循环抽出为公共入口
+   `run_dualtrend_from_frames(frames, params, *, parity_mode, report_dir, report_prefix)`
+   （`run_dualtrend_backtest` 行为不变，内部改调它）；parity 分支的 feed 旗标清零
+   （审查者 run 2 补丁语义：`suspended=0.0, limit_up/down_price=NaN`，复刻 v1 空转；
+   生产模式真实旗标不动），加单测断言 parity feed 三旗标恒不阻塞。
+2. 新建 `scripts/dualtrend_pg_parity.py`（psycopg2 只准出现在 scripts/ 层，守 033 的
+   `grep psycopg2 src/` 红线）：对黄金 5305 符号逐只按 **v1 原路径**加载 PG
+   `v_qfq_daily`（cursor + `pd.to_numeric`，`ORDER BY date`，OHLCV+amount），
+   `raw_open=open`、旗标零值合成 feed 帧，调 `run_dualtrend_from_frames`
+   （parity 参数同 yaml），产出 `dualtrend_pg_parity_summary.csv`。
+3. **验收变更**：`scripts/compare_parity.py <pg_parity_summary> <golden>` 必须
+   **signals/count 全等 + 0.1pp/5bps** → PASS（同码同源，再对不齐=移植 bug，回来修）；
+   原 qlib 输入全量 run 保留执行一次，其 FAIL 数字（−1069/−698 分解）作为
+   **定义差量化记录**写入 STATUS 备注归档（M2 报告 §"v2 自己的 qlib 数据"同款结构）。
+4. 耗时与两组数字更新 STATUS；质量门全绿。
