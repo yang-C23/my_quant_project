@@ -19,11 +19,12 @@
 | 数据schema、单位、复权 | `docs/data_platform.md` |
 | 资金、策略、绩效定义 | `docs/restart/RESEARCH_PROTOCOL.md` |
 | 来源授权与适用边界 | `configs/data_sources.yaml`；证据解读 `docs/restart/DATA_SOURCES.md` |
-| 冻结实验参数 | 原基线`configs/longterm.yaml`；当前`configs/cash_pool.yaml`及`configs/cash_pool_extensions.yaml`；最终以各运行`registration.json`为准 |
+| 冻结实验参数 | 原基线`configs/longterm.yaml`；主组`cash_pool.yaml`、扩展`cash_pool_extensions.yaml`、追加`current_price_pe.yaml`及`confirmation_horizon.yaml`；最终以各运行`registration.json`为准 |
 | 运行、恢复、定时器 | `docs/restart/OPERATIONS.md` |
 | 当前数据版本 | `DATA_ROOT/current.json` |
 | 最新研究与告警 | `DATA_ROOT/research/latest.json`、`DATA_ROOT/monitor/latest.json` |
-| 已计算结果与证据限制 | `docs/restart/RESULTS.md`及其冻结登记 |
+| 已计算结果与证据限制 | 新现金池`docs/restart/CASH_POOL_RESULTS.md`；旧价格诊断`docs/restart/RESULTS.md`，各自绑定冻结登记 |
+| CPU/GPU实测与优化执行 | 独立`/home/yang/projects/quant_performance`工作树；其`docs/restart/PERFORMANCE_AUDIT.md`维护唯一性能正文，状态仍在本项目STATUS |
 | 本轮机器可读验收 | `DATA_ROOT/audits/restart-acceptance-20261020.json` |
 
 数据、研究和审计详细产物保存在仓库外的`DATA_ROOT`。不要从旧报告复制收益结论，

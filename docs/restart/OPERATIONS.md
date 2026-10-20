@@ -114,6 +114,11 @@ scripts/quant platform refresh-shiller-research /完整路径/现金池主运行
 scripts/quant platform refresh-shiller-research /完整路径/现金池主运行 /完整路径/全新估值重放 --replay-run /完整路径/估值代理运行
 scripts/quant platform audit-price-sources /完整路径/现金池主运行 /完整路径/全新行情来源审查
 scripts/quant platform audit-price-sources /完整路径/现金池主运行 /完整路径/全新行情重放 --replay-run /完整路径/行情来源审查
+scripts/quant platform current-price-pe-research /完整路径/现金池主运行 /完整路径/全新现价估值实验
+scripts/quant platform current-price-pe-research /完整路径/现金池主运行 /完整路径/全新现价估值重放 --replay-run /完整路径/现价估值实验
+scripts/quant platform confirmation-horizon-research /完整路径/现金池主运行 /完整路径/全新确认期限实验 --workers 4
+scripts/quant platform confirmation-horizon-research /完整路径/现金池主运行 /完整路径/全新确认期限重放 --workers 4 --replay-run /完整路径/确认期限实验
+scripts/quant platform verify-research-replay /完整路径/原运行 /完整路径/重放运行
 ```
 
 重放必须在相应冻结源码工作树执行，可设置`QUANT_PYTHON`指向本项目已核实的解释器，
@@ -122,18 +127,74 @@ scripts/quant platform audit-price-sources /完整路径/现金池主运行 /完
 `payloads.json`核对逐日权益、流水、特征、所有案例及事件表的字节哈希，时间戳登记文件不要求相同。
 正式交易门槛没有因新增探索命令而放宽。
 
+`verify-research-replay`不仅比较两个清单，还重新读取每个文件计算哈希，并核对登记源码字节。
+它不证明金融含义或历史可得性正确；例如旧Put/Call错误窗口可以被精确重复。
+`current-price-pe-research`使用独立公式登记，不覆盖整个月度PE滞后的实验；
+`confirmation-horizon-research`只延长事件记忆，不改变五日企稳门槛。
+两项追加实验均承认已经观察原始历史结果，不将其当成全新样本外验证。
+
 阶段统计和窗口审计脚本使用同一解释器及冻结源码，例如：
 
 ```bash
 PYTHONPATH=src .venv/bin/python scripts/audit_cash_pool_calendars.py /完整路径/主运行 /完整路径/DATA_ROOT /完整路径/新日历审计.json
 PYTHONPATH=src .venv/bin/python scripts/correct_cash_pool_calendars.py /完整路径/主运行 /完整路径/日历审计.json /完整路径/新修正目录
 PYTHONPATH=src .venv/bin/python scripts/analyze_stage_funnels.py /完整路径/主运行 /完整路径/估值代理运行 /完整路径/DATA_ROOT /完整路径/新阶段统计目录
+PYTHONPATH=src .venv/bin/python scripts/check_valuation_future_invariance.py /完整路径/估值代理或现价估值运行 /完整路径/DATA_ROOT /完整路径/新的因果检查.json
 ```
 
 冻结工作树没有`.venv`时，将上述解释器路径换成已核验的绝对路径。
 日历修正拒绝未登记案例、原记录哈希不符或未通过独立账本的记录；不按收益选择修正。
 行情来源审查冻结五个指数和八条规则，要求相同价格日历、资金流及成本；
 缺报价时暂停该标的，不能前填价格或缩短账户。两家一致仍不等于官方真实性认证。
+
+### 本轮冻结版本索引
+
+这些是复现入口，不是任务状态。完整路径、输入哈希及重放回执另见研究报告的产物索引。
+工作树通过`git worktree add --detach 新目录 提交号`建立，复用经过doctor核验的解释器，
+不在共享环境重新安装其他工作树。不要把所有实验都用当前HEAD重新运行后称为原样复现。
+
+| 研究/检查 | 冻结提交 | 命令或脚本 |
+|---|---|---|
+| 主现金池197项登记 | `560877f` | `platform cash-pool-research` |
+| 完整日历的压力、风格、渠道扩展 | `ef8eee4` | `platform cash-pool-extensions` |
+| 整个月度PE滞后的Shiller更新组 | `eec3c45` | `platform refresh-shiller-research` |
+| 现价除以滞后盈利 | `5f1448d` | `platform current-price-pe-research` |
+| 五指数双来源敏感性 | `028fcd3` | `platform audit-price-sources` |
+| CFTC整段屏蔽与观察日延迟两种边界 | `b61c76f` | `platform audit-cftc-releases` |
+| 20/60/120日确认期限 | `77feca0` | `platform confirmation-horizon-research` |
+| 主/扩展分析、六条日历修正、基金年报核验v4 | `b54e45f` | `platform analyze-cash-pool`、`analyze-cash-pool-extensions`、`audit-fund-reports` |
+| 确认期限完整配对及原版等价核对 | `70d25c0` | `scripts/analyze_confirmation_horizons.py` |
+| 全部十年窗口图 | `eafdf56` | `scripts/plot_cash_pool_windows.py` |
+| 三ETF全部月度起点 | `b948f32` | `scripts/research_etf_monthly_windows.py` |
+| 月度窗口汇总及最新账户核验 | `cac0b47` | `scripts/analyze_etf_monthly_windows.py` |
+| CFTC原假设与主实验的别名声明核对 | `6bdf108` | `scripts/check_release_primary_equivalence.py` |
+
+```bash
+PYTHONPATH=src /完整路径/解释器 scripts/analyze_confirmation_horizons.py /完整路径/主运行 /完整路径/确认期限运行 /完整路径/新分析目录
+PYTHONPATH=src /完整路径/解释器 scripts/plot_cash_pool_windows.py /完整路径/主分析/adjudicated_results.csv /完整路径/新图表目录
+PYTHONPATH=src /完整路径/解释器 /完整路径/check_cash_pool_future_invariance.py /完整路径/确认期限运行 /完整路径/新因果检查.json --registered-confirmations
+```
+
+最后一项使用`655f9c0`的验证脚本、`77feca0`的实际研究源码；回执同时记录两者，
+不能把检查脚本版本和金融实现版本混为一谈。追加未来行情的检查不是历史发布时间的证明。
+年报核验v3曾出现无关源码版本混用，财务文件相同但全源码一致性不通过；
+v4在同一冻结版本重算并重放，旧失败回执保留。
+
+月度窗口与性能命令：
+
+```bash
+PYTHONPATH=src /完整路径/解释器 scripts/research_etf_monthly_windows.py /完整路径/主运行 /完整路径/新月度运行
+PYTHONPATH=src /完整路径/解释器 scripts/research_etf_monthly_windows.py /完整路径/主运行 /完整路径/新月度重放 --replay-run /完整路径/原月度运行
+PYTHONPATH=src /完整路径/解释器 scripts/analyze_etf_monthly_windows.py /完整路径/月度运行 /完整路径/主运行 /完整路径/新月度分析
+PYTHONPATH=src /完整路径/解释器 scripts/check_release_primary_equivalence.py /完整路径/CFTC边界审查 /完整路径/主运行 /完整路径/新核对.json
+```
+
+CPU/GPU优化在独立工作树`/home/yang/projects/quant_performance`，
+其源码基线、选择的并行度、GPU适用范围和复现命令只在
+[性能审查](/home/yang/projects/quant_performance/docs/restart/PERFORMANCE_AUDIT.md)维护。
+`quant_performance_baseline`保留优化前实现；不替换原冻结研究源码，不共享editable安装。
+研究解释的唯一正文仍是[CASH_POOL_RESULTS.md](CASH_POOL_RESULTS.md)，
+任务状态仍以主项目的`docs/tasks/STATUS.md`为准。
 
 ## 每日影子运行
 

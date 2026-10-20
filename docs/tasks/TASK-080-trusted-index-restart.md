@@ -17,6 +17,11 @@
 已完成的疑问核对见[策略复核](../restart/STRATEGY_REVIEW.md)，
 下一轮具体工作、准入和验收依[现金池研究协议](../restart/CASH_POOL_RESEARCH_PLAN.md)执行。
 
+同日追加授权：在独立工作树检查WSL2/5090总资源，按实际profile优化CPU/GPU吞吐，
+不终止原研究、不改变冻结实验，现金/成交/分红维持精确核验。
+金融研究交付见[现金池结果](../restart/CASH_POOL_RESULTS.md)；
+性能工作树与实测入口见[运行手册](../restart/OPERATIONS.md)，状态仍只在STATUS维护。
+
 ## Non-goals
 
 不自动交易、不购买数据、不发送外部消息、不删除旧数据、不改其他工作树。
@@ -30,6 +35,7 @@
 - `pyproject.toml`
 - `requirements-runtime.txt`
 - `requirements-lock.txt`
+- `requirements-gpu-benchmark-lock.txt`
 - `.env.example`
 - `.gitignore`
 - `.github/`
@@ -54,4 +60,5 @@
 
 实际阶段、代码版本、数据快照、验证结果和下一步仅在[任务看板](STATUS.md)维护。
 [交付映射](../restart/DELIVERY_MATRIX.md)逐项区分已实现接口、真实数据验收和未完成研究；
-[结果](../restart/RESULTS.md)只引用冻结运行。不得以本卡已覆盖代码范围为由将总计划标记完成。
+[新现金池结果](../restart/CASH_POOL_RESULTS.md)和[旧价格结果](../restart/RESULTS.md)
+分别引用冻结运行。不得以本卡已覆盖代码范围为由将总计划标记完成。

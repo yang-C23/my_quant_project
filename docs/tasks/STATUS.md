@@ -9,11 +9,12 @@
 | 阶段 | 状态 | 证据/下一步 |
 |---|---|---|
 | 基线与审计 | inventory_complete / legacy_review_open | 初始代码/数据/73产物清单已冻结；关键路径语义修复见[审计](../restart/AUDIT.md)，旧策略未全部复现 |
-| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/份额拆分/公司行动、Decimal账本、302项离线测试通过；3项遗留集成测试未运行；2项上游弃用警告保留 |
+| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/份额拆分/公司行动、Decimal账本；主项目314项、独立性能分支319项离线测试通过；各3项遗留集成测试未运行；2项上游弃用警告保留 |
 | TDX更新 | structurally_accepted | 快照20261020T112255Z-2f1a3256f7；29,753,977行、12,490代码至10月19日；幂等、完整备份/隔离恢复通过 |
 | 替代源验收 | partial / formal_gate_open | 已采集公开数据并交叉核查；长期估值、股息支付、许可/PIT和历史成分仍缺 |
 | 基准及扩展回测 | price_diagnostics_reproduced / formal_blocked | 冻结120项假设；1,063条指数价格实验/窗口记录、2,999条暂停，精确重放通过；[结果及限制](../restart/RESULTS.md) |
-| 用户疑问复核及现金池研究 | historical_research_and_replay_in_progress | 主实验冻结560877f、197项假设；主运行cash-pool-20261020T180251782214Z及重放仍在计算。扩展首版2104条完成且12669产物精确重放，但48条Put/Call年限标签作废；ef8eee4修复运行cash-pool-extensions-20261020T193629063784Z及重放进行中。14205个主窗口审查仅发现6个VIX分段边界需修正，修正39产物精确重放。CFTC隔离272条/136对，1660产物精确重放；更新Shiller52项/384条，2319产物精确重放。10份基金年报全部闭合。新增五指数八规则的双行情源审查进行中，302项离线测试通过。完整结果尚未定稿。[工作包](../restart/CASH_POOL_RESEARCH_PLAN.md) |
+| 用户疑问复核及现金池研究 | exploratory_report_delivered / formal_gate_open | 主研究197项、14205账户/853暂停；85364产物原样重放，实际重算170728文件哈希。扩展2136、Shiller384、现价PE408、双源1728、CFTC408、确认期限3660、月度ETF668账户全部保留并重放。6个VIX日历裁定另存；旧Put/Call错误48窗口、旧年报源码身份失败均保留。确认期限1708原规则等价账户及180未来追加测试通过。完整正负结果、分标的结论与复现索引见[CASH_POOL_RESULTS.md](../restart/CASH_POOL_RESULTS.md)；不能把重叠窗口或已见历史当正式最终样本外证据 |
+| CPU/GPU吞吐优化 | implemented_and_verified | 独立task/TASK-080-cpu-gpu-throughput；52账户完整CLI 56.62→2.49秒，按账户批处理采用12worker；GPU真实22851观测热调用约1.67ms，冷调用382ms，默认账户/日更保持CPU。全14205账户、85359文件对既有裁定版精确核验，33项优化前已有差异明列，6个裁定案例又由优化前代码逐笔重算；无容差放宽。性能权威正文在[独立工作树报告](/home/yang/projects/quant_performance/docs/restart/PERFORMANCE_AUDIT.md) |
 | 每日监控 | shadow_timer_active | UTC 00:30/09:30用户定时器已启用；首次完整更新/计算成功；12标的暂停、0交易建议；重复执行不增加日期计数，20真实交易日未验收 |
 | 长期维护 | ongoing | 文档与本机恢复具备；异地备份、正式数据晋级和未来20日验收待办 |
 
@@ -25,9 +26,10 @@
 
 ## 当前接手顺序
 
-1. 先读[本次策略复核](../restart/STRATEGY_REVIEW.md)与[现金池执行协议](../restart/CASH_POOL_RESEARCH_PLAN.md)。
+1. 先读[本轮研究结论](../restart/CASH_POOL_RESULTS.md)、[本次策略复核](../restart/STRATEGY_REVIEW.md)
+   与[现金池执行协议](../restart/CASH_POOL_RESEARCH_PLAN.md)，不要重复启动已完成的大批次。
    用户新增约束：免费/已有数据优先，5—10年投资，示例资金即可；月供先积累、信号后分批入场/退出，
-   6/12/24个月比较等待代价，不自动到期买入。优先实施新版本现金池，保留旧规则对照，
+   6/12/24个月比较等待代价，不自动到期买入。现金池及本轮历史比较已交付，旧规则对照保留，
    并读[交付映射](../restart/DELIVERY_MATRIX.md)和[来源档案](../restart/DATA_SOURCES.md)，
    补齐长期估值、完整公司行动/支付日、历史名录与留存依据；裁定跨源历史差异。
 2. 数据准入通过后，接入版本化准入记录、公司行动及实际渠道执行模型；当前正式入口固定暂停，不能仅修改配置就当作已验收。
