@@ -101,3 +101,22 @@ def test_legacy_mapping_replays_old_pg_fixture_only() -> None:
     np.testing.assert_allclose(
         merged["hfq_factor_got"], merged["hfq_factor_pg"], rtol=1e-9, atol=1e-12
     )
+
+
+@pytest.mark.parametrize("ratio", [2.0, 5.0, 0.5])
+def test_category11_share_split_is_exact_and_does_not_create_loss(ratio):
+    daily = pd.DataFrame(
+        {
+            "symbol": ["sh512890"] * 3,
+            "date": pd.to_datetime(["2021-10-21", "2021-10-25", "2021-10-26"]),
+            "close": [1.5001, 1.5001 / ratio, 1.5001 / ratio],
+        }
+    )
+    event = _event("sh512890", "2021-10-25", 0, 0, ratio, 0)
+    event["category"] = 11
+    result = compute_adjust(daily, pd.DataFrame([event]))
+    assert result.hfq_factor.tolist() == [1.0, ratio, ratio]
+    assert np.allclose(daily.close * result.hfq_factor, 1.5001)
+    event["category"] = 12  # Nontradable-share changes do not split public float holdings.
+    result = compute_adjust(daily, pd.DataFrame([event]))
+    assert result.hfq_factor.tolist() == [1.0, 1.0, 1.0]

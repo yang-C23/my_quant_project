@@ -1,5 +1,5 @@
 schema_version: 1
-protocol_version: longterm-v1
+protocol_version: longterm-v2-corporate-action-gates
 research_mode: exploratory
 funding:
   initial: 100000
@@ -82,4 +82,4 @@ index_release_dates:
   chinext: '2010-06-01'
   dividend_lowvol: '2013-12-19'
   nasdaq100: '1985-01-31'
-include_instrument_price_diagnostics: true
+include_instrument_coverage: true

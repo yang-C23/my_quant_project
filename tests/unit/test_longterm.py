@@ -315,3 +315,29 @@ def test_old_period_revision_does_not_replace_latest_known_temperature():
     pd.testing.assert_series_equal(values.iloc[:2], before_revision)
     with pytest.raises(ValueError, match="increasing"):
         align_available(observed, decisions[::-1], "pe")
+
+
+def test_research_blocks_etf_raw_price_split_before_computing_performance(tmp_path):
+    from pathlib import Path
+    import yaml
+    from quant.config import Settings, load_config
+    from quant.data.snapshots import SnapshotStore
+    from quant.longterm.research import run_research
+
+    store = SnapshotStore(tmp_path)
+    identifier, folder = store.create()
+    (folder / "staging/daily").mkdir(parents=True)
+    data = bars([1.5, 0.75, 0.76]).reset_index(names="date").assign(symbol="sh512890")
+    data.to_parquet(folder / "staging/daily/part.parquet", index=False)
+    store.seal(identifier, {"publication_status": "validated"})
+    store.activate(identifier)
+    config = load_config(Path(__file__).resolve().parents[2] / "configs/longterm.yaml")
+    config["universe"] = [config["universe"][9]]
+    config["style_pairs"], config["extensions"] = [], []
+    path = tmp_path / "protocol.yaml"
+    path.write_text(yaml.safe_dump(config))
+    result = run_research(Settings(_env_file=None, data_root=tmp_path), path, exploratory=True)
+    table = pd.read_parquet(Path(result["directory"]) / "results.parquet")
+    assert set(table.status) == {"blocked"}
+    assert table.reason.str.contains("corporate_actions_incomplete").all()
+    assert "annualized_return" not in table

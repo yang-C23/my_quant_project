@@ -18,7 +18,6 @@ from quant.config import Settings, load_config
 from quant.data.catalog import DataCatalog
 from quant.data.snapshots import SnapshotStore, sha256_file, utc_now, write_json
 from quant.etl.restart import code_revision
-from quant.longterm.allocation import run_allocation
 from quant.longterm.engine import Backtest, Strategy, run_strategy
 from quant.longterm.features import align_available, price_features, valuation_temperature
 from quant.longterm.ledger import Costs, dec
@@ -284,7 +283,9 @@ def valuation_features(
 def research_assets(config: dict) -> list[dict]:
     """Separate fixed-candidate ETF/QDII price diagnostics from index research."""
     assets = [dict(asset) for asset in config["universe"]]
-    if config.get("include_instrument_price_diagnostics"):
+    if config.get(
+        "include_instrument_coverage", config.get("include_instrument_price_diagnostics")
+    ):
         for asset in config["universe"]:
             if asset.get("style") == "dividend_lowvol":
                 continue
@@ -387,7 +388,14 @@ def run_research(
         evidence["prelaunch_rows"] = (
             int((bars.index < pd.Timestamp(release_date)).sum()) if release_date else None
         )
-        features = price_features(bars, **default_features)
+        missing_actions = "ETF" in evidence["basis"] and not evidence.get(
+            "corporate_actions_complete", False
+        )
+        features = (
+            pd.DataFrame(index=bars.index)
+            if missing_actions
+            else price_features(bars, **default_features)
+        )
         coverage.append(
             {
                 "asset": name,
@@ -396,7 +404,10 @@ def run_research(
                 "last_date": str(bars.index[-1].date()),
                 "sessions": len(bars),
                 **evidence,
-                "panic_events": int(features.panic_event.sum()),
+                "panic_events": None if missing_actions else int(features.panic_event.sum()),
+                "corporate_actions_gate": "missing"
+                if missing_actions
+                else "not_applicable_to_index_proxy",
             }
         )
         features.to_parquet(directory / f"{name}_features.parquet", compression="zstd")
@@ -429,6 +440,8 @@ def run_research(
             blocker = None
             if not exploratory:
                 blocker = "formal_data_gate_not_accepted: PIT/retention/corporate_actions/execution"
+            elif missing_actions:
+                blocker = "ETF_corporate_actions_incomplete_raw_price_is_not_an_account_return"
             elif experiment.get("metric"):
                 key = (experiment["metric"], experiment["window"])
                 if key not in valuation_cache:
@@ -564,47 +577,14 @@ def run_research(
                     )
         logger.info("%s research complete (%s)", name, evidence["basis"])
     for pair in config["style_pairs"]:
-        try:
-            if not exploratory:
-                raise ValueError("formal total-return and ETF-selection data gates not passed")
-            if any(not s.startswith(("sh", "sz")) for s in pair["symbols"]):
-                raise ValueError("US ETF dividend/price archive unavailable")
-            prices = {
-                symbol: load_tdx(settings, symbol, snapshot_id=snapshot_id)
-                for symbol in pair["symbols"]
+        rows.append(
+            {
+                "asset": pair["id"],
+                "experiment": "style_annual_rebalance",
+                "status": "blocked",
+                "reason": "verified_ETF_splits_dividends_and_payment_dates_required_for_style_comparison",
             }
-            result = run_allocation(
-                prices,
-                **funding,
-                weights=dict(zip(pair["symbols"], pair["weights"], strict=True)),
-                costs=Costs(
-                    dec(execution["commission_rate"]),
-                    dec(execution["minimum_commission"]),
-                    dec(execution["slippage_bps"]),
-                    dec(execution["dividend_tax_rate"]),
-                ),
-                lot=dec(execution["cn_etf_lot"]),
-            )
-            save_result(result, directory / pair["id"] / "style_annual_rebalance")
-            rows.append(
-                {
-                    "asset": pair["id"],
-                    "experiment": "style_annual_rebalance",
-                    "window": "common_history",
-                    "status": "exploratory_price_only",
-                    "reason": "cash_dividends_missing_not_valid_for_style_ranking",
-                    **result.metrics,
-                }
-            )
-        except (ValueError, FileNotFoundError) as exc:
-            rows.append(
-                {
-                    "asset": pair["id"],
-                    "experiment": "style_annual_rebalance",
-                    "status": "blocked",
-                    "reason": str(exc),
-                }
-            )
+        )
     for extension in config["extensions"]:
         rows.append(
             {
@@ -659,7 +639,7 @@ def make_report(directory: Path, table: pd.DataFrame, coverage: list[dict], summ
         "",
         "本轮是价格口径的探索与工程验证，不是已验收的可投资总回报，也不产生买卖推荐。",
         "PE/PB/股息率择时缺少经验证的长期估值和发布时间历史，已逐项暂停；不得用价格分位冒充PE分位。",
-        "ETF现金分红尚未补齐，因此红利低波的价格结果不能用于评价该风格优劣。",
+        "ETF拆分及现金分红尚未完整验收，所有ETF及红利低波组合账户回测暂停；原价跳变不能当投资亏损。",
         "指数研究可能含发布前回溯；FRED标普500仅约10年且不含分红。指数价格不可直接成交。",
         "",
         f"快照：`{summary['snapshot_id']}`；冻结清单见 `registration.json`；全结果见 `results.csv`。",

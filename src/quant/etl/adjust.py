@@ -55,6 +55,20 @@ def xdxr_events(gbbq: pd.DataFrame, *, mapping: str = "tdx") -> pd.DataFrame:
     return grouped
 
 
+def split_events(gbbq: pd.DataFrame) -> pd.DataFrame:
+    """Category 11 stores post/pre share ratio in c3; category 12 is nontradable shares."""
+    if gbbq.empty:
+        return pd.DataFrame(columns=["symbol", "date", "split_ratio"])
+    splits = gbbq.loc[gbbq["category"].eq(11), ["symbol", "date", "c3"]].copy()
+    splits = splits.rename(columns={"c3": "split_ratio"})
+    splits["date"] = pd.to_datetime(splits["date"])
+    if splits.duplicated(["symbol", "date"]).any():
+        raise ValueError("duplicate split events require source reconciliation")
+    if not (np.isfinite(splits["split_ratio"]) & splits["split_ratio"].gt(0)).all():
+        raise ValueError("invalid share split ratio")
+    return splits
+
+
 def theoretical_preclose(prev_close: pd.Series, ev: pd.DataFrame) -> pd.Series:
     """Return QUANTAXIS theoretical pre-close for ex-right events.
 
@@ -90,8 +104,14 @@ def daily_with_preclose(
     events = xdxr_events(gbbq, mapping=mapping)
     frame = frame.merge(events, on=["symbol", "date"], how="left")
     frame["has_xdxr"] = frame[_XDXR_COLUMNS].notna().any(axis=1)
+    frame = frame.merge(split_events(gbbq), on=["symbol", "date"], how="left")
+    frame["split_ratio"] = pd.to_numeric(frame["split_ratio"], errors="raise").astype(float)
+    if (frame["has_xdxr"] & frame["split_ratio"].notna()).any():
+        raise ValueError("simultaneous rights/cash and split need a verified event ordering")
     event_cols = frame[_XDXR_COLUMNS].apply(pd.to_numeric, errors="coerce").fillna(0.0)
     frame["preclose"] = theoretical_preclose(frame["prev_close"], event_cols)
+    frame["preclose"] /= frame["split_ratio"].fillna(1.0)
+    frame["has_xdxr"] |= frame["split_ratio"].notna()
     first_bar = frame["prev_close"].isna()
     frame.loc[first_bar, "preclose"] = frame.loc[first_bar, "close"].astype(float)
     frame["preclose"] = frame["preclose"].round(4)
@@ -112,6 +132,10 @@ def compute_adjust(
         frame["has_xdxr"] & frame["preclose"].gt(0) & frame["prev_close"].notna(),
         frame["prev_close"].astype(float) / frame["preclose"].astype(float),
         1.0,
+    )
+    # Split ratios are exact inputs, not reconstructed from a rounded theoretical price.
+    ratio = np.where(
+        frame["split_ratio"].notna() & frame["prev_close"].notna(), frame["split_ratio"], ratio
     )
     frame["hfq_factor"] = pd.Series(ratio, index=frame.index).groupby(frame["symbol"]).cumprod()
     frame["hfq_factor"] = frame["hfq_factor"].round(8)

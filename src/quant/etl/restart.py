@@ -28,7 +28,7 @@ from quant.etl.staging import (
 )
 
 logger = logging.getLogger(__name__)
-PARSER_VERSION = "tdx-units-statistics-null-semantics-v3"
+PARSER_VERSION = "tdx-units-statistics-fund-splits-v4"
 
 
 def code_revision() -> dict:
@@ -241,6 +241,8 @@ def update_snapshot(
             "qlib_built": build_qlib,
             "known_limitations": [
                 "TDX corporate actions lack announced_at and dividend payment dates",
+                "category11 split ratios applied; category12 nontradable-share changes are not price splits",
+                "leveraged/structured fund conversions need individual rights and cashflow review",
                 "historical revisions are not point-in-time vintages",
                 "security listing/delisting dates inferred from coverage, not official lifecycle",
                 "stock historical ST/limit flags not certified; omitted from this snapshot",

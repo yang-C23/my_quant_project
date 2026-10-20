@@ -72,6 +72,10 @@ def daily_monitor(
                 reasons.append(f"stale_prices_{age}_calendar_days")
             if not evidence.get("formal_accepted", False):
                 reasons.append("source_quality_or_pit_or_retention_not_accepted")
+            if "ETF" in evidence.get("basis", "") and not evidence.get(
+                "corporate_actions_complete", False
+            ):
+                raise ValueError("ETF_corporate_actions_incomplete_no_raw_price_panic_signal")
             panic = config.get("strategy_matrix", {}).get("panic", {})
             feature = price_features(
                 bars,
