@@ -1,11 +1,40 @@
 import json
+from pathlib import Path
+import runpy
+import shutil
+import subprocess
 
 import pandas as pd
+import pytest
 import yaml
 
 from quant.config import Settings
 from quant.data.snapshots import SnapshotStore
 from quant.longterm import monitor
+
+
+def test_shadow_service_accepted_by_systemd_with_spaces_and_percent(tmp_path):
+    verifier = shutil.which("systemd-analyze")
+    if verifier is None:
+        pytest.skip("systemd parser unavailable on this platform")
+    installer = runpy.run_path(
+        str(Path(__file__).resolve().parents[2] / "scripts/install_shadow_monitor.py")
+    )
+    project = tmp_path / "quant project%data"
+    launcher = project / "scripts/quant"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text("#!/bin/sh\nexit 0\n")
+    launcher.chmod(0o755)
+    unit = tmp_path / "quant-test-shadow.service"
+    unit.write_text(installer["service_contents"](project))
+    checked = subprocess.run(
+        [verifier, "--user", "verify", str(unit)], capture_output=True, text=True
+    )
+    assert checked.returncode == 0, checked.stderr
+    with pytest.raises(ValueError, match="absolute project path"):
+        installer["service_contents"](Path("relative/path"))
+    with pytest.raises(ValueError, match="line breaks"):
+        installer["service_contents"](tmp_path / "unsafe\npath")
 
 
 def test_shadow_stale_future_and_replayed_sessions_do_not_become_alerts(tmp_path, monkeypatch):
