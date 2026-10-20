@@ -25,6 +25,7 @@ def parse_cffex(raw: bytes, retrieved_at: str) -> pd.DataFrame:
             if not match:
                 continue
             frame = pd.read_csv(io.BytesIO(archive.read(member)), encoding="gb18030")
+            frame.columns = frame.columns.str.strip()
             mapping = {
                 "合约代码": "symbol",
                 "今开盘": "open",
@@ -38,13 +39,19 @@ def parse_cffex(raw: bytes, retrieved_at: str) -> pd.DataFrame:
                 "持仓变化": "open_interest_change",
                 "成交金额": "turnover_source_value",
                 "Delta": "delta",
+                "隐含波动率(%)": "implied_volatility_percent",
             }
             if not {"合约代码", "成交量", "持仓量", "今结算"}.issubset(frame):
                 raise ValueError("CFFEX contract schema changed")
             frame = frame.rename(columns=mapping)
+            # Earlier official archives pad contract codes to a fixed width.
+            # Strip formatting before classification, while preserving raw bytes.
+            frame["symbol"] = frame["symbol"].astype("string").str.strip()
             frame = frame[
                 frame.symbol.astype(str).str.match(r"^[A-Z]+\d{4}(?:-[CP]-\d+(?:\.\d+)?)?$")
             ].copy()
+            if frame.empty:
+                raise ValueError(f"no contract observations in daily file {member.filename}")
             frame["date"] = pd.Timestamp(match[1])
             frame["available_at"] = pd.Timestamp(retrieved_at)
             for column in frame:

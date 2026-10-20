@@ -117,7 +117,12 @@ class DataCatalog:
         data["retrieved_at"] = pd.Timestamp(retrieved_at)
         fields = []
         for name in data:
-            if name == "date" or name in {"ex_date", "pay_date", "record_date"}:
+            if name == "date" or name in {
+                "ex_date",
+                "pay_date",
+                "record_date",
+                "announcement_date",
+            }:
                 fields.append(pa.field(name, pa.date32()))
                 data[name] = pd.to_datetime(data[name]).dt.date
             elif name.endswith("_at"):

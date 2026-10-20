@@ -23,10 +23,14 @@ PARSER_VERSION = "public-daily-v2-typed-bounded"
 CSI_CODES = ("000300", "000905", "000016", "000688", "000698", "000852", "H30269", "930955")
 
 
-def download(url: str, *, headers: dict | None = None) -> tuple[bytes, dict]:
+def download(
+    url: str, *, headers: dict | None = None, data: bytes | None = None
+) -> tuple[bytes, dict]:
     """Fetch bounded public payloads, preserving origin without persisting credentials."""
     request = Request(
-        url, headers={"User-Agent": "QuantResearch/1.0 personal research", **(headers or {})}
+        url,
+        data=data,
+        headers={"User-Agent": "QuantResearch/1.0 personal research", **(headers or {})},
     )
     for attempt in range(3):
         try:

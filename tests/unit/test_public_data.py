@@ -119,11 +119,12 @@ def test_cffex_null_quotes_and_cftc_release_dates_are_not_invented():
 
     raw = archive(
         "20260901_1.csv",
-        "合约代码,今开盘,今结算,成交量,持仓量\nIF2609,0,4000,100,200\nIO2609-C-4000,--,10,0,20\n合计,--,0,100,220\n",
+        "合约代码,今开盘,今结算,成交量,持仓量\nIF2609     ,0,4000,100,200\nIO2609-C-4000,--,10,0,20\n合计,--,0,100,220\n",
         "gb18030",
     )
     frame = parse_cffex(raw, "2026-10-20T00:00Z")
     assert len(frame) == 2 and pd.isna(frame.loc[frame.symbol.str.startswith("IO"), "open"].iloc[0])
+    assert frame.symbol.tolist() == ["IF2609", "IO2609-C-4000"]
     columns = [
         "Report_Date_as_YYYY-MM-DD",
         "CFTC_Contract_Market_Code",

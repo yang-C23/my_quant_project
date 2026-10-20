@@ -17,4 +17,6 @@ scipy==1.15.3
 requests==2.32.5
 baostock==0.9.4
 xlrd==2.0.2
+openpyxl==3.1.5
+pypdf==6.21.1
 lxml==6.0.2

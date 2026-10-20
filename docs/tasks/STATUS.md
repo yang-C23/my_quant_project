@@ -13,7 +13,7 @@
 | TDX更新 | structurally_accepted | 快照20261020T112255Z-2f1a3256f7；29,753,977行、12,490代码至10月19日；幂等、完整备份/隔离恢复通过 |
 | 替代源验收 | partial / formal_gate_open | 已采集公开数据并交叉核查；长期估值、股息支付、许可/PIT和历史成分仍缺 |
 | 基准及扩展回测 | price_diagnostics_reproduced / formal_blocked | 冻结120项假设；1,063条指数价格实验/窗口记录、2,999条暂停，精确重放通过；[结果及限制](../restart/RESULTS.md) |
-| 用户疑问复核及下一轮协议 | common_window_audited / cash_pool_pending | 31组同窗口价格对照、独立流水/单位净值核对通过；现金留置与历史区间差异已量化；[复核](../restart/STRATEGY_REVIEW.md)、[6—10小时工作包](../restart/CASH_POOL_RESEARCH_PLAN.md) |
+| 用户疑问复核及现金池研究 | cash_pool_implemented / historical_research_in_progress | 用户已授权连续执行6—10小时工作包；现金池、分批退出、阶段事件及独立流水核对已实现，276项离线测试通过。197项新实验登记；209份官方衍生品档案约96.5万行，FINRA/Shiller已留存探索版；512890/515100/510300官方行动与6897个ETF交易日价格-NAV核对完成。已修复月度代理过期的未来依赖、旧CFFEX合约尾部空格漏读、拆分停牌估值，并登记官方累计净值异常。尚无新策略有效性结论。[复核](../restart/STRATEGY_REVIEW.md)、[工作包](../restart/CASH_POOL_RESEARCH_PLAN.md) |
 | 每日监控 | shadow_timer_active | UTC 00:30/09:30用户定时器已启用；首次完整更新/计算成功；12标的暂停、0交易建议；重复执行不增加日期计数，20真实交易日未验收 |
 | 长期维护 | ongoing | 文档与本机恢复具备；异地备份、正式数据晋级和未来20日验收待办 |
 

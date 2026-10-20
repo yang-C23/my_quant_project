@@ -55,7 +55,7 @@ class Backtest:
 
 
 def performance(daily: pd.DataFrame, journal: pd.DataFrame) -> dict:
-    """TWR from beginning-of-session flows; XIRR from actual dated contributions."""
+    """TWR around the configured execution-time flows; XIRR from dated contributions."""
     previous = daily["equity"].shift(1).fillna(0)
     before_flow = daily["pre_flow_equity"]
     after_flow = before_flow + daily["external_flow"]

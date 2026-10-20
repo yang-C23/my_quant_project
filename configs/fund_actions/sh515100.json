@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "symbol": "sh515100",
+  "publisher": "Invesco Great Wall",
+  "coverage_start": "2020-05-22",
+  "coverage_end": "2026-10-19",
+  "review": "two official cash distributions; manager and depository transfer dates are not investor pay dates; full cumulative-minus-unit NAV must reconcile every day",
+  "actions": [
+    {
+      "event_id": "sh515100_dividend_20231221",
+      "kind": "dividend",
+      "announcement_date": "2023-12-18",
+      "record_date": "2023-12-20",
+      "ex_date": "2023-12-21",
+      "pay_date": "2023-12-26",
+      "per_share": 0.437
+    },
+    {
+      "event_id": "sh515100_dividend_20251223",
+      "kind": "dividend",
+      "announcement_date": "2025-12-18",
+      "record_date": "2025-12-22",
+      "ex_date": "2025-12-23",
+      "pay_date": "2025-12-26",
+      "per_share": 0.1053
+    }
+  ],
+  "evidence": [
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/igw_dividend_2023-12-18.html",
+      "url": "https://www.igwfmc.com/main/zxzx/jjgg/lsgg/a/20231218/1064090.html",
+      "sha256": "c85c695f37a7fd4d25049db01e60d5fca71f96687c4eef7d2f1c651715f9b9d2",
+      "role": "2023_dividend_terms"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/igw_dividend_2025.pdf",
+      "url": "https://www.igwfmc.com/upload/20251218/20251218083050897.pdf",
+      "sha256": "4344765adf86a3dd1f73abca6e1f2d10420884a4bf548dbd37d16fb8ac609f32",
+      "role": "2025_dividend_terms"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/igw515100.html",
+      "url": "https://www.igwfmc.com/main/jjcp/product/515100/detail.html",
+      "sha256": "c34081d2df904dc81bf1091ce64536fac93e31c45066a4293e4896c732296583",
+      "role": "full_distribution_table"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/igw_nav.xls",
+      "url": "https://www.igwfmc.com/servlet/exportFundNav?startDate=2020-05-22&endDate=2026-10-19&fundid=515100&curPage=1&pageSize=99999",
+      "sha256": "41f59743ec63d7431eed73b828b073503a99c88fec4270550986b99b83559261",
+      "role": "all_NAV_dates_completeness_reconciliation"
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "symbol": "sh512890",
+  "publisher": "Huatai-PineBridge",
+  "coverage_start": "2018-12-19",
+  "coverage_end": "2026-10-19",
+  "review": "official 2021-2025 annual and 2026 interim reports explicitly record no cash distributions; full issuer NAV series must reconcile split-adjusted cumulative NAV through coverage end; no inference of payment dates",
+  "actions": [
+    {
+      "event_id": "sh512890_split_20211022",
+      "kind": "split",
+      "announcement_date": "2021-10-21",
+      "record_date": "2021-10-21",
+      "ex_date": "2021-10-22",
+      "ratio": 2.0
+    }
+  ],
+  "evidence": [
+    {
+      "data_root_relative_path": "lake/official_split_sh512890_20211022/437cd33ec8ad3f3bc0477e57/raw.bin",
+      "url": "https://static.cninfo.com.cn/finalpage/2021-10-21/1211340704.PDF",
+      "sha256": "a9d42108d3c06720012b91bfab5ade17c5fa53b6d314bdaa14364f2c886e413d",
+      "role": "split_terms_legal_date_20211022_quote_resumes_20211025"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai512890_2021.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1648703756198-htbrzzhldbdjyxkfszszqtzjj2021nndbg.pdf",
+      "sha256": "04c427102bb238b830c9069b11ce46753e9bb83dd1c158377f74a77fb0933579",
+      "role": "annual_or_interim_cash_distribution_review"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai512890_2022.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1680238748339-htbrzzhldbdjyxkfszszqtzjj2022nndbg.pdf",
+      "sha256": "a9c2a97224b4f8f0ff1d1af5c4dd08dc52bc687ad5a4e7b3b80fbc77f864499f",
+      "role": "annual_or_interim_cash_distribution_review"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai512890_2023.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1711727382446-htbrzzhldbdjyxkfszszqtzjj2023nndbg.pdf",
+      "sha256": "c957ae52e95a243b8c4cd0c57b7d820998adf4b3fa3d8a4a5877cabd2e43984a",
+      "role": "annual_or_interim_cash_distribution_review"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai512890_2024.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1743341566590-htbrzzhldbdjyxkfszszqtzjj2024nndbg.pdf",
+      "sha256": "6676bdb061834738dbc55179672be04d4ff8e0f242c43361a4af7c7ff38ba3bc",
+      "role": "annual_or_interim_cash_distribution_review"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai512890_2025.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1774875917454-94-1kk48d7z019dq.pdf",
+      "sha256": "dccb98f451460a214f4554d45a06ed551508d92d5f5adf4fd06c268d060e8015",
+      "role": "annual_or_interim_cash_distribution_review"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai512890_2026.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1787926187172-446-1kz36wdgw5d43.pdf",
+      "sha256": "13471a661261d1e13257591b682c09f10681d0130eae89bcc722128a1969018b",
+      "role": "annual_or_interim_cash_distribution_review"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai512890.html",
+      "url": "https://www.huatai-pb.com/products/zhishu/512890/index.html",
+      "sha256": "31c55acfbe3787d9ca92409301caec60ade33f3628f19671d5c491251d715f4a",
+      "role": "current_product_distribution_table"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai_nav.json",
+      "url": "https://www.huatai-pb.com/common-web/chart/fundnetchart/getFundNetChartJson",
+      "sha256": "f1e920aa010662acb9ffcaecc4b42207f6867cebea12364941ef7cc9e4926d45",
+      "role": "all_NAV_dates_completeness_reconciliation"
+    }
+  ],
+  "nav_corrections": [
+    {
+      "date": "2023-12-31",
+      "field": "cumulative_nav",
+      "original": 0.9143,
+      "verified_value": 1.8286,
+      "evidence_sha256": "c957ae52e95a243b8c4cd0c57b7d820998adf4b3fa3d8a4a5877cabd2e43984a",
+      "reason": "2023 annual report section 3.1 gives unit NAV 0.9143 and since-inception NAV growth 82.86%; official split ratio 2; the non-trading year-end web row copied unit NAV into cumulative NAV. Original API bytes remain unchanged; this correction is used only in company-action completeness reconciliation."
+    }
+  ]
+}

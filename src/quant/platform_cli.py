@@ -11,6 +11,67 @@ import typer
 app = typer.Typer(add_completion=False, help="Trusted data snapshots and long-term research.")
 
 
+@app.command("issuer-evidence")
+def issuer_evidence_cmd(
+    declaration: Path,
+    nav_file: Path | None = None,
+) -> None:
+    """Import reviewed issuer actions and reconcile every official NAV observation."""
+    from quant.config import get_settings, load_config
+    from quant.data.issuer_funds import fetch_issuer_nav, ingest_reviewed_actions
+
+    settings = get_settings()
+    evidence = load_config(declaration)
+    nav = fetch_issuer_nav(
+        settings.data_root,
+        evidence["symbol"],
+        end=evidence["coverage_end"],
+        cached_file=nav_file,
+    )
+    actions = ingest_reviewed_actions(settings.data_root, evidence)
+    output(
+        {
+            "nav": {"dataset": nav["dataset"], "version": nav["version"], "rows": nav["rows"]},
+            "actions": actions,
+        }
+    )
+
+
+@app.command("fetch-history")
+def fetch_history_cmd(
+    first_cftc_year: int = 2006,
+    last_cftc_year: int = 2026,
+    first_cffex_month: str | None = None,
+    last_cffex_month: str | None = None,
+    workers: int = 2,
+) -> None:
+    """Acquire explicitly bounded free first-party archives without paid subscriptions."""
+    import pandas as pd
+
+    from quant.config import get_settings
+    from quant.data.free_history import acquire_archives
+
+    if first_cftc_year > last_cftc_year:
+        raise typer.BadParameter("first year must not exceed last year")
+    months = []
+    if bool(first_cffex_month) != bool(last_cffex_month):
+        raise typer.BadParameter("provide both CFFEX month bounds")
+    if first_cffex_month:
+        start = pd.to_datetime(first_cffex_month, format="%Y%m")
+        end = pd.to_datetime(last_cffex_month, format="%Y%m")
+        if start > end:
+            raise typer.BadParameter("first month must not exceed last month")
+        months = pd.period_range(start, end, freq="M").strftime("%Y%m").tolist()
+    output(
+        acquire_archives(
+            get_settings().data_root,
+            cftc_years=list(range(first_cftc_year, last_cftc_year + 1)),
+            cffex_months=months,
+            workers=workers,
+        )
+    )
+
+
 @app.command("fetch-public")
 def fetch_public_cmd(baostock: bool = False) -> None:
     """Acquire free public references and record missing access/coverage explicitly."""
@@ -121,6 +182,31 @@ def review_results_cmd(
     from quant.longterm.diagnostics import review_results
 
     output(review_results(get_settings(), reference_run, start=start, end=end))
+
+
+@app.command("cash-pool-research")
+def cash_pool_research_cmd(
+    reference_run: Path,
+    config: Path = Path("configs/cash_pool.yaml"),
+    workers: int = 2,
+    replay_run: Path | None = None,
+    resume_run: Path | None = None,
+) -> None:
+    """Run the frozen cash-pool/stress study and retain all outcomes and paired controls."""
+    from quant.config import get_settings
+    from quant.longterm.pool_research import run_pool_research
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    output(
+        run_pool_research(
+            get_settings(),
+            config,
+            reference_run,
+            workers=workers,
+            replay_run=replay_run,
+            resume_run=resume_run,
+        )
+    )
 
 
 @app.command("backup")
