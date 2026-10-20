@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Install a local systemd user timer for shadow reports, with no external messaging."""
 
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -55,12 +56,19 @@ WantedBy=timers.target
         if target.exists() and not target.read_text().startswith("# Managed by my_quant_project/"):
             raise RuntimeError(f"refusing to overwrite an unmanaged unit: {target}")
     with tempfile.TemporaryDirectory(prefix="quant-systemd-verify-") as temporary:
+        runtime = Path(temporary) / "runtime"
+        runtime.mkdir(mode=0o700)
+        environment = os.environ.copy()
+        environment["XDG_RUNTIME_DIR"] = str(runtime)
+        environment.pop("DBUS_SESSION_BUS_ADDRESS", None)
         candidates = []
         for extension, contents in units:
             candidate = Path(temporary) / f"{UNIT}.{extension}"
             candidate.write_text(contents, encoding="utf-8")
             candidates.append(str(candidate))
-        subprocess.run(["systemd-analyze", "--user", "verify", *candidates], check=True)
+        subprocess.run(
+            ["systemd-analyze", "--user", "verify", *candidates], env=environment, check=True
+        )
     for extension, contents in units:
         target = destination / f"{UNIT}.{extension}"
         target.write_text(contents, encoding="utf-8")

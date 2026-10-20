@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 import runpy
 import shutil
@@ -27,8 +28,16 @@ def test_shadow_service_accepted_by_systemd_with_spaces_and_percent(tmp_path):
     launcher.chmod(0o755)
     unit = tmp_path / "quant-test-shadow.service"
     unit.write_text(installer["service_contents"](project))
+    runtime = tmp_path / "runtime"
+    runtime.mkdir(mode=0o700)
+    environment = os.environ.copy()
+    environment["XDG_RUNTIME_DIR"] = str(runtime)
+    environment.pop("DBUS_SESSION_BUS_ADDRESS", None)
     checked = subprocess.run(
-        [verifier, "--user", "verify", str(unit)], capture_output=True, text=True
+        [verifier, "--user", "verify", str(unit)],
+        env=environment,
+        capture_output=True,
+        text=True,
     )
     assert checked.returncode == 0, checked.stderr
     with pytest.raises(ValueError, match="absolute project path"):
