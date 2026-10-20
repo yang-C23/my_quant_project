@@ -204,15 +204,38 @@ def pool_registry(config: dict) -> list[dict]:
     return output
 
 
-def pool_windows(dates: pd.DatetimeIndex, config: dict) -> list[dict]:
-    """Funding starts at the window start, including every day spent waiting."""
+def pool_windows(
+    dates: pd.DatetimeIndex, config: dict, *, calendar: pd.DatetimeIndex | None = None
+) -> list[dict]:
+    """Keep missing-factor intervals inside the funding and comparison calendar.
+
+    `dates` bounds the interval after initial factor readiness. A later gap must
+    not silently move a five-year account start forward by several years. When a
+    separate calendar is provided, the strategy waits in cash during that gap.
+    """
     if len(dates) < 60:
         return []
     first, last = dates[0], dates[-1]
+    if calendar is not None:
+        if (
+            not calendar.is_unique
+            or not calendar.is_monotonic_increasing
+            or len(dates.difference(calendar))
+        ):
+            raise ValueError("availability dates must belong to the unique trading calendar")
+        dates = calendar[(calendar >= first) & (calendar <= last)]
     out = []
 
     def add(identifier: str, start: pd.Timestamp, end: pd.Timestamp, phase: str) -> None:
         usable = dates[(dates >= start) & (dates <= end)]
+        if (
+            phase == "overlapping_retrospective"
+            and len(usable)
+            and ((usable[0] - start).days > 14 or (end - usable[-1]).days > 14)
+        ):
+            # Fail closed if a caller supplies only sparse factor observations.
+            # Never label a truncated interval as the requested five/ten years.
+            raise ValueError("rolling window lost its calendar; supply the full trading calendar")
         if len(usable) >= 60:
             out.append(
                 {

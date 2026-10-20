@@ -11,7 +11,7 @@ from quant.config import load_config
 from quant.data.snapshots import write_json
 from quant.longterm.pool_data import periodic_percentile, shiller_temperature
 from quant.longterm.features import align_available
-from quant.longterm.pool_registry import pool_registry
+from quant.longterm.pool_registry import pool_registry, pool_windows
 from quant.longterm.pool_research import _run_asset, make_pool_report
 from quant.longterm.stages import StageSpec
 
@@ -52,6 +52,33 @@ def test_registry_has_all_stages_exits_and_no_duplicate_identifiers():
         for x in registry
         if x.get("valuation_source") == "shiller_proxy"
     }
+
+
+def test_factor_regime_gap_preserves_five_year_account_and_monthly_funding():
+    config = load_config(ROOT / "configs/cash_pool.yaml")
+    calendar = pd.bdate_range("2011-01-03", "2019-10-11")
+    available = calendar[(calendar < "2012-06-01") | (calendar >= "2017-06-01")]
+    windows = pool_windows(available, config, calendar=calendar)
+    five = next(window for window in windows if window["id"] == "latest_5y")
+    assert five["start"] == "2014-10-13"
+    assert five["end"] == "2019-10-11"
+    # Every monthly contribution belongs to the same five-year account,
+    # including 32 months before the factor becomes ready again.
+    dates = calendar[(calendar >= five["start"]) & (calendar <= five["end"])]
+    months = dates.to_period("M").unique()
+    assert len(months) == 61
+    assert len(months[months < pd.Period("2017-06", freq="M")]) == 32
+    split = next(window for window in windows if window["id"] == "retrospective_validation")
+    assert pd.Timestamp(split["start"]) < pd.Timestamp("2017-06-01")
+    with pytest.raises(ValueError, match="full trading calendar"):
+        pool_windows(available, config)
+
+
+def test_full_trading_calendar_does_not_change_continuous_factor_windows():
+    config = load_config(ROOT / "configs/cash_pool.yaml")
+    calendar = pd.bdate_range("2005-01-03", "2026-10-19")
+    available = calendar[260:-5]
+    assert pool_windows(available, config) == pool_windows(available, config, calendar=calendar)
 
 
 def test_monthly_percentile_has_full_calendar_warmup_and_excludes_current():

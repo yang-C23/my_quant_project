@@ -191,7 +191,7 @@ def _run_asset(job: dict) -> dict:
                 features = qualify_value_events(features, policy.buy_threshold)
             eligible &= value.notna()
         allowed = bars.index[eligible]
-        windows = pool_windows(allowed, config)
+        windows = pool_windows(allowed, config, calendar=bars.index)
         if not windows:
             rows.append(
                 common | {"status": "blocked", "reason": "insufficient_common_factor_history"}

@@ -210,7 +210,7 @@ def run_currency_cases(
         price = bars.close * marks
         features = stage_features(signals, StageSpec(**primary["stages"]))
         base_policy = PoolPolicy(**primary["funding"], exit="none")
-        for window in pool_windows(allowed, primary):
+        for window in pool_windows(allowed, primary, calendar=bars.index):
             index = bars.loc[window["start"] : window["end"]].index
             if price.loc[index].isna().any():
                 records.append(

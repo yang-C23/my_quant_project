@@ -240,7 +240,7 @@ def run_pressure_cases(
                 events["asset"] = f"{asset}__{factor}__lag{lag}"
                 events["stage"] = events.stage.replace({"external_event": factor})
                 all_events.append(events)
-            for window in pool_windows(valid, primary):
+            for window in pool_windows(valid, primary, calendar=bars.index):
                 for core in (0, 0.5):
                     for entry in ("external_event", "unconditional", "pressure", "stabilized"):
                         identifier = f"{factor}_lag{lag}_{entry}_core{core:g}"

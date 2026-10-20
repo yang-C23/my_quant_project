@@ -101,7 +101,7 @@ def run_release_audit(settings: Settings, source: Path, config_path: Path, outpu
             eligible = observed[config["factor"]].notna() & (
                 bars.index >= pd.Timestamp(coverage[asset]["funding_start_after_shared_warmup"])
             )
-            windows = pool_windows(bars.index[eligible], primary)
+            windows = pool_windows(bars.index[eligible], primary, calendar=bars.index)
             for mode, features in (
                 ("registered_assumption", original_features),
                 ("quarantine", masked_features),
