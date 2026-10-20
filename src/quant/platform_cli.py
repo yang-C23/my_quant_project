@@ -99,6 +99,25 @@ def analyze_cash_pool_cmd(
     output(analyze_pool_run(source, load_config(config), destination, corrections=corrections))
 
 
+@app.command("audit-price-sources")
+def audit_price_sources_cmd(
+    source: Path,
+    destination: Path,
+    config: Path = Path("configs/price_source_sensitivity.yaml"),
+    replay_run: Path | None = None,
+    workers: int = 3,
+) -> None:
+    """Compare all registered cash-pool rules on pinned TDX and BaoStock quotes."""
+    from quant.config import get_settings
+    from quant.longterm.source_sensitivity import audit_price_sources
+
+    output(
+        audit_price_sources(
+            get_settings(), source, destination, config, replay_run=replay_run, workers=workers
+        )
+    )
+
+
 @app.command("issuer-evidence")
 def issuer_evidence_cmd(
     declaration: Path,
