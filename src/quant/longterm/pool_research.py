@@ -164,7 +164,25 @@ def _run_asset(job: dict) -> dict:
             )
             if value_key not in value_cache:
                 try:
-                    if value_key[0] == "shiller_proxy":
+                    if value_key[0] == "shiller_current_price_proxy":
+                        from quant.longterm.current_pe import current_pe_temperature
+
+                        if value_key[1] != "pe":
+                            raise ValueError("current-price proxy only implements PE")
+                        daily, monthly = current_pe_temperature(
+                            bars.close,
+                            catalog.read("shiller_monthly", version=versions["shiller_monthly"]),
+                            value_key[2],
+                            value_key[3],
+                            registration["current_pe_config"],
+                        )
+                        inputs = directory / "valuation_inputs"
+                        inputs.mkdir(exist_ok=True)
+                        suffix = f"{value_key[2]}_lag{value_key[3]}.parquet"
+                        daily.to_parquet(inputs / f"daily_{suffix}", compression="zstd")
+                        monthly.to_parquet(inputs / f"historical_{suffix}", compression="zstd")
+                        value = daily.temperature
+                    elif value_key[0] == "shiller_proxy":
                         value = shiller_temperature(
                             bars,
                             catalog.read("shiller_monthly", version=versions["shiller_monthly"]),

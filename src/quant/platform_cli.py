@@ -118,6 +118,20 @@ def audit_price_sources_cmd(
     )
 
 
+@app.command("current-price-pe-research")
+def current_price_pe_cmd(
+    source: Path,
+    destination: Path,
+    config: Path = Path("configs/current_price_pe.yaml"),
+    replay_run: Path | None = None,
+) -> None:
+    """Compare current-price/lagged-earnings proxies using the unchanged cash ledger."""
+    from quant.config import get_settings
+    from quant.longterm.valuation_refresh import run_current_pe_study
+
+    output(run_current_pe_study(get_settings(), source, destination, config, replay_run=replay_run))
+
+
 @app.command("issuer-evidence")
 def issuer_evidence_cmd(
     declaration: Path,

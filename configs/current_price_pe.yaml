@@ -1,0 +1,21 @@
+schema_version: 1
+status: supplementary_exploration_after_lagged_PE_review
+earnings_lag_months: [6, 12]
+primary_window_years: 10
+alternative_windows: [5, expanding_10]
+entries: [valuation, value_pressure, value_stabilized, value_relief]
+exits: [valuation_time, valuation_tiers]
+core_fractions: [0, 0.5]
+buy_threshold: 0.4
+sell_threshold: 0.8
+buy_neighbors: [0.2, 0.3, 0.5]
+sell_neighbors: [0.75, 0.85]
+dynamic_deep_threshold: 0.2
+historical_reference: prior_monthly_average_price_divided_by_earnings_available_under_same_lag
+current_numerator: decision_day_SP500_close
+reference_frequency_difference: current_daily_close_vs_prior_monthly_average_proxies
+first_comparable_month: '1957-03-31'
+maximum_staleness_after_assumed_release_days: 35
+minimum_history_coverage: 0.8
+selection: none
+formal_accepted: false
