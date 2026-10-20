@@ -11,6 +11,36 @@ import typer
 app = typer.Typer(add_completion=False, help="Trusted data snapshots and long-term research.")
 
 
+@app.command("refresh-shiller-research")
+def refresh_shiller_research_cmd(
+    source: Path,
+    destination: Path,
+    version: str | None = None,
+    replay_run: Path | None = None,
+) -> None:
+    """Recompute every prespecified Shiller proxy on a newly pinned monthly vintage."""
+    from quant.config import get_settings
+    from quant.longterm.valuation_refresh import run_shiller_refresh
+
+    output(
+        run_shiller_refresh(
+            get_settings(), source, destination, version=version, replay_run=replay_run
+        )
+    )
+
+
+@app.command("fetch-shiller")
+def fetch_shiller_cmd(cached_dir: Path | None = None) -> None:
+    """Append the maintained author's monthly workbook without overwriting old vintages."""
+    from quant.config import get_settings
+    from quant.data.free_history import ingest_maintained_shiller
+
+    manifest = ingest_maintained_shiller(get_settings().data_root, cached_dir=cached_dir)
+    output(
+        {key: manifest[key] for key in ("dataset", "version", "rows", "first_date", "last_date")}
+    )
+
+
 @app.command("audit-cftc-releases")
 def audit_cftc_releases_cmd(
     source: Path,

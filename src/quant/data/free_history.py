@@ -3,19 +3,102 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from html import unescape
 import io
+import json
 from pathlib import Path
+import re
+from urllib.parse import urljoin, urlparse
 
 import pandas as pd
 
 from quant.data.catalog import DataCatalog
 from quant.data.derivatives import parse_cffex, parse_cftc
 from quant.data.providers import download, observation_quality
-from quant.data.snapshots import utc_now, write_json
+from quant.data.snapshots import sha256_file, utc_now, write_json
 
 VERSION = "first-party-history-v2-padded-contracts"
 FINRA_URL = "https://www.finra.org/sites/default/files/2021-03/margin-statistics.xlsx"
 SHILLER_URL = "http://www.econ.yale.edu/~shiller/data/ie_data.xls"
+SHILLER_MAINTAINED_PAGE = "https://shillerdata.com/"
+
+
+def shiller_workbook_url(page: bytes) -> str:
+    """Resolve the author's current download without guessing opaque CDN identifiers."""
+    links = {
+        urljoin(SHILLER_MAINTAINED_PAGE, unescape(link))
+        for link in re.findall(r'href=["\']([^"\']+)["\']', page.decode("utf-8"))
+        if "ie_data.xls" in link
+    }
+    if len(links) != 1:
+        raise ValueError("ambiguous maintained Shiller workbook link")
+    link = links.pop()
+    parsed = urlparse(link)
+    if parsed.scheme != "https" or parsed.hostname not in {"img1.wsimg.com", "shillerdata.com"}:
+        raise ValueError("review changed Shiller download host before ingestion")
+    return link
+
+
+def ingest_maintained_shiller(data_root: Path, *, cached_dir: Path | None = None) -> dict:
+    """Append the maintained author vintage; retain the stale Yale vintage for replay."""
+    if cached_dir is None:
+        cached_dir = (
+            data_root
+            / "source_probes"
+            / ("shiller-maintained-" + pd.Timestamp.now(tz="UTC").strftime("%Y%m%dT%H%M%S%fZ"))
+        )
+        cached_dir.mkdir(parents=True)
+        page, page_receipt = download(SHILLER_MAINTAINED_PAGE)
+        (cached_dir / "index.html").write_bytes(page)
+        write_json(
+            cached_dir / "index.receipt.json",
+            page_receipt
+            | {"retrieved_at": utc_now(), "sha256": sha256_file(cached_dir / "index.html")},
+        )
+        raw, receipt = download(shiller_workbook_url(page))
+        (cached_dir / "ie_data.xls").write_bytes(raw)
+        write_json(
+            cached_dir / "workbook.receipt.json",
+            receipt
+            | {"retrieved_at": utc_now(), "sha256": sha256_file(cached_dir / "ie_data.xls")},
+        )
+    page = (cached_dir / "index.html").read_bytes()
+    source = json.loads((cached_dir / "workbook.receipt.json").read_text())
+    page_receipt = json.loads((cached_dir / "index.receipt.json").read_text())
+    if page_receipt["url"] != SHILLER_MAINTAINED_PAGE or (
+        source["url"] != shiller_workbook_url(page)
+        or source["sha256"] != sha256_file(cached_dir / "ie_data.xls")
+        or page_receipt["sha256"] != sha256_file(cached_dir / "index.html")
+    ):
+        raise ValueError("maintained workbook provenance/hash mismatch")
+    raw = (cached_dir / "ie_data.xls").read_bytes()
+    frame = parse_shiller(raw, source["retrieved_at"])
+    source.update(
+        publisher="Robert J. Shiller maintained author website",
+        landing_page=SHILLER_MAINTAINED_PAGE,
+        landing_page_sha256=page_receipt["sha256"],
+        attribution_corroboration="https://cowles.yale.edu/sites/default/files/2024-07/d2397.pdf",
+        public_download=True,
+        persistent_storage="permission_review_pending",
+        redistribution=False,
+    )
+    return DataCatalog(data_root).ingest(
+        "shiller_monthly",
+        raw,
+        frame,
+        source=source,
+        parser_version="maintained-author-workbook-v1",
+        quality=observation_quality(frame),
+        metadata={
+            "market": "US",
+            "historical_publication_verified": False,
+            "availability": "first_observed_not_historical_release",
+            "basis": "latest_vintage",
+            "earnings_interpolation": True,
+            "not_tradable_monthly_average_price": True,
+            "incomplete_recent_earnings_not_forward_filled": True,
+        },
+    )
 
 
 def parse_finra(raw: bytes, retrieved_at: str) -> pd.DataFrame:
