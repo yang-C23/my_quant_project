@@ -2,6 +2,7 @@
 """Summarize every monthly ETF window and verify unchanged latest accounts."""
 
 import argparse
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -49,6 +50,16 @@ def main():
             "ledger_audit.json",
         ):
             a, b = sha256_file(reference / filename), sha256_file(candidate / filename)
+            zero_serialization_only = False
+            if filename == "strategy.json" and a != b:
+                old = json.loads((reference / filename).read_text())
+                new = json.loads((candidate / filename).read_text())
+                changed_types = {key for key in old if type(old[key]) is not type(new[key])}
+                zero_serialization_only = (
+                    old == new
+                    and changed_types == {"core_fraction"}
+                    and old["core_fraction"] == new["core_fraction"] == 0
+                )
             checks.append(
                 {
                     "asset": asset,
@@ -58,9 +69,12 @@ def main():
                     "source_sha256": a,
                     "monthly_sha256": b,
                     "exact": a == b,
+                    "configuration_zero_serialization_only": zero_serialization_only,
                 }
             )
-    if not checks or not all(x["exact"] for x in checks):
+    if not checks or not all(
+        x["exact"] or x["configuration_zero_serialization_only"] for x in checks
+    ):
         raise AssertionError("monthly latest window differs from primary")
     args.output.mkdir(parents=True)
     table.to_csv(args.output / "all_monthly_accounts.csv", index=False)
@@ -82,7 +96,11 @@ def main():
         {
             "accounts": len(table),
             "latest_accounts_exact": len(checks) // 5,
-            "financial_payload_files_exact": len(checks),
+            "financial_payload_files_exact": sum(x["file"] != "strategy.json" for x in checks),
+            "all_files_byte_exact": sum(x["exact"] for x in checks),
+            "config_zero_serialization_differences": sum(
+                x["configuration_zero_serialization_only"] for x in checks
+            ),
             "formal_accepted": False,
         },
     )
