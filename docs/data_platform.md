@@ -1,91 +1,103 @@
-# data_platform.md — 数据平台规范
+# 数据契约、单位与复权
 
-> 对应 ADR-0002（qlib bin 为唯一研究存储，PG 退役）。ETL 相关任务卡：TASK-010~016。
+本文件是当前数据语义的唯一正文。原始记录、版本化Parquet为长期依据；Qlib为派生层。
+历史规范保存在`docs/archive/pre_restart/data_platform.md`，不再作为公式依据。
 
-## 1. 数据根目录（仓库外）
+## 存储与快照
 
+`DATA_ROOT/current.json`仅指向一个已验收结构的不可变快照；结构验收与研究准入分开。
+
+```text
+DATA_ROOT/
+  current.json
+  snapshots/<id>/
+    raw/tdx/                 原始行情、GBBQ、证券资料
+    staging/daily/           Parquet兼容层，按交易所分区
+    staging/adjust/ basics/  可重建派生表
+    staging/tdx_statistics.parquet  特殊统计序列，字段不解释为OHLC
+    qlib/cn_daily/           可重建兼容缓存
+    quarantine/             异常原值与理由
+    manifest.json quality.json progress.json
+  lake/<dataset>/<version>/
+    raw.bin                  原始响应字节或无损API字符串表
+    data/market=<market>/year=<year>/part-000.parquet
+    manifest.json            来源、schema、单位、许可、校验和、时间
+  audits/ source_reports/ research/ monitor/ backups/ recovery_drills/
 ```
-/home/yang/quant_data/               # .env: DATA_ROOT
-├── tdx_mirror/                      # /mnt/d/new_tdx 的本地镜像（仅 vipdoc + gbbq + 板块文件）
-├── staging/                         # Parquet，无损保留 + 衍生，DuckDB 可即席查询
-│   ├── daily/exchange=sh|sz|bj/     # part-*.parquet，按 (symbol,date) 排序
-│   ├── securities.parquet  gbbq.parquet  blocks.parquet  holidays.parquet
-│   ├── basics.parquet  adjust.parquet  flags.parquet
-├── qlib/
-│   ├── cn_daily/{calendars,instruments,features}/
-│   ├── cn_1min/                     # 预留（M5 干跑验证）
-│   └── us_daily/                    # M5
-└── archive/                         # pg_quant 最终 dump 等归档
+
+公开标准层schema2按市场和年份分区，Parquet/ZSTD，Arrow类型显式记录。
+schema1单文件版本继续可读；升级追加新版本，不覆盖旧文件。
+TDX兼容层暂按交易所分区，源文件保留完整，不强行改变旧Qlib接口。
+
+元数据为UTF-8 JSON，金额序列不写JSON的NaN；缺失使用null。
+原始层修订追加；只有来源授权允许时才可作为永久档案，授权不明的公开样本不成为唯一底座。
+
+## 字段及量纲
+
+| 字段 | 类型与语义 |
+|---|---|
+| symbol/code | 字符串，保留前导零；CN为`sh000300`/`sz399006`，外部指数ID单列 |
+| date | Arrow date32，交易所本地经济日期 |
+| available_at / retrieved_at | UTC timestamp；分别为可用时点与实际取得时点 |
+| open/high/low/close | float64，原始不复权行情；缺少OHLC时不伪造 |
+| volume / open_interest | int64，单位必须在契约中注明股、份或合约 |
+| amount | float64，明确币种与单位；未核实源单位的字段单独命名 |
+| 估值和收益 | float64；PE总股本与计算用股本口径分开，收益率以小数为标准 |
+| 现金、应收、成交金额、费用 | 账本Decimal；Parquet decimal128(38,18)，报告统计可转float |
+| listing/delisting | 官方生命周期与行情覆盖推断分开；后者不等于历史上市名录 |
+
+GBBQ没有公告/支付日期；新快照不生成未经证明的历史ST/涨跌停标志。
+缺失股本、市值或换手率保持缺失，不能补成0。未验证的债券/回购等类别不纳入本轮投资研究。
+
+## 通达信格式与更新
+
+32字节记录：`<IIIIIfII>`。股票和标准指数价格除100，ETF及已识别基金除1000。
+股票成交量为股，ETF为份；标准`sh000`/`sh999`/`sz399`/`bj899`指数成交量按源手数乘100。
+`reserved & 0xffff0000 == 0xc3640000`的大成交量记录先以`volume*100+低16位余数`解码。
+该扩展格式以本地二进制样本和跨来源核对支持，余数>=100即拒绝解析；精度不能高于原始存储。
+已核对的日期与差异见`source_reports/crosscheck.json`，不据单日一致推断全历史一致。
+
+`sh8800*`、`sz395*`统计值独立保存，不能统一按OHLC过滤。
+其余不可解释异常进入隔离区，保留原值；不静默缩放或前向填成价格。
+
+流程：源镜像冻结 → 先解码GBBQ/证券与板块资料 → 逐证券合并历史ZIP与当前vipdoc →
+检查全部现存日期（包括历史修订、缺口）→ 隔离 → 派生重算 → Qlib → 全量结构及清单校验 → 原子发布。
+重叠记录当前vipdoc优先，旧快照保留。复用需原始文件及解析/派生源码指纹均不变。
+断点恢复仅接受相同处理源码；不同源码新建快照。原始数据未增加时也必须检查公司行动变化。
+旧tail-read仅作`update --dry-run`新增日期下界估算，不覆盖修订和补漏。
+
+## 复权与分红
+
+GBBQ category=1的四列为：c1每10股现金分红；c2配股价；c3每10股送转；c4每10股配股数。
+历史代码交换c2/c4，已修复；`legacy_swapped_rights`只用于旧结果重放。
+字段证据：[pytdx解析](https://github.com/rainx/pytdx/blob/master/pytdx/parser/get_xdxr_info.py)。
+
+设前收盘价P、每10股分红D、配股数R、配股价K、送转数B：
+
+```text
+理论除权昨收 P* = (10P - D + R×K) / (10+B+R)
+当日调整倍率  = P/P*
+后复权因子 F_t = F_(t-1) × 当日调整倍率
+前复权因子 Q_t = F_t / F_快照末日
+调整价格       = 原始价格 × 因子
 ```
 
-## 2. 9P/IO 规则（WSL2 强制）与双数据源
+前复权依赖快照末日，未来公司行动会改变旧价格标度，不能将当前前复权值当历史原始可得价格。
+以上乘法复权不是实际现金分红到账再投资的总回报：P=10、D/10=1、除息收盘9.2时，
+调整收益9.2/9−1与现金总收益(9.2+1)/10−1并不相等。
+现金账本仅用原价：除息前持有份额产生应收，支付后成为现金，下一交易时点才允许再投资。
+不得叠加“复权收益＋现金股息”。配股认购需单独建模，不默认为无成本现金分红。
 
-- **两个日线源**：`TDX_ZIP`（全历史基线 zip，~12K 文件回溯到 1990）+ `TDX_HOME/vipdoc`（TDX 客户端持续下载的近期数据，约 2021-08 起）。staging 按符号做**并集**，重叠日期 **vipdoc 优先**。
-- **全量导入**：`mirror.py` 先把 zip 抽取到 `DATA_ROOT/tdx_mirror/zip_baseline/`（单文件顺序流式读，带 `.complete` 指纹缓存，重跑免抽取），再用 tar 管道批量拷贝 `vipdoc` → `DATA_ROOT/tdx_mirror/vipdoc/`（顺序大块 IO，规避 12K 次随机小读），解析只读镜像。
-- **日增量**：不做全量镜像；对每个 `.day` 文件 `seek` 到尾部只读最后 `N×32` 字节（N = 缺失交易日数 + 安全余量 5），直接跨 9P 读也可接受。
-- **禁止**并行 worker 直接读 `/mnt/d`（9P + 并发 = 病态性能）。
+指数价格、指数全收益、ETF净值、ETF成交价分别标注。净值已含的管理费用不再重复扣除。
+根据份额估算净申赎：`NAV_t × (份额_t − 份额_(t-1)×拆分倍率_t)`；不是资产规模变化，亦非所谓主力资金。
 
-## 3. TDX .day 二进制格式（沿用 v1 解析器）
+## 历史查询与准入
 
-每条记录 32 字节小端 `<IIIIIfII>`：date(YYYYMMDD), open, high, low, close（价格 ×100 存储，还原为元）, amount(float, 元), volume(股), reserved。文件名 → 交易所+代码（`sh600000.day`）。解析用 `np.frombuffer` 结构化 dtype 向量化（替代 v1 的逐条 `struct.unpack_from`）。
+`DataCatalog.read(dataset, version=..., as_of=...)`读取固定版本并按可用时间过滤。
+`history(..., as_of=..., version=..., strict_pit=True)`跨已保存版本取当时最新可用修订；
+`observations`保留全部版本供因果特征构建。原始和标准文件均验证哈希。
 
-## 4. staging 表结构（Parquet schema，dtype 必须一致）
-
-### daily（分区 exchange=sh|sz|bj）
-| 列 | dtype | 说明 |
-|---|---|---|
-| symbol | string | `sh600000` 小写规范格式 |
-| date | date32 | 交易日 |
-| open/high/low/close | float64 | **未复权**原始价（元） |
-| volume | int64 | 股 |
-| amount | float64 | 元 |
-
-### securities
-symbol, name(string), exchange, sec_type(stock/index/etf), board(main/star/gem/bse), list_date, delist_date(nullable) —— 上市/退市区间用于 instruments 的 point-in-time 范围。
-
-### gbbq（股本变迁/除权除息，沿 v1 解码字段；TASK-011 定稿）
-symbol, date, category(int16), c1..c4(float64) —— 保留解码器原始四列，**语义随 category 而变**：category=1（除权除息）时 c1..c4 对应 分红/配股价/送转股/配股（每 10 股口径，具体取列以 v1 `calc_basic.py` 为准，TASK-012 负责映射）；股本类 category（2/3/5/7/8/9/10）时为 前/后流通股本、总股本（万股）。
-
-### basics（由 daily+gbbq 向量化衍生）
-symbol, date, preclose(理论昨收,考虑除权), pct_chg, amplitude, turnover(%), float_shares, total_shares, float_mktcap(元), total_mktcap(元)。
-
-### adjust
-symbol, date, hfq_factor(float64), qfq_factor(float64)。算法：QUANTAXIS 乘法式——除权日 `ratio = preclose_理论 / prev_close_实际`，`hfq_factor` 为累计乘积（首日=1 向后累乘）；`qfq_factor = hfq_factor / hfq_factor_latest`。
-
-### flags
-symbol, date, is_suspended(bool, 日历缺口推断), is_st(bool, 名称历史含 ST), limit_up_price, limit_down_price(float64, 按板块/ST 规则预计算), is_limit_up, is_limit_down(bool, close==limit 价)。
-
-### holidays / blocks
-沿 v1 语义：交易日历假日表；板块主表 + 成分表（用于"剔除创业板/科创/北证"等 universe 过滤）。
-
-## 5. qlib bin 约定（cn_daily）
-
-- **字段**：`$open $high $low $close $volume` = **hfq 复权后**价格/成交量（qlib CN 惯例），`$factor` = 累计 hfq 因子（`raw = $close / $factor`），另 dump：`$amount $turnover $float_mktcap $total_mktcap $st $suspended $limit_up $limit_down`（0/1 或数值）。
-- **calendars/day.txt**：全交易日并集，与 PG `tdx.holidays` 推出的日历交叉核对（M1 gate）。
-- **instruments/all.txt**：`SH600000\t上市日\t退市日或末交易日`——point-in-time，杜绝幸存者偏差。另生成子 universe 文件：`nostar.txt`（剔科创）、`main_only.txt` 等。
-- **符号**：qlib 侧大写 `SH600000`；仓库内部小写 `sh600000`；互转只经 `quant.data.symbols`。
-- **增量**：`update.py` 追加 staging 后用 qlib `DumpDataUpdate` 语义增量追加 bin；**幂等**——连跑两次第二次为无操作。
-
-## 6. 复权公式差异声明（M1 验证必读）
-
-- v2/qlib 采用 **乘法 hfq**（同 v1 `calc_factor.py` 的 hfq 部分）。
-- v1 PG 的 **qfq 视图用的是 TDX 减法式**（commit `4b51c91`：`raw*qfq_scale - qfq_offset`），与乘法 qfq 在除权日前的历史段会差几分钱——**这是公式定义差异，不是 bug**。
-- 因此 `validate_vs_pg.py` 的判定标准：
-  1. 原始 OHLCV：与 PG `daily_kline` **逐值完全相等**（硬失败）；
-  2. hfq：因子相对误差 ≤1e-6，hfq 价相对误差 ≤1e-6（硬失败）；
-  3. qfq：只做带说明的宽松带（相对误差 ≤0.5% 记 warning，不算失败）；
-  4. 日历、instruments 区间、行数：完全一致（硬失败）。
-
-## 7. 美股与分钟线（预留契约）
-
-- **美股（M5, TASK-050）**：yfinance 日线 → 同款 staging schema（exchange=`us`，symbol=`us:AAPL` 内部 / `AAPL` qlib us_daily region）→ `qlib/us_daily`。免费日线够用；后续升级 Polygon/Alpaca 再谈分钟。
-- **分钟线（TASK-051 干跑）**：供应商 CSV 契约 = `symbol,datetime,open,high,low,close,volume,amount`；staging 增加 `freq` 维度目录 `staging/min1/`；qlib `cn_1min` 需专用日历（每交易日 240 根，09:31–11:30 / 13:01–15:00 收盘戳）与分钟级 `$factor` 对齐。**用合成 CSV 全流程干跑验证通过后，才允许购买真实数据。**
-
-## 8. CLI 契约
-
-```bash
-myquant etl full        # 镜像 + 全量解析 → staging（含 gbbq/securities/blocks/basics/adjust/flags）
-myquant dump cn-daily   # staging → qlib/cn_daily （全量重建）
-myquant update          # 日增量：tail-read → staging append → qlib 增量 → 幂等
-myquant validate        # 调 scripts/validate_vs_pg.py 出对齐报告（M3 后移除）
-```
+仅有经济日期不代表知道历史发布时间。未认证历史来源的`strict_pit`查询直接拒绝。
+CSI近期文件首次取得时标记first_observed；不将今天下载的历史估值回填为过去可得。
+正式准入还需覆盖、单位、公司行动、交易日历、历史成分/ETF选择范围和长期留存依据。
+结构检查通过只是其中一项；异常或过期依赖使相关研究和提醒暂停。

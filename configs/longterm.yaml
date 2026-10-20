@@ -1,0 +1,85 @@
+schema_version: 1
+protocol_version: longterm-v1
+research_mode: exploratory
+funding:
+  initial: 100000
+  monthly: 1000
+  tranches: 12
+execution:
+  commission_rate: 0.0003
+  minimum_commission: 0
+  slippage_bps: 5
+  cash_yield: 0
+  dividend_tax_rate: 0
+  index_proxy_lot: 0.000001
+  cn_etf_lot: 100
+  us_etf_lot: 1
+validation:
+  split: [0.50, 0.25, 0.25]
+  final_holdout_policy: evaluate_once_no_retuning
+  rolling_years: [10, 15]
+  rolling_step_years: 1
+  overlapping_windows_independent: false
+  walk_forward_train_years: 5
+  walk_forward_validation_years: 2
+  walk_forward_test_years: 1
+  maximum_drawdown_target: 0.30
+  frozen_selection: none_until_formal_data_acceptance
+universe:
+  - {id: sp500, name: 标普500, market: US, index: SP500, dataset: fred_sp500, etfs: [SPY, IVV, VOO], qdii_candidates: [sh513500]}
+  - {id: nasdaq100, name: 纳斯达克100, market: US, index: NASDAQ100, dataset: fred_nasdaq100, etfs: [QQQ, QQQM], qdii_candidates: [sh513100]}
+  - {id: csi300, name: 沪深300, market: CN, index: sh000300, valuation: csi_valuation_000300, etfs: [sh510300]}
+  - {id: sse50, name: 上证50, market: CN, index: sh000016, valuation: csi_valuation_000016, etfs: [sh510050]}
+  - {id: csi500, name: 中证500, market: CN, index: sh000905, valuation: csi_valuation_000905, etfs: [sh510500]}
+  - {id: csi1000, name: 中证1000, market: CN, index: sh000852, valuation: csi_valuation_000852, etfs: [sh512100]}
+  - {id: star50, name: 科创50, market: CN, index: sh000688, valuation: csi_valuation_000688, etfs: [sh588000]}
+  - {id: star100, name: 科创100, market: CN, index: sh000698, valuation: csi_valuation_000698, etfs: [sh588190]}
+  - {id: chinext, name: 创业板指, market: CN, index: sz399006, etfs: [sz159915]}
+  - {id: dividend_lowvol, name: 中证红利低波动, market: CN, index: H30269, valuation: csi_valuation_h30269, etfs: [sh512890], style: dividend_lowvol}
+  - {id: dividend_lowvol100, name: 中证红利低波动100, market: CN, index: '930955', valuation: csi_valuation_930955, etfs: [sh515100], style: dividend_lowvol}
+  - {id: us_dividend_lowvol, name: 标普500高股息低波动, market: US, index: SP5LVHDT, dataset: tiingo_sphd, etfs: [SPHD], style: dividend_lowvol}
+strategy_matrix:
+  names: [lump_sum, dca, valuation, panic, stabilized, kdj, value_kdj]
+  valuation_metrics: [pe, pb, dividend_yield, earnings_yield, earnings_yield_spread, dividend_yield_spread]
+  percentile_windows: [5, 10, expanding_10]
+  exits: [time, tiers]
+  core_fractions: [0.0, 0.5]
+  primary: {metric: pe, window: 10, buy_threshold: 0.4, sell_threshold: 0.8}
+  panic: {drawdown: 0.20, sigma: 2.0, confirmation: 5, event_window: 20, extra_tranches: 2}
+  parameter_neighbors:
+    buy_threshold: [0.35, 0.40, 0.45]
+    sell_threshold: [0.75, 0.80, 0.85]
+    panic_drawdown: [0.15, 0.20, 0.25]
+    panic_sigma: [1.5, 2.0, 2.5]
+    confirmation: [3, 5, 7]
+    extra_tranches: [1, 2, 3]
+  sensitivity:
+    initial: [50000, 100000, 200000]
+    monthly_ratio: [0.005, 0.01, 0.02]
+    cash_yield: [0.0, 0.02]
+    commission_rate: [0.0001, 0.0003, 0.001]
+    dividend_tax_rate: [0, 0.15, 0.30]
+style_pairs:
+  - {id: csi300_lowvol, symbols: [sh510300, sh512890], weights: [0.5, 0.5]}
+  - {id: csi300_lowvol100, symbols: [sh510300, sh515100], weights: [0.5, 0.5]}
+  - {id: sp500_lowvol, symbols: [SPY, SPHD], weights: [0.5, 0.5]}
+extensions:
+  - {id: vix, dataset: cboe_vix, gate: publication_and_incremental_oos}
+  - {id: margin_contraction, gate: historical_release_timestamps}
+  - {id: futures_basis, gate: expiry_rates_dividends_roll}
+  - {id: option_skew, gate: historical_chain_license}
+  - {id: otm_option_activity, gate: historical_chain_and_moneyness}
+  - {id: zero_dte, gate: short_history_not_15_years}
+  - {id: gamma, gate: documented_position_direction_assumptions}
+
+index_release_dates:
+  csi300: '2005-04-08'
+  sse50: '2004-01-02'
+  csi500: '2007-01-15'
+  csi1000: '2014-10-17'
+  star50: '2020-07-23'
+  star100: '2023-08-07'
+  chinext: '2010-06-01'
+  dividend_lowvol: '2013-12-19'
+  nasdaq100: '1985-01-31'
+include_instrument_price_diagnostics: true

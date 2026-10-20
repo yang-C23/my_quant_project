@@ -1,8 +1,22 @@
 # STATUS.md — 任务看板（唯一状态源）
 
-> 公告：当前开发环境 = `my_quant_env`（若 TASK-001 触发新建 `my_quant_v2`，由其 review 更新本行）。
-> 状态机与流程见 `docs/workflow.md`；`backlog` 的卡不许认领。
-> **冷接手**：先读 `docs/ONBOARDING.md` 按角色分流。开发者只做**状态=ready 且指派给你（或无指派）**的一张卡；改动文件不得超出该卡 `## Files to touch` 白名单（由 CI `scripts/check_whitelist.py` 强制）；提交前须跑通卡内全部验收命令 + 质量门（`ruff`、`pytest -m "not integration"`）。
+> 2026-10-20 用户批准实施重启总计划。当前任务 TASK-080，分支 task/TASK-080-trusted-index-restart。
+> 使用 scripts/quant 固定当前工作树；总计划见 ../restart/MASTER_PLAN.md。
+> 以下旧任务状态保留作为历史记录，旧“角色分流/只准IS”不约束已授权的新研究。
+
+## 重启阶段
+
+| 阶段 | 状态 | 证据/下一步 |
+|---|---|---|
+| 基线与审计 | inventory_complete / legacy_review_open | 初始代码/数据/73产物清单已冻结；关键路径语义修复见[审计](../restart/AUDIT.md)，旧策略未全部复现 |
+| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/公司行动、Decimal账本、237项离线测试通过 |
+| TDX更新 | structurally_accepted | 快照20261020T104025Z-56479a8ac4；29,753,977行至10月19日；幂等、完整备份/隔离恢复通过 |
+| 替代源验收 | partial / formal_gate_open | 已采集公开数据并交叉核查；长期估值、股息支付、许可/PIT和历史成分仍缺 |
+| 基准及扩展回测 | running / formal_blocked | 冻结120项假设，重跑价格探索；正式总回报/择时结论不发布 |
+| 每日监控 | shadow_started | 首次真实观察完成，12标的暂停、0交易建议；20日计数尚未满足 |
+| 长期维护 | ongoing | 文档与本机恢复具备；异地备份、正式数据晋级和未来20日验收待办 |
+
+## 旧任务存档
 
 | ID | 标题 | 里程碑 | 状态 | 分支 | 依赖 | 备注 |
 |---|---|---|---|---|---|---|
@@ -50,4 +64,12 @@
 | TASK-078 | 日度 PIT EligibilityPanel + UniverseProfile | M3.5 | ready | — | — | 用户需求落地（非ST/250交易日/ADV20 两档 3000万·1亿/close≥1）；**"未来收益完整"被裁定为前视，改标签层处理**；新模块零冲突可并行 |
 | TASK-079 | UniverseProfile 接线（研究/Topk 入口） | M3.5 | backlog | — | 078,071,074,075 | 白名单与 071/075 在途分支同碰——依赖全合后由规划者置 ready 并复核 AC |
 
+**以下为重启前的历史认领顺序，不作为当前排程：**
+
 推荐认领顺序：**032 二轮返工 ∥ 071 返工（均在原分支）优先**；073/075/076 三卡白名单互斥可并行认领（多卡并行时每张卡独立 worktree，见 TASK-072-review 备注）；074 等 071 合并后置 ready；033 由规划者在 032 过 + 三报告全绿 + 073 恢复演练通过后置 ready。**M3.5 已立项（ADR-0005）**：研究有效性加固，M4 可并行、M6 被其 gate 阻塞；R1 存档冻结，074/075/076 合并后旧研究数字不可复现属预期。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
+
+## 当前授权任务
+
+| ID | 状态 | 说明 |
+|---|---|---|
+| TASK-080 | in_progress | [任务卡](TASK-080-trusted-index-restart.md)，用户授权完整总计划 |

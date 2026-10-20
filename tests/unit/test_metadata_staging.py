@@ -78,8 +78,8 @@ def test_build_securities_staging_classifies_prefixes(monkeypatch, tmp_path: Pat
         "bj920001": ("bj", "stock", "bse"),
         "sh999999": ("sh", "index", "index"),
         "sz399001": ("sz", "index", "index"),
-        "sz395001": ("sz", "index", "index"),
-        "sh880001": ("sh", "index", "index"),
+        "sz395001": ("sz", "statistics", "statistics"),
+        "sh880001": ("sh", "statistics", "statistics"),
         "sh881001": ("sh", "index", "index"),
         "sh887001": ("sh", "index", "index"),
         "sh888001": ("sh", "index", "index"),
@@ -136,7 +136,7 @@ def test_build_securities_staging_classifies_prefixes(monkeypatch, tmp_path: Pat
     other = securities[securities["board"].eq("other")]
     assert len(other) <= 500
     assert not other.index.str.startswith("sz002").any()
-    assert securities.loc["sz395001", "sec_type"] == "index"
+    assert securities.loc["sz395001", "sec_type"] == "statistics"
 
 
 def test_classify_security_unknown_prefix_is_not_stock() -> None:

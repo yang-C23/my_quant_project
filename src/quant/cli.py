@@ -7,6 +7,7 @@ import sys
 from typing import Annotated
 
 import typer
+from quant.platform_cli import app as platform_app
 
 app = typer.Typer(add_completion=False)
 etl_app = typer.Typer(add_completion=False, help="Data platform ETL commands.")
@@ -15,6 +16,56 @@ backtest_app = typer.Typer(add_completion=False, help="Portfolio backtest comman
 app.add_typer(etl_app, name="etl")
 app.add_typer(dump_app, name="dump")
 app.add_typer(backtest_app, name="backtest")
+app.add_typer(platform_app, name="platform")
+
+
+@app.command("doctor")
+def doctor_cmd() -> None:
+    """Validate the worktree import and show nonsensitive runtime provenance."""
+    import json
+    from pathlib import Path
+    import quant
+    from quant.config import get_settings
+
+    expected = Path(os.environ.get("QUANT_PROJECT_ROOT", Path.cwd())).resolve()
+    actual = Path(quant.__file__).resolve()
+    ok = actual == expected / "src" / "quant" / "__init__.py"
+    mismatches = []
+    lock = expected / "requirements-lock.txt"
+    if lock.exists():
+        for line in lock.read_text().splitlines():
+            if not line or line.startswith("#"):
+                continue
+            name, pinned = line.split("==", 1)
+            try:
+                installed = package_version(name)
+            except PackageNotFoundError:
+                installed = "missing"
+            if installed != pinned:
+                mismatches.append({"package": name, "expected": pinned, "installed": installed})
+    else:
+        mismatches.append({"lock": "missing"})
+    ok = ok and not mismatches
+    settings = get_settings()
+    typer.echo(
+        json.dumps(
+            {
+                "ok": ok,
+                "dependency_mismatches": mismatches,
+                "python": sys.executable,
+                "import_path": str(actual),
+                "expected_root": str(expected),
+                "data_root": str(settings.data_root),
+                "staging": str(settings.staging_dir),
+                "tdx_home_exists": settings.tdx_home.exists(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    if not ok:
+        raise typer.Exit(1)
+
 
 _ETL_STEPS = ("daily", "gbbq", "securities", "blocks", "derive", "flags")
 _ETL_STEP_ALIASES = {"meta": ("gbbq", "securities", "blocks", "flags")}
@@ -75,6 +126,8 @@ def etl_full(
     )
 
     settings = get_settings()
+    if (settings.active_data_dir / "manifest.json").exists():
+        raise typer.BadParameter("sealed snapshot: use scripts/quant update to build a new version")
     requested = [s.strip() for s in steps.split(",") if s.strip()]
     valid_steps = _ETL_STEPS + tuple(_ETL_STEP_ALIASES)
     unknown = [s for s in requested if s not in valid_steps]
@@ -158,6 +211,8 @@ def dump_cn_daily_cmd(
     from quant.etl.qlib_dump import dump_cn_daily
 
     settings = get_settings()
+    if (settings.active_data_dir / "manifest.json").exists():
+        raise typer.BadParameter("sealed snapshot: rebuild Qlib through scripts/quant update")
     selected = [s.strip() for s in symbols.split(",") if s.strip()] if symbols else None
     stats = dump_cn_daily(settings.staging_dir, settings.qlib_cn_daily_uri, selected)
     typer.echo(
@@ -309,26 +364,25 @@ def update_cmd(
         bool, typer.Option("--dry-run", help="Only print planned row counts.")
     ] = False,
 ) -> None:
-    """Tail-read TDX daily files and apply an idempotent incremental update."""
+    """Preview legacy additions, or publish a fully reconciled atomic snapshot."""
     from quant.config import get_settings
-    from quant.etl.update import apply_update, collect_new_rows
+    from quant.etl.update import collect_new_rows
     import pandas as pd
 
     settings = get_settings()
-    daily = pd.read_parquet(settings.staging_dir / "daily")
-    last_date = pd.to_datetime(daily["date"]).max()
-    new_rows = collect_new_rows(settings.tdx_home, last_date)
     if dry_run:
+        daily = pd.read_parquet(settings.staging_dir / "daily", columns=["date"])
+        last_date = pd.to_datetime(daily["date"]).max()
+        new_rows = collect_new_rows(settings.tdx_home, last_date)
         typer.echo(
-            f"update dry-run: {len(new_rows)} rows, "
+            f"update dry-run (new-date lower bound; excludes corrections): {len(new_rows)} rows, "
             f"{new_rows['symbol'].nunique() if not new_rows.empty else 0} symbols"
         )
         return
-    stats = apply_update(settings.staging_dir, settings.qlib_cn_daily_uri, new_rows)
-    typer.echo(
-        f"update: {stats.new_rows} rows, {stats.symbols} symbols, "
-        f"qlib_rebuilt={stats.qlib_rebuilt}, {stats.seconds:.1f}s"
-    )
+    from quant.etl.restart import update_snapshot
+    from quant.platform_cli import output
+
+    output(update_snapshot(settings))
 
 
 @app.command("validate")

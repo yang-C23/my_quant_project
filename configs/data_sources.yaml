@@ -1,0 +1,117 @@
+schema_version: 1
+review_date: '2026-10-20'
+defaults:
+  paid_purchase_authorized: false
+  redistribution_authorized: false
+  automated_orders: false
+  long_term_retention: review_required
+sources:
+  user_tdx:
+    publisher: Tongdaxin user-supplied local files
+    role: migration_reference
+    cost: existing_user_access
+    retention: existing_user_local_archive
+    pit: no_historical_vintages
+    caveats: [unit_encoding, incomplete_corporate_action_dates, inferred_security_lifecycle]
+  baostock:
+    publisher: BaoStock
+    role: candidate_cn_daily
+    documentation: https://github.com/zxygithub/baostock/blob/master/docs/pythonAPI.md
+    terms: https://www.baostock.com/
+    cost: free
+    retention: review_required
+    pit: verify_per_dataset
+    caveats: [verify_etf_coverage, software_BSD_is_not_data_license]
+  csindex:
+    publisher: China Securities Index
+    role: primary_index_valuation
+    documentation: https://www.csindex.com.cn/
+    cost: public_recent_files
+    retention: review_required
+    pit: first_observed_snapshots_only
+    caveats: [recent_20_sessions_observed, pe_total_vs_index_shares, dividend_yield_percent]
+  cnindex:
+    publisher: Shenzhen Securities Information
+    role: primary_index_candidate
+    documentation: https://www.cnindex.com.cn/
+    cost: public_and_licensed_products
+    retention: review_required
+  tushare:
+    publisher: Tushare community calculations
+    role: paid_cn_history_candidate
+    documentation: https://tushare.pro/document/2?doc_id=128
+    permissions: https://tushare.pro/document/2?doc_id=290
+    cost: points_and_separate_entitlements
+    retention: review_required
+    pit: must_verify_method_and_vintages
+  tiingo:
+    publisher: Tiingo
+    role: blocked_for_permanent_archive_without_written_exception
+    documentation: https://www.tiingo.com/documentation/end-of-day
+    terms: https://app.tiingo.com/tos/
+    cost: personal_30_USD_month_or_300_year_as_reviewed
+    pricing: https://www.tiingo.com/about/pricing
+    terms_updated: 2026-10-06
+    credential: TIINGO_API_TOKEN
+    retention: starter_no_persistent_storage_paid_delete_after_subscription
+    archive_exception: separate_written_agreement_required
+    collection_enabled: false
+    caveats: [adjusted_returns_are_not_cash_payment_ledger, verify_pay_dates_separately]
+  norgate:
+    publisher: Norgate Data
+    role: conditional_historical_constituents_candidate
+    documentation: https://norgatedata.com/stockmarketpackages.php
+    terms: https://norgatedata.com/faq.php
+    cost: US_Gold_360_USD_year_Platinum_630_USD_year_as_reviewed
+    retention: delete_exported_data_after_subscription_expiry
+    collection_enabled: false
+    caveats: [Windows_dependency, separate_retention_agreement_required]
+  fred:
+    publisher: Federal Reserve Bank of St. Louis; underlying licensors vary
+    role: macro_and_index_price_reference
+    documentation: https://fred.stlouisfed.org/
+    terms: https://fred.stlouisfed.org/legal/
+    cost: public
+    retention: series_license_review_required
+    caveats: [sp500_ten_year_price_only, nasdaq100_price_only, revisions_not_pit]
+  cboe:
+    publisher: Cboe
+    role: primary_volatility
+    documentation: https://www.cboe.com/tradable_products/vix/vix_historical_data/
+    terms: https://www.cboe.com/legal/terms-and-conditions/
+    cost: public_vix_paid_option_history
+    retention: review_required
+    caveats: [vix_is_not_tradable_spot, pre_2003_backcalculation, options_need_separate_license]
+  cffex:
+    publisher: China Financial Futures Exchange
+    role: primary_daily_futures_options
+    documentation: http://www.cffex.com.cn/
+    cost: public_monthly_archives
+    retention: review_required
+    caveats: [contract_expiry_roll_carry, no_net_dealer_gamma_in_OI]
+  cme:
+    publisher: CME Group
+    role: paid_us_futures_candidate
+    documentation: https://www.cmegroup.com/datamine.html
+    cost: paid_licensed
+    retention: contract_review_required
+  sec:
+    publisher: U.S. Securities and Exchange Commission
+    role: primary_filings
+    documentation: https://www.sec.gov/search-filings/edgar-application-programming-interfaces
+    cost: public
+    caveats: [filing_time_not_fiscal_end, restatements, need_historical_index_membership]
+  shiller:
+    publisher: Robert Shiller / Yale
+    role: exploratory_long_history
+    documentation: https://www.econ.yale.edu/~shiller/data.htm
+    cost: public
+    retention: review_required
+    caveats: [earnings_interpolation, monthly_average_prices, not_certified_pit]
+  flow_primary:
+    publishers: [SSE, SZSE, ETF_issuers, ICI, CFTC]
+    documentation:
+      - https://www.sse.com.cn/market/othersdata/margin/detail/index.shtml
+      - https://www.ici.org/research/statistics/etfs/weekly-combined-estimated-etf-and-longterm-flows
+      - https://www.cftc.gov/MarketReports/CommitmentsofTraders/HistoricalCompressed/index.htm
+    caveats: [release_lags, aggregate_not_single_etf, shares_flow_estimate_not_AUM_change]

@@ -38,7 +38,7 @@ def git(*args: str) -> str:
 
 
 def _looks_like_path(tok: str) -> bool:
-    return "/" in tok or bool(PATH_EXT_RE.search(tok))
+    return "/" in tok or tok.startswith(".") or bool(PATH_EXT_RE.search(tok))
 
 
 def infer_task() -> str | None:
@@ -101,7 +101,18 @@ def main() -> int:
     if not whitelist:
         sys.exit(f"[check-whitelist] {card_rel}: empty/unparseable '## Files to touch'.")
 
-    changed = [f for f in git("diff", "--name-only", f"{args.base}...HEAD").splitlines() if f]
+    changed = sorted(
+        {
+            f
+            for args_ in (
+                ("diff", "--name-only", f"{args.base}...HEAD"),
+                ("diff", "--name-only", "HEAD"),
+                ("ls-files", "--others", "--exclude-standard"),
+            )
+            for f in git(*args_).splitlines()
+            if f
+        }
+    )
     violations = [f for f in changed if not is_allowed(f, whitelist, card_rel)]
 
     if violations:

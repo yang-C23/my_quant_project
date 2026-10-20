@@ -61,8 +61,8 @@ def test_compute_basics_handles_missing_shares_and_zero_preclose() -> None:
 
     got = compute_basics(daily, pd.DataFrame())
 
-    assert got["pct_chg"].tolist() == [0.0, 0.0]
-    assert got["amplitude"].tolist() == [0.0, 0.0]
-    assert got["turnover"].tolist() == [0.0, 0.0]
-    assert got["float_mktcap"].tolist() == [0.0, 0.0]
-    assert got["total_mktcap"].tolist() == [0.0, 0.0]
+    assert got["pct_chg"].isna().all()
+    assert got["amplitude"].isna().all()
+    assert got["turnover"].isna().all()
+    assert got["float_mktcap"].isna().all()
+    assert got["total_mktcap"].isna().all()

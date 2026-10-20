@@ -22,12 +22,18 @@ def _expected(symbol: str) -> pd.DataFrame:
 
 
 @pytest.mark.parametrize("symbol", SYMBOLS)
-def test_parse_day_bytes_matches_v1_golden(symbol: str) -> None:
+def test_parse_day_bytes_matches_raw_golden_with_verified_index_unit_conversion(
+    symbol: str,
+) -> None:
     buf = (FIXTURES / "lday" / f"{symbol}.day").read_bytes()
     df = parse_day_bytes(buf, symbol)
     assert df.attrs["n_skipped"] == 0
 
     expected = _expected(symbol)
+    if symbol == "sh999999":
+        expected["volume"] *= (
+            100  # Legacy fixture retained source lots; standard contract is shares.
+        )
     assert len(df) == len(expected)
     got = df.assign(date=pd.to_datetime(df["date"])).reset_index(drop=True)
     pd.testing.assert_frame_equal(got, expected, check_exact=True)

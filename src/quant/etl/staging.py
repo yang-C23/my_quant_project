@@ -90,7 +90,10 @@ def parse_day_bytes(buf: bytes, symbol: str) -> pd.DataFrame:
     """Vectorized parse of raw .day bytes into a daily-bar DataFrame.
 
     Returns columns symbol/date/open/high/low/close/volume/amount (see
-    ``DAILY_SCHEMA``); prices are ``uint32/100`` yuan, volume shares,
+    ``DAILY_SCHEMA``); stock/index prices use /100, listed fund prices /1000.
+    The observed TDX extended-volume marker 0xC364 uses quotient*100+remainder;
+    this interpretation and its validation evidence are versioned in the audit.
+    Volume is in shares/units; standard CN index aggregates are converted from lots,
     amount yuan. Records with invalid dates and any trailing partial
     record are skipped; the skip count is exposed as
     ``df.attrs["n_skipped"]`` (read it before further transforms —
@@ -103,20 +106,33 @@ def parse_day_bytes(buf: bytes, symbol: str) -> pd.DataFrame:
     dates = pd.to_datetime(pd.Series(raw["date"]), format="%Y%m%d", errors="coerce")
     valid = dates.notna() & (raw["date"] >= 19900101)
     n_skipped += int((~valid).sum())
+    asset_type, _ = _classify_security(symbol)
+    divisor = 1000.0 if asset_type in {"etf", "fund"} else 100.0
+    volume = raw["volume"].astype(np.int64)
+    reserved = raw["reserved"]
+    extended = (reserved & 0xFFFF0000) == 0xC3640000
+    remainder = (reserved & 0xFFFF).astype(np.int64)
+    if np.any(extended & (remainder >= 100)):
+        raise ValueError(f"{symbol}: unrecognized extended volume remainder")
+    volume[extended] = volume[extended] * 100 + remainder[extended]
+    if asset_type == "index" and (symbol.startswith(("sh000", "sh999", "sz399", "bj899"))):
+        volume *= 100  # TDX index aggregates are in lots; cross-checked against BaoStock.
 
     df = pd.DataFrame(
         {
             "symbol": symbol,
             "date": dates[valid].dt.date.to_numpy(),
-            "open": raw["open"][valid.to_numpy()] / 100.0,
-            "high": raw["high"][valid.to_numpy()] / 100.0,
-            "low": raw["low"][valid.to_numpy()] / 100.0,
-            "close": raw["close"][valid.to_numpy()] / 100.0,
-            "volume": raw["volume"][valid.to_numpy()].astype(np.int64),
+            "open": raw["open"][valid.to_numpy()] / divisor,
+            "high": raw["high"][valid.to_numpy()] / divisor,
+            "low": raw["low"][valid.to_numpy()] / divisor,
+            "close": raw["close"][valid.to_numpy()] / divisor,
+            "volume": volume[valid.to_numpy()],
             "amount": raw["amount"][valid.to_numpy()].astype(np.float64),
         }
     )
     df.attrs["n_skipped"] = n_skipped
+    df.attrs["price_divisor"] = divisor
+    df.attrs["extended_volume_records"] = int(extended.sum())
     return df
 
 
@@ -178,6 +194,9 @@ def build_daily_staging(mirror_dir: Path, staging_dir: Path, *, workers: int = 2
     output row groups are naturally sorted by (symbol, date). Existing
     daily staging is replaced (full load).
     """
+    from quant.data.snapshots import assert_unsealed
+
+    assert_unsealed(staging_dir)
     t0 = time.monotonic()
     stats = StagingStats()
 
@@ -294,12 +313,12 @@ def _read_tnf_names(path: Path, exchange: str) -> dict[str, str]:
     return names
 
 
-def _tdx_security_names() -> dict[str, str]:
+def _tdx_security_names(tdx_root: Path | None = None) -> dict[str, str]:
     """Load TDX symbol names when the local hq_cache is available."""
     try:
         from quant.config import get_settings
 
-        hq_cache = _resolve_hq_cache(get_settings().tdx_home)
+        hq_cache = _resolve_hq_cache(tdx_root or get_settings().tdx_home)
     except Exception:  # noqa: BLE001 - names are optional metadata for isolated tests
         return {}
 
@@ -313,6 +332,9 @@ def _tdx_security_names() -> dict[str, str]:
 
 def build_gbbq_staging(tdx_home_or_mirror: Path, staging_dir: Path) -> int:
     """Decode TDX GBBQ records into ``staging/gbbq.parquet``."""
+    from quant.data.snapshots import assert_unsealed
+
+    assert_unsealed(staging_dir)
     hq_cache = _resolve_hq_cache(tdx_home_or_mirror)
     records = decode_gbbq_file(hq_cache / "gbbq")
     df = gbbq_records_to_frame(records)
@@ -324,9 +346,13 @@ def _classify_security(symbol: str) -> tuple[str, str]:
     exchange = symbol[:2]
     code = symbol[2:]
 
+    if (exchange == "sh" and code.startswith("8800")) or (
+        exchange == "sz" and code.startswith("395")
+    ):
+        return "statistics", "statistics"
     if exchange == "sh" and code.startswith(("000", "999")):
         return "index", "index"
-    if exchange == "sz" and code.startswith(("395", "399")):
+    if exchange == "sz" and code.startswith("399"):
         return "index", "index"
     if exchange == "bj" and code.startswith("899"):
         return "index", "index"
@@ -386,8 +412,11 @@ def _classify_security(symbol: str) -> tuple[str, str]:
     return "other", "other"
 
 
-def build_securities_staging(staging_dir: Path) -> int:
+def build_securities_staging(staging_dir: Path, *, tdx_root: Path | None = None) -> int:
     """Infer securities metadata from the daily staging symbol universe."""
+    from quant.data.snapshots import assert_unsealed
+
+    assert_unsealed(staging_dir)
     daily = _read_staging_table(staging_dir, "daily")
     if daily.empty:
         raise ValueError("daily staging is empty")
@@ -400,7 +429,7 @@ def build_securities_staging(staging_dir: Path) -> int:
     delist_cutoff = calendar[-21] if len(calendar) > 20 else calendar[0]
 
     classified = grouped["symbol"].map(_classify_security)
-    names = _tdx_security_names()
+    names = _tdx_security_names(tdx_root) if tdx_root else _tdx_security_names()
     securities = pd.DataFrame(
         {
             "symbol": grouped["symbol"].astype("string"),
@@ -421,6 +450,9 @@ def build_securities_staging(staging_dir: Path) -> int:
 
 def build_blocks_staging(tdx_home_or_mirror: Path, staging_dir: Path) -> int:
     """Parse TDX block metadata, block members, and holidays into staging."""
+    from quant.data.snapshots import assert_unsealed
+
+    assert_unsealed(staging_dir)
     hq_cache = _resolve_hq_cache(tdx_home_or_mirror)
 
     block_rows: list[tuple] = []
@@ -554,6 +586,9 @@ def build_flags_staging(staging_dir: Path) -> int:
     ST membership is a current snapshot from block metadata, not PIT history
     (same limitation as v1).
     """
+    from quant.data.snapshots import assert_unsealed
+
+    assert_unsealed(staging_dir)
     daily = _read_staging_table(staging_dir, "daily")[["symbol", "date", "close"]].copy()
     basics = _read_staging_table(staging_dir, "basics")[["symbol", "date", "preclose"]].copy()
     securities = _read_staging_table(staging_dir, "securities")

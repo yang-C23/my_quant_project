@@ -12,6 +12,7 @@ local mirror.
 from __future__ import annotations
 
 import logging
+import hashlib
 import re
 import shutil
 import subprocess
@@ -107,7 +108,8 @@ def extract_zip_baseline(zip_path: Path, mirror_dir: Path) -> MirrorStats:
 
         stats = MirrorStats()
         marker = target / ".complete"
-        fingerprint = f"{zip_path.name} entries={len(entries)}"
+        signature = "\n".join(f"{item.filename}:{item.file_size}:{item.CRC}" for item in entries)
+        fingerprint = hashlib.sha256(signature.encode()).hexdigest()
         if marker.exists() and marker.read_text() == fingerprint:
             for path in target.glob("*.day"):
                 stats.files += 1

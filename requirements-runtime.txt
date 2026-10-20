@@ -1,0 +1,20 @@
+# Runtime versions observed before restart; installation is checkout-local.
+pandas==2.3.3
+numpy==2.2.6
+pyarrow==19.0.1
+duckdb==1.5.4
+pyqlib==0.9.7
+mlflow==2.22.5
+backtrader==1.9.78.123
+pyyaml==6.0.3
+typer==0.26.8
+pydantic-settings==2.14.2
+tabulate==0.9.0
+pytest==9.1.1
+ruff==0.15.20
+pydantic==2.13.4
+scipy==1.15.3
+requests==2.32.5
+baostock==0.9.4
+xlrd==2.0.2
+lxml==6.0.2

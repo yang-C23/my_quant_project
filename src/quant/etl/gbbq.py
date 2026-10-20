@@ -212,6 +212,8 @@ def decode_gbbq_file(filepath: str | Path) -> list[tuple]:
 
     keys = _get_keys()
     count = struct.unpack_from("<I", data, 0)[0]
+    if len(data) < 4 + count * 29:
+        raise ValueError("truncated GBBQ file")
 
     results = []
     pos = 4
@@ -237,7 +239,11 @@ def decode_gbbq_file(filepath: str | Path) -> list[tuple]:
             code_end = len(code_bytes)
         code = code_bytes[:code_end].decode("ascii", errors="ignore")
 
-        symbol, ok = generate_symbol(code)
+        market = {0: "sz", 1: "sh", 2: "bj"}.get(clear[0])
+        if market and len(code) == 6 and code.isdigit():
+            symbol, ok = market + code, True
+        else:
+            symbol, ok = generate_symbol(code)
         if not ok:
             continue
 

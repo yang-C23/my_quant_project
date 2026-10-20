@@ -11,3 +11,6 @@ tk.csv
 tmp_stocklist_*.csv
 /exports/
 /mlruns/
+/.venv/
+/.pytest_cache/
+/.ruff_cache/

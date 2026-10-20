@@ -28,7 +28,7 @@ def _event(symbol: str, date: str, c1: float, c2: float, c3: float, c4: float) -
     [
         ("sh600001", _event("sh600001", "2024-01-02", 1.0, 0.0, 0.0, 0.0), 10.0 / 9.9),
         ("sh600002", _event("sh600002", "2024-01-02", 0.0, 0.0, 10.0, 0.0), 2.0),
-        ("sh600003", _event("sh600003", "2024-01-02", 0.0, 5.0, 0.0, 4.0), 1.25),
+        ("sh600003", _event("sh600003", "2024-01-02", 0.0, 4.0, 0.0, 5.0), 1.25),
         (
             "sh600004",
             _event("sh600004", "2024-01-02", 2.0, 0.0, 5.0, 0.0),
@@ -86,14 +86,14 @@ def test_compute_adjust_no_xdxr_hfq_one_and_qfq_latest_one() -> None:
     assert got["qfq_factor"].iloc[-1] == 1.0
 
 
-def test_compute_adjust_matches_pg_sz000001_fixture() -> None:
+def test_legacy_mapping_replays_old_pg_fixture_only() -> None:
     daily_close = pd.read_csv(FIXTURES / "pg_sz000001_daily_close.csv", parse_dates=["date"])
     daily = daily_close.assign(symbol="sz000001")
     gbbq = pd.read_csv(FIXTURES / "pg_sz000001_gbbq_xdxr.csv", parse_dates=["date"])
     gbbq = gbbq.assign(symbol="sz000001", category=1)
     expected = pd.read_csv(FIXTURES / "pg_sz000001_adjust.csv", parse_dates=["date"])
 
-    got = compute_adjust(daily, gbbq)
+    got = compute_adjust(daily, gbbq, mapping="legacy_swapped_rights")
     got["date"] = pd.to_datetime(got["date"])
     merged = expected.merge(got, on="date", how="inner", suffixes=("_pg", "_got"))
 
