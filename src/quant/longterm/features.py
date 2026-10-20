@@ -59,11 +59,16 @@ def align_available(
         raise ValueError("publication timestamps and observation dates are required")
     if decisions.tz is None:
         raise ValueError("decision times must have an explicit timezone")
+    if not decisions.is_monotonic_increasing or not decisions.is_unique:
+        raise ValueError("decision times must be unique and increasing")
     left = pd.DataFrame({"decision_at": decisions.tz_convert("UTC")})
     right = observations.copy()
     right["available_at"] = pd.to_datetime(right["available_at"], utc=True)
     right["date"] = pd.to_datetime(right["date"], utc=True)
     right = right.sort_values(["available_at", "date"])
+    # A late revision of an older observation must not replace a newer known value.
+    # Revisions of the latest economic date remain eligible from their release time.
+    right = right[right["date"].eq(right["date"].cummax())]
     merged = pd.merge_asof(
         left.sort_values("decision_at"),
         right,

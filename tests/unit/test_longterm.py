@@ -293,3 +293,25 @@ def test_duplicate_dividend_cannot_silently_double_income():
     ledger.dividend("2020-01-01", "ETF", dec(1), "2020-01-02", event_id="same")
     with pytest.raises(ValueError, match="duplicate"):
         ledger.dividend("2020-01-01", "ETF", dec(1), "2020-01-02", event_id="same")
+
+
+def test_old_period_revision_does_not_replace_latest_known_temperature():
+    observed = pd.DataFrame(
+        {
+            "date": ["2020-01-01", "2020-01-02", "2020-01-01", "2020-01-02"],
+            "available_at": [
+                "2020-01-02T12:00Z",
+                "2020-01-03T12:00Z",
+                "2020-01-04T12:00Z",
+                "2020-01-05T12:00Z",
+            ],
+            "pe": [10, 20, 12, 21],
+        }
+    )
+    decisions = pd.date_range("2020-01-02T20:00Z", periods=4)
+    values = align_available(observed, decisions, "pe")
+    assert values.tolist() == [10, 20, 20, 21]
+    before_revision = align_available(observed.iloc[:2], decisions[:2], "pe")
+    pd.testing.assert_series_equal(values.iloc[:2], before_revision)
+    with pytest.raises(ValueError, match="increasing"):
+        align_available(observed, decisions[::-1], "pe")
