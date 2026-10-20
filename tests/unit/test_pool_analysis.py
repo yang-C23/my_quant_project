@@ -4,7 +4,76 @@ import pandas as pd
 import pytest
 
 from quant.longterm.pool_analysis import clustered_event_comparisons, crisis_labels
-from quant.longterm.pool_analysis import recovery_episodes
+from quant.longterm.pool_analysis import recovery_episodes, validate_window_horizons
+
+
+def test_report_rejects_shortened_history_labelled_as_five_years():
+    table = pd.DataFrame(
+        [
+            {
+                "status": "computed",
+                "asset": "X",
+                "experiment": "factor",
+                "window": "latest_5y",
+                "start": "2017-06-02",
+                "end": "2019-10-11",
+            }
+        ]
+    )
+    with pytest.raises(ValueError, match="incorrect calendar horizon"):
+        validate_window_horizons(table)
+    table.loc[0, "start"] = "2014-10-13"
+    validate_window_horizons(table)
+
+
+def test_correction_requires_original_bytes_and_preserves_original_record(tmp_path):
+    from quant.data.snapshots import sha256_file, write_json
+    from quant.longterm.pool_analysis import apply_calendar_corrections, daily_artifact
+
+    source, correction = tmp_path / "source", tmp_path / "correction"
+    source.mkdir()
+    correction.mkdir()
+    write_json(source / "registration.json", {"config": "frozen"})
+    case = source / "X/rule/retrospective_train"
+    case.mkdir(parents=True)
+    original = {
+        "asset": "X",
+        "experiment": "rule",
+        "window": "retrospective_train",
+        "start": "2000-01-03",
+        "end": "2010-11-19",
+        "status": "computed",
+        "result_directory": "X/rule/retrospective_train",
+        "independent_ledger_verified": True,
+        "ending_wealth": 200000.0,
+    }
+    write_json(case / "record.json", original)
+    digest = sha256_file(case / "record.json")
+    replacement = original | {
+        "end": "2010-11-18",
+        "ending_wealth": 199000.0,
+        "superseded_record_sha256": digest,
+    }
+    pd.DataFrame([replacement]).to_parquet(correction / "results.parquet")
+    write_json(
+        correction / "registration.json",
+        {"source_registration_sha256": sha256_file(source / "registration.json")},
+    )
+    write_json(
+        correction / "payloads.json",
+        {"results.parquet": sha256_file(correction / "results.parquet")},
+    )
+    updated, old = apply_calendar_corrections(source, pd.DataFrame([original]), correction)
+    assert old.iloc[0].ending_wealth == 200000
+    assert updated.iloc[0].ending_wealth == 199000
+    assert sha256_file(case / "record.json") == digest
+    assert (
+        daily_artifact(source, updated.iloc[0])
+        == correction / original["result_directory"] / "daily.parquet"
+    )
+    write_json(case / "record.json", original | {"ending_wealth": 201000})
+    with pytest.raises(ValueError, match="superseded case checksum"):
+        apply_calendar_corrections(source, pd.DataFrame([original]), correction)
 
 
 def test_recovery_keeps_initial_cost_loss_and_open_episode_separate():

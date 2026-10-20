@@ -30,6 +30,52 @@ CORE_EXPERIMENTS = [
 ]
 
 
+def daily_artifact(source: Path, record: dict | pd.Series) -> Path:
+    """Resolve an explicitly adjudicated case without changing the frozen study."""
+    corrected = record.get("corrected_artifact_directory")
+    directory = (
+        Path(corrected) if isinstance(corrected, str) else source / record["result_directory"]
+    )
+    return directory / "daily.parquet"
+
+
+def apply_calendar_corrections(
+    source: Path, results: pd.DataFrame, corrections: Path
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Replace only checksum-bound original cases; retain superseded rows in the report."""
+    registration = json.loads((corrections / "registration.json").read_text())
+    if registration["source_registration_sha256"] != sha256_file(source / "registration.json"):
+        raise ValueError("corrections belong to another registered study")
+    for name, expected in json.loads((corrections / "payloads.json").read_text()).items():
+        if sha256_file(corrections / name) != expected:
+            raise ValueError(f"correction checksum failure: {name}")
+    changes = pd.read_parquet(corrections / "results.parquet")
+    keys = ["asset", "experiment", "window"]
+    updated = results.set_index(keys)
+    if not updated.index.is_unique or changes.duplicated(keys).any():
+        raise ValueError("correction identity must be unique")
+    old = []
+    for change in changes.to_dict("records"):
+        key = tuple(change[k] for k in keys)
+        if key not in updated.index:
+            raise ValueError("correction cannot add an unregistered case")
+        before = updated.loc[key].to_dict()
+        record_path = source / before["result_directory"] / "record.json"
+        if sha256_file(record_path) != change["superseded_record_sha256"]:
+            raise ValueError("superseded case checksum mismatch")
+        if change["status"] != "computed" or not change["independent_ledger_verified"]:
+            raise ValueError("correction requires verified financial reconstruction")
+        old.append(dict(zip(keys, key, strict=True)) | before)
+        change["corrected_artifact_directory"] = str(corrections / change["result_directory"])
+        for column, value in change.items():
+            if column in keys:
+                continue
+            if column not in updated:
+                updated[column] = pd.Series(index=updated.index, dtype=object)
+            updated.at[key, column] = value
+    return updated.reset_index(), pd.DataFrame(old)
+
+
 def recovery_episodes(nav: pd.Series) -> pd.DataFrame:
     """Calendar time below each high, preserving still-open losses as censored.
 
@@ -92,7 +138,7 @@ def recovery_diagnostics(source: Path, results: pd.DataFrame) -> tuple[pd.DataFr
     """Measure every drawdown, not only the single deepest episode."""
     summaries, episodes = [], []
     for record in results.to_dict("records"):
-        daily = pd.read_parquet(source / record["result_directory"] / "daily.parquet")
+        daily = pd.read_parquet(daily_artifact(source, record))
         identified = recovery_episodes(daily.twr_nav)
         identity = {k: record[k] for k in ("asset", "experiment", "window", "start", "end")}
         if identified.empty:
@@ -219,8 +265,26 @@ def clustered_event_comparisons(
     return pd.DataFrame(summaries), pd.DataFrame(leave_out)
 
 
+def validate_window_horizons(results: pd.DataFrame) -> None:
+    """Reject annual-window labels whose actual calendar interval was shortened."""
+    windows = results[
+        results.status.eq("computed")
+        & results.window.fillna("").str.match(r"(?:latest|rolling)_\d+y")
+    ]
+    for row in windows.to_dict("records"):
+        years = int(row["window"].split("_")[1].removesuffix("y"))
+        start, end = pd.Timestamp(row["start"]), pd.Timestamp(row["end"])
+        expected = end - pd.DateOffset(years=years)
+        if pd.isna(start) or pd.isna(end) or abs((start - expected).days) > 14:
+            raise ValueError(
+                f"incorrect calendar horizon: {row.get('asset')}/"
+                f"{row.get('experiment')}/{row['window']} {start}..{end}"
+            )
+
+
 def window_summary(results: pd.DataFrame) -> pd.DataFrame:
     """Separate five-, ten- and fifteen-year windows and retain adverse outcomes."""
+    validate_window_horizons(results)
     windows = results[
         results.status.eq("computed")
         & results.window.fillna("").str.startswith(("latest_", "rolling_"))
@@ -293,7 +357,7 @@ def plot_examples(source: Path, output: Path, results: pd.DataFrame) -> list[str
             if selected.empty:
                 continue
             row = selected.iloc[0]
-            daily = pd.read_parquet(source / row.result_directory / "daily.parquet")
+            daily = pd.read_parquet(daily_artifact(source, row))
             axes[0].plot(daily.index, daily.twr_nav, label=name, linewidth=1.4)
             # Include the initial unit NAV in the peak for the first cost deduction.
             drawdown = daily.twr_nav / daily.twr_nav.cummax().clip(lower=1) - 1
@@ -312,7 +376,9 @@ def plot_examples(source: Path, output: Path, results: pd.DataFrame) -> list[str
     return paths
 
 
-def analyze_pool_run(source: Path, config: dict, output: Path) -> dict:
+def analyze_pool_run(
+    source: Path, config: dict, output: Path, *, corrections: Path | None = None
+) -> dict:
     """Bind analysis to every saved result, including blocked and failed hypotheses."""
     if output.exists():
         raise ValueError("use a new analysis directory to preserve previous evidence")
@@ -320,6 +386,9 @@ def analyze_pool_run(source: Path, config: dict, output: Path) -> dict:
     if any(x.get("status") == "asset_error" for x in summary["outcomes"]):
         raise ValueError("unresolved asset errors: repair and complete the run before analysis")
     results = pd.read_parquet(source / "results.parquet")
+    superseded = pd.DataFrame()
+    if corrections is not None:
+        results, superseded = apply_calendar_corrections(source, results, corrections)
     if results.status.eq("error").any():
         raise ValueError("unresolved case errors: all failures must be adjudicated")
     computed = results[results.status.eq("computed")]
@@ -337,8 +406,14 @@ def analyze_pool_run(source: Path, config: dict, output: Path) -> dict:
             "config": config,
             "code": code_revision(),
             "selection": "none",
+            "corrections": str(corrections) if corrections else None,
+            "corrections_registration_sha256": sha256_file(corrections / "registration.json")
+            if corrections
+            else None,
         },
     )
+    results.to_csv(output / "adjudicated_results.csv", index=False)
+    superseded.to_csv(output / "superseded_cases.csv", index=False)
     windows = window_summary(results)
     windows.to_csv(output / "windows_all.csv", index=False)
     core = computed[computed.experiment.isin(CORE_EXPERIMENTS)].copy()
@@ -444,6 +519,7 @@ def analyze_pool_run(source: Path, config: dict, output: Path) -> dict:
 
 def pair_extension_results(results: pd.DataFrame) -> pd.DataFrame:
     """Compare only identical dates/contributions; factor and core remain matched."""
+    validate_window_horizons(results)
     computed = results[results.status.eq("computed")].copy()
     lookup = computed.set_index(["group", "asset", "experiment", "window"])
     if not lookup.index.is_unique:

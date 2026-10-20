@@ -90,12 +90,13 @@ def analyze_cash_pool_cmd(
     source: Path,
     destination: Path,
     config: Path = Path("configs/cash_pool_extensions.yaml"),
+    corrections: Path | None = None,
 ) -> None:
     """Analyze all saved windows and crisis clusters without selecting only winners."""
     from quant.config import load_config
     from quant.longterm.pool_analysis import analyze_pool_run
 
-    output(analyze_pool_run(source, load_config(config), destination))
+    output(analyze_pool_run(source, load_config(config), destination, corrections=corrections))
 
 
 @app.command("issuer-evidence")
