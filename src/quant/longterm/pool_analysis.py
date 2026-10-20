@@ -30,6 +30,118 @@ CORE_EXPERIMENTS = [
 ]
 
 
+def recovery_episodes(nav: pd.Series) -> pd.DataFrame:
+    """Calendar time below each high, preserving still-open losses as censored.
+
+    An initial unit NAV of one exists immediately before the first transaction.
+    The first date represents that funding instant if costs immediately create
+    a loss. A new cash contribution cannot itself create a high in this series.
+    """
+    if (
+        nav.empty
+        or not nav.index.is_unique
+        or not nav.index.is_monotonic_increasing
+        or not np.isfinite(nav).all()
+        or (nav <= 0).any()
+    ):
+        raise ValueError("positive finite NAV on unique increasing dates required")
+    peak, peak_date, initial_peak = 1.0, nav.index[0], True
+    active = None
+    rows = []
+    for date, value in nav.items():
+        if value < peak * (1 - 1e-12):
+            if active is None:
+                active = {
+                    "peak_date": str(peak_date.date()),
+                    "initial_funding_peak": initial_peak,
+                    "trough_date": str(date.date()),
+                    "max_drawdown": float(value / peak - 1),
+                    "underwater_sessions": 0,
+                }
+            active["underwater_sessions"] += 1
+            if value / peak - 1 < active["max_drawdown"]:
+                active["max_drawdown"] = float(value / peak - 1)
+                active["trough_date"] = str(date.date())
+            continue
+        if active is not None:
+            rows.append(
+                active
+                | {
+                    "recovery_date": str(date.date()),
+                    "observed_until": str(date.date()),
+                    "elapsed_calendar_days": (date - peak_date).days,
+                    "censored": False,
+                }
+            )
+            active = None
+        peak, peak_date, initial_peak = float(value), date, False
+    if active is not None:
+        rows.append(
+            active
+            | {
+                "recovery_date": None,
+                "observed_until": str(nav.index[-1].date()),
+                "elapsed_calendar_days": (nav.index[-1] - peak_date).days,
+                "censored": True,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def recovery_diagnostics(source: Path, results: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Measure every drawdown, not only the single deepest episode."""
+    summaries, episodes = [], []
+    for record in results.to_dict("records"):
+        daily = pd.read_parquet(source / record["result_directory"] / "daily.parquet")
+        identified = recovery_episodes(daily.twr_nav)
+        identity = {k: record[k] for k in ("asset", "experiment", "window", "start", "end")}
+        if identified.empty:
+            summary = {
+                "longest_observed_underwater_days": 0,
+                "longest_completed_recovery_days": 0,
+                "open_underwater_days": 0,
+                "open_drawdown": False,
+                "underwater_session_fraction": 0.0,
+                "drawdown_episodes": 0,
+            }
+        else:
+            complete = identified[~identified.censored]
+            open_loss = identified[identified.censored]
+            summary = {
+                "longest_observed_underwater_days": int(identified.elapsed_calendar_days.max()),
+                "longest_completed_recovery_days": int(complete.elapsed_calendar_days.max())
+                if len(complete)
+                else None,
+                "open_underwater_days": int(open_loss.elapsed_calendar_days.max())
+                if len(open_loss)
+                else 0,
+                "open_drawdown": bool(len(open_loss)),
+                "underwater_session_fraction": identified.underwater_sessions.sum() / len(daily),
+                "drawdown_episodes": len(identified),
+            }
+            episodes.append(identified.assign(**identity))
+        summaries.append(
+            identity
+            | summary
+            | {
+                key: record[key]
+                for key in (
+                    "longest_capital_shortfall_days",
+                    "capital_shortfall_unrecovered",
+                    "max_loss_vs_contributions",
+                    "below_contributions_at_12m",
+                    "below_contributions_at_24m",
+                    "initial_wait_days",
+                    "initial_wait_censored",
+                )
+            }
+        )
+    return (
+        pd.DataFrame(summaries),
+        pd.concat(episodes, ignore_index=True) if episodes else pd.DataFrame(),
+    )
+
+
 def crisis_labels(dates: pd.Series, gap_days: int) -> pd.Series:
     """Consecutive stress dates within the gap belong to the same dependent cluster."""
     ordered = pd.to_datetime(dates).drop_duplicates().sort_values()
@@ -132,10 +244,14 @@ def window_summary(results: pd.DataFrame) -> pd.DataFrame:
             longest_shortfall_days=("longest_capital_shortfall_days", "max"),
             median_shortfall_days=("longest_capital_shortfall_days", "median"),
             unrecovered_shortfall_fraction=("capital_shortfall_unrecovered", "mean"),
+            below_contributions_at_12m_fraction=("below_contributions_at_12m", "mean"),
+            below_contributions_at_24m_fraction=("below_contributions_at_24m", "mean"),
             loss_window_fraction=("loss", "mean"),
             drawdown_over_30pct_fraction=("drawdown_exceeds_30pct", "mean"),
             no_tactical_entry_fraction=("initial_wait_censored", "mean"),
             wait_over_24m_fraction=("wait_longer_than_24m", "mean"),
+            median_initial_tactical_wait_days=("initial_wait_days", "median"),
+            longest_initial_tactical_wait_days=("initial_wait_days", "max"),
             median_cash_fraction=("average_cash_fraction", "median"),
             median_wealth_delta_vs_pool=("delta_ending_wealth_vs_pool", "median"),
             worst_wealth_delta_vs_pool=("delta_ending_wealth_vs_pool", "min"),
@@ -227,6 +343,9 @@ def analyze_pool_run(source: Path, config: dict, output: Path) -> dict:
     windows.to_csv(output / "windows_all.csv", index=False)
     core = computed[computed.experiment.isin(CORE_EXPERIMENTS)].copy()
     core.to_csv(output / "core_all_windows.csv", index=False)
+    recovery, episodes = recovery_diagnostics(source, core)
+    recovery.to_csv(output / "recovery_all_windows.csv", index=False)
+    episodes.to_csv(output / "recovery_episodes.csv", index=False)
     latest = core[core.window.isin(["latest_5y", "latest_10y", "latest_15y"])].copy()
     latest.to_csv(output / "matched_latest_windows.csv", index=False)
     waiting_columns = [
@@ -295,6 +414,8 @@ def analyze_pool_run(source: Path, config: dict, output: Path) -> dict:
         "",
         "- windows_all.csv：按5、10、15年分别统计所有策略的最差、中位和最好窗口。",
         "- waiting_cost_all.csv：6、12、24月现金与相对无条件现金池的财富差额，包含一直未入场的账户。",
+        "- recovery_all_windows.csv及recovery_episodes.csv：所有历史高点损失区间，日历天数与未恢复删失分别列出，"
+        "不把样本截止时的等待下界当作最终回本时间。累计投入亏损另列；未买入而保持现金不代表股票投资无风险。",
         "- event_cluster_comparisons.csv：以同一事件起点计的企稳收益差，未确认入场保留零收益现金。",
         "- leave_one_crisis_out.csv：依次移除一个危机簇；不同市场同期危机仍不独立。",
         "- sensitivity_all.csv：全部参数邻域、费用、月供、批数和发布日期假设。",
@@ -413,7 +534,9 @@ def analyze_pool_extensions(source: Path, output: Path) -> dict:
         notes = {
             "style": "对照为同窗口510300单独持有，分红再投/现金分别匹配；这不是历史成交额选基。",
             "currency": "对照为相同溢价下的无条件现金池；extra_control为同策略零溢价情景。"
-            "这些是人民币价格指数和假定溢价路径，非真实QDII。",
+            "这些是人民币价格指数和假定溢价路径，非真实QDII。"
+            "美联储H.10日汇率按周发布，登记中的日频可得时间未经逐份发布档案核验，"
+            "不能作为真实交易时点可获得的外汇报价；本组仅保留为非可执行的渠道敏感性。",
             "pressure": "对照为同因子可用时间、同底仓的无条件现金池；extra_control为仅价格企稳。"
             "delta回撤为正表示跌幅较小，不能单独证明择时收益。实际Gamma与被迫平仓未观测。",
         }

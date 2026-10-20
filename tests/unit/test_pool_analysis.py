@@ -4,6 +4,28 @@ import pandas as pd
 import pytest
 
 from quant.longterm.pool_analysis import clustered_event_comparisons, crisis_labels
+from quant.longterm.pool_analysis import recovery_episodes
+
+
+def test_recovery_keeps_initial_cost_loss_and_open_episode_separate():
+    nav = pd.Series(
+        [0.99, 1.10, 0.80, 1.11, 1.01],
+        index=pd.to_datetime(
+            ["2020-01-01", "2020-01-02", "2020-02-02", "2020-03-02", "2020-04-02"]
+        ),
+    )
+    episodes = recovery_episodes(nav)
+    assert len(episodes) == 3
+    assert episodes.iloc[0].initial_funding_peak
+    assert episodes.iloc[0].elapsed_calendar_days == 1
+    assert episodes.iloc[1].max_drawdown == pytest.approx(0.8 / 1.1 - 1)
+    assert episodes.iloc[1].elapsed_calendar_days == 60
+    assert not episodes.iloc[1].censored
+    assert episodes.iloc[2].censored
+    assert episodes.iloc[2].elapsed_calendar_days == 31
+    assert episodes.iloc[2].recovery_date is None
+    cash = pd.Series(1.0, index=nav.index)
+    assert recovery_episodes(cash).empty
 
 
 def test_crisis_clusters_not_daily_signal_count_and_nonentry_cash_retained():

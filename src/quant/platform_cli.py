@@ -11,6 +11,19 @@ import typer
 app = typer.Typer(add_completion=False, help="Trusted data snapshots and long-term research.")
 
 
+@app.command("audit-cftc-releases")
+def audit_cftc_releases_cmd(
+    source: Path,
+    destination: Path,
+    config: Path = Path("configs/cftc_release_audit.yaml"),
+) -> None:
+    """Compare registered CFTC policies with known reporting interruptions excluded."""
+    from quant.config import get_settings
+    from quant.longterm.release_audit import run_release_audit
+
+    output(run_release_audit(get_settings(), source, config, destination))
+
+
 @app.command("audit-fund-reports")
 def audit_fund_reports_cmd(source: Path, documents: Path, destination: Path) -> None:
     """Reconcile annual issuer disclosures and preserve historical industry weights."""

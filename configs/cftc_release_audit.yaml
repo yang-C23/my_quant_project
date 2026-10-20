@@ -1,0 +1,35 @@
+schema_version: 1
+purpose: known_publication_interruptions_quarantine_sensitivity_not_strategy_optimization
+assets: [sp500, nasdaq100]
+experiments:
+  - pool_position_relief_core0
+  - pool_position_relief_core0.25
+  - pool_position_relief_core0.5
+  - release_assumption_position_relief_17
+  - release_delay_position_relief_1
+  - release_delay_position_relief_3
+factor: leveraged_long_percentile
+selection: none
+formal_accepted: false
+interpretation: >
+  Published agency notices establish that fixed 10/17-day lags are insufficient
+  in these periods. These deliberately broad quarantine windows are an audit
+  scenario, not a claim to reconstruct every actual release instant.
+  They are chosen from disclosure interruptions, never portfolio outcomes.
+quarantine:
+  - start: '2013-10-01'
+    end: '2013-12-31'
+    reason: shutdown_and_backlog_whole_quarter_exclusion
+    source: https://www.cftc.gov/PressRoom/PressReleases/6745-13
+  - start: '2018-12-22'
+    end: '2019-03-31'
+    reason: shutdown_and_twice_weekly_backlog_quarter_exclusion
+    source: https://www.cftc.gov/PressRoom/PressReleases/7864-19
+  - start: '2023-01-31'
+    end: '2023-03-31'
+    reason: ION_reporting_interruption_and_catchup_month_end_buffer
+    source: https://www.cftc.gov/MarketReports/CommitmentsofTraders/HistoricalSpecialAnnouncements/index.htm
+  - start: '2025-09-30'
+    end: '2026-01-17'
+    reason: shutdown_catchup_through_Dec29_plus_maximum_17_day_assumption_buffer
+    source: https://www.cftc.gov/PressRoom/PressReleases/9147-25
