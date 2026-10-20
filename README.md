@@ -38,4 +38,6 @@ scripts/quant platform --help
 - [固定研究协议](docs/restart/RESEARCH_PROTOCOL.md)
 - [来源、授权与覆盖](docs/restart/DATA_SOURCES.md)
 - [审计发现](docs/restart/AUDIT.md)
+- [已计算结果与未通过项](docs/restart/RESULTS.md)
+- [总计划交付映射](docs/restart/DELIVERY_MATRIX.md)
 - [架构](docs/architecture.md)

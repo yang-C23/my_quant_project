@@ -23,6 +23,8 @@
 | 运行、恢复、定时器 | `docs/restart/OPERATIONS.md` |
 | 当前数据版本 | `DATA_ROOT/current.json` |
 | 最新研究与告警 | `DATA_ROOT/research/latest.json`、`DATA_ROOT/monitor/latest.json` |
+| 已计算结果与证据限制 | `docs/restart/RESULTS.md`及其冻结登记 |
+| 本轮机器可读验收 | `DATA_ROOT/audits/restart-acceptance-20261020.json` |
 
 数据、研究和审计详细产物保存在仓库外的`DATA_ROOT`。不要从旧报告复制收益结论，
 不要把“解析成功”理解为“数据已准入”，不要把影子监控的暂停信息解读为卖出建议。

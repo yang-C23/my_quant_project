@@ -76,14 +76,17 @@ scripts/quant platform research --exploratory
 scripts/quant platform research --exploratory --replay-run /完整路径/原研究目录
 ```
 
-第一条检验正式门槛，目前逐实验返回暂停；第二条显式运行价格口径诊断。
+第一条检验正式门槛，目前逐实验返回暂停；第二条显式运行指数价格口径诊断。
+缺少完整公司行动的ETF账户即使使用exploratory模式也不能生成绩效，防止将拆分或除息当亏损。
 每次先冻结策略参数、代码内容、依赖锁、数据快照和公共源版本，再计算。
 `DATA_ROOT/research/运行ID`保存registration、coverage、所有结果、报告、逐日权益和Decimal交易账本。
 重放要求同代码字节、配置、依赖锁、快照及模式；公共来源新增版本不会替换原登记输入。
 重放逐字段核对完整结果，只有成功后才发布latest。
+若源码已改变，应在对应registration记录的提交创建独立工作树并按接手文档配置环境，
+再执行重放；不要修改旧registration中的代码哈希以绕过校验。
 
 更换策略规则或修复计算口径时创建新运行，旧运行写失效说明并保留。
-不要覆盖最后留出结果后继续选冠军。不要将指数价格或原始ETF价格诊断称为含分红可投资收益。
+不要覆盖最后留出结果后继续选冠军。不要将指数价格诊断称为含分红可投资收益。
 
 ## 每日影子运行
 
@@ -97,6 +100,8 @@ journalctl --user -u quant-longterm-shadow.service -n 100 --no-pager
 
 安装器仅写本用户systemd单元，按UTC 00:30与09:30分别观察美股及A股已结束的交易日，
 随机延迟最多120秒；重启后补一次漏跑，不补造历史20日验收。
+安装前以隔离的临时XDG_RUNTIME_DIR执行systemd单元解析验证，避免校验工具影响正在运行的用户管理器。
+安装成功还需核对timer为active/waiting，并检查首次service的Result和实际生成记录；存在单元文件不代表正在运行。
 WSL和用户服务需要运行；Windows关机或WSL停止时不会执行，不能承诺关机也提醒。
 没有安装邮件、短信、券商或外部消息发送功能。
 
