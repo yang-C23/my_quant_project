@@ -32,13 +32,14 @@ def main():
         }
         left, right = (pd.read_parquet(p / "journal.parquet") for p in (a, b))
         canonical = coverage[row.asset].get("symbol", symbols[row.asset])
-        observed = set(right.symbol.dropna())
+        observed = set(right.symbol.dropna()) if "symbol" in right else set()
         if not observed.issubset({row.asset, canonical}):
             raise AssertionError("unknown symbol identity cannot be normalized")
         exact_before_alias = sha256_file(a / "journal.parquet") == sha256_file(
             b / "journal.parquet"
         )
-        right["symbol"] = right.symbol.replace({row.asset: canonical})
+        if "symbol" in right:
+            right["symbol"] = right.symbol.replace({row.asset: canonical})
         pd.testing.assert_frame_equal(left, right, check_exact=True)
         if not all(checks.values()):
             raise AssertionError(f"non-alias financial difference: {row.asset} {row.window}")
