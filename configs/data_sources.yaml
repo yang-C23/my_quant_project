@@ -81,14 +81,54 @@ sources:
     terms: https://www.cboe.com/legal/terms-and-conditions/
     cost: public_vix_paid_option_history
     retention: review_required
-    caveats: [vix_is_not_tradable_spot, pre_2003_backcalculation, options_need_separate_license]
+    observed_datasets: [cboe_vix, cboe_vxn, cboe_skew, cboe_total_putcall]
+    caveats: [vix_is_not_tradable_spot, pre_2003_backcalculation, options_need_separate_license, total_putcall_ends_20191004, putcall_2012_reporting_break]
   cffex:
     publisher: China Financial Futures Exchange
     role: primary_daily_futures_options
     documentation: http://www.cffex.com.cn/
     cost: public_monthly_archives
     retention: review_required
-    caveats: [contract_expiry_roll_carry, no_net_dealer_gamma_in_OI]
+    observed_archive_months: [201004, 202609]
+    caveats: [contract_expiry_roll_carry, no_net_dealer_gamma_in_OI, turnover_OHLC_anomalies_quarantined, expected_dividends_missing]
+  sse_margin:
+    publisher: Shanghai Stock Exchange
+    role: exploratory_financing_pressure
+    documentation: https://www.sse.com.cn/market/othersdata/margin/detail/index.shtml
+    endpoint: https://query.sse.com.cn/marketdata/tradedata/queryMargin.do
+    dataset: sse_margin_daily
+    cost: public
+    retention: review_required
+    pit: first_observed_not_verified_release_history
+    caveats: [Shanghai_only, repayments_not_identified_forced_liquidation, server_limit_2000_follow_actual_paging]
+  finra:
+    publisher: Financial Industry Regulatory Authority
+    role: exploratory_monthly_leverage
+    documentation: https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics
+    dataset: finra_margin
+    cost: public
+    retention: review_required
+    pit: latest_file_plus_explicit_1_or_2_month_lag_assumptions
+    caveats: [USD_million, scope_and_method_changes_2010_2021, not_index_specific, no_identified_forced_liquidation]
+  reviewed_cn_issuers:
+    publishers: [Huatai_PineBridge, Invesco_Great_Wall]
+    role: specified_ETF_action_NAV_crosschecks
+    documentation:
+      - https://www.huatai-pb.com/products/zhishu/512890/index.html
+      - https://www.huatai-pb.com/products/zhishu/510300/index.html
+      - https://www.igwfmc.com/main/jjcp/product/515100/detail.html
+    cost: public_disclosures
+    retention: review_required
+    pit: dated_notices_plus_current_NAV_files_no_complete_revision_archive
+    caveats: [annual_disclosure_return_not_actual_cash_payment_return, no_survivorship_free_ETF_universe, NAV_rounding_changes, one_verified_cumulative_NAV_typo]
+  invesco_us:
+    publisher: Invesco US
+    role: SPHD_candidate_action_source
+    documentation: https://www.invesco.com/us/en/financial-products/etfs/invesco-sp-500-high-dividend-low-volatility-etf.html
+    terms: https://www.invesco.com/us/en/resources/terms-of-use.html
+    collection_enabled: false
+    retention: separate_automated_history_permission_required
+    caveats: [public_product_page_not_complete_licensed_archive]
   cme:
     publisher: CME Group
     role: paid_us_futures_candidate

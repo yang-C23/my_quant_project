@@ -58,3 +58,35 @@ def test_crisis_assignment_is_unchanged_when_later_dates_arrive():
     dates = pd.Series(["2008-01-01", "2008-01-20", "2020-03-01"])
     extended = pd.concat([dates, pd.Series(["2020-03-20", "2022-02-01"])], ignore_index=True)
     pd.testing.assert_series_equal(crisis_labels(dates, 120), crisis_labels(extended, 120).iloc[:3])
+
+
+def test_extension_factor_control_matches_factor_core_and_calendar():
+    from quant.longterm.pool_analysis import pair_extension_results
+
+    base = {
+        "group": "pressure",
+        "asset": "csi300",
+        "factor": "basis",
+        "lag_sessions": 2,
+        "core": 0.5,
+        "window": "full",
+        "status": "computed",
+        "start": "2020-01-01",
+        "end": "2025-01-01",
+        "contributed": 160000,
+        "annualized_return": 0.1,
+        "max_drawdown": -0.2,
+        "ending_wealth": 220000,
+        "xirr": 0.11,
+    }
+    rows = [
+        base | {"experiment": f"basis_lag2_{entry}_core0.5"}
+        for entry in ("unconditional", "stabilized", "external_event")
+    ]
+    rows[-1]["ending_wealth"] += 1000
+    output = pair_extension_results(pd.DataFrame(rows))
+    assert output.iloc[-1].delta_ending_wealth_vs_pool == 1000
+    assert output.iloc[-1].delta_ending_wealth_vs_extra_control == 1000
+    rows[-1]["start"] = "2020-02-01"
+    with pytest.raises(ValueError, match="different funding"):
+        pair_extension_results(pd.DataFrame(rows))

@@ -319,3 +319,123 @@ def analyze_pool_run(source: Path, config: dict, output: Path) -> dict:
         "figures": figures,
         "formal_accepted": False,
     }
+
+
+def pair_extension_results(results: pd.DataFrame) -> pd.DataFrame:
+    """Compare only identical dates/contributions; factor and core remain matched."""
+    computed = results[results.status.eq("computed")].copy()
+    lookup = computed.set_index(["group", "asset", "experiment", "window"])
+    if not lookup.index.is_unique:
+        raise ValueError("duplicate extension case")
+    output = []
+    for row in computed.to_dict("records"):
+        group, identifier = row["group"], row["experiment"]
+        if group == "style":
+            suffix = identifier.rsplit("reinvest", 1)[1]
+            control_id = f"single_csi300_etf_reinvest{suffix}"
+            extra_control = None
+        elif group == "currency":
+            premium = row["premium"]
+            control_id = f"cny_unconditional_premium{premium:g}"
+            extra_control = identifier.rsplit("_premium", 1)[0] + "_premium0"
+        elif group == "pressure":
+            stem = f"{row['factor']}_lag{int(row['lag_sessions'])}"
+            core = f"{row['core']:g}"
+            control_id = f"{stem}_unconditional_core{core}"
+            extra_control = f"{stem}_stabilized_core{core}"
+        else:
+            raise ValueError("unknown extension group")
+        for name, reference in (("vs_pool", control_id), ("vs_extra_control", extra_control)):
+            if reference is None:
+                continue
+            control = lookup.loc[(group, row["asset"], reference, row["window"])]
+            if any(row[key] != control[key] for key in ("start", "end", "contributed")):
+                raise ValueError("extension comparison has different funding calendars")
+            row[f"control_{name}"] = reference
+            for metric in ("annualized_return", "max_drawdown", "ending_wealth", "xirr"):
+                row[f"delta_{metric}_{name}"] = row[metric] - control[metric]
+        output.append(row)
+    return pd.DataFrame(output)
+
+
+def analyze_pool_extensions(source: Path, output: Path) -> dict:
+    """Preserve the complete style/FX/factor matrix, including short and blocked history."""
+    if output.exists():
+        raise ValueError("use a new analysis directory")
+    json.loads((source / "summary.json").read_text())  # Require a completed run.
+    results = pd.read_parquet(source / "results.parquet")
+    if results.status.eq("error").any():
+        raise ValueError("adjudicate every failed extension case first")
+    paired = pair_extension_results(results)
+    if not paired.independent_ledger_verified.fillna(False).all():
+        raise ValueError("all accounts need independent reconstruction")
+    output.mkdir(parents=True)
+    write_json(
+        output / "registration.json",
+        {
+            "source": str(source),
+            "registration_sha256": sha256_file(source / "registration.json"),
+            "results_sha256": sha256_file(source / "results.parquet"),
+            "code": code_revision(),
+            "selection": "all_registered_extensions",
+        },
+    )
+    paired.to_csv(output / "paired_all.csv", index=False)
+    windows = window_summary(paired)
+    windows.to_csv(output / "windows_all.csv", index=False)
+    results[~results.status.eq("computed")].to_csv(output / "blocked_all.csv", index=False)
+    columns = [
+        "asset",
+        "experiment",
+        "window",
+        "start",
+        "end",
+        "annualized_return",
+        "max_drawdown",
+        "longest_capital_shortfall_days",
+        "ending_wealth",
+        "average_cash_fraction",
+        "delta_ending_wealth_vs_pool",
+        "delta_ending_wealth_vs_extra_control",
+    ]
+    for group in ("style", "currency", "pressure"):
+        selected = paired[paired.group.eq(group)]
+        selected.to_csv(output / f"{group}_all.csv", index=False)
+        latest = selected[selected.window.isin(["latest_5y", "latest_10y"])]
+        # Short listed histories remain visible without being relabelled five years.
+        covered = set(zip(latest.asset, latest.experiment, strict=True))
+        has_long_window = pd.Series(
+            [(a, e) in covered for a, e in zip(selected.asset, selected.experiment, strict=True)],
+            index=selected.index,
+        )
+        short = selected[selected.window.eq("full") & ~has_long_window]
+        display = pd.concat([latest, short])
+        notes = {
+            "style": "对照为同窗口510300单独持有，分红再投/现金分别匹配；这不是历史成交额选基。",
+            "currency": "对照为相同溢价下的无条件现金池；extra_control为同策略零溢价情景。"
+            "这些是人民币价格指数和假定溢价路径，非真实QDII。",
+            "pressure": "对照为同因子可用时间、同底仓的无条件现金池；extra_control为仅价格企稳。"
+            "delta回撤为正表示跌幅较小，不能单独证明择时收益。实际Gamma与被迫平仓未观测。",
+        }
+        text = [
+            f"# {group}：全部预先登记对照",
+            "",
+            notes[group],
+            "",
+            "比例用小数。等待现金包括在账户内，收益剔除外部入金；所有结果为已见历史探索。",
+            "",
+            display[[column for column in columns if column in display]].to_markdown(index=False),
+            "",
+            "完整窗口、负面结果与短历史保存在对应 *_all.csv；没有按收益筛选。",
+        ]
+        (output / f"{group}.md").write_text("\n".join(text) + "\n")
+    payloads = {
+        p.name: sha256_file(p) for p in sorted(output.iterdir()) if p.name != "registration.json"
+    }
+    write_json(output / "payloads.json", payloads)
+    return {
+        "directory": str(output),
+        "computed": len(paired),
+        "all_records": len(results),
+        "formal_accepted": False,
+    }

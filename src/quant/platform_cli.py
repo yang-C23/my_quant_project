@@ -11,6 +11,15 @@ import typer
 app = typer.Typer(add_completion=False, help="Trusted data snapshots and long-term research.")
 
 
+@app.command("audit-fund-reports")
+def audit_fund_reports_cmd(source: Path, documents: Path, destination: Path) -> None:
+    """Reconcile annual issuer disclosures and preserve historical industry weights."""
+    from quant.config import get_settings
+    from quant.longterm.fund_review import review_issuer_reports
+
+    output(review_issuer_reports(get_settings().data_root, source, documents, destination))
+
+
 @app.command("cash-pool-extensions")
 def cash_pool_extensions_cmd(
     source: Path,
@@ -70,6 +79,14 @@ def issuer_evidence_cmd(
             "actions": actions,
         }
     )
+
+
+@app.command("analyze-cash-pool-extensions")
+def analyze_cash_pool_extensions_cmd(source: Path, destination: Path) -> None:
+    """Compare every style/FX/factor extension on matched cash-flow calendars."""
+    from quant.longterm.pool_analysis import analyze_pool_extensions
+
+    output(analyze_pool_extensions(source, destination))
 
 
 @app.command("fetch-history")

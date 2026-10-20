@@ -13,7 +13,7 @@ scripts/quant test
 scripts/quant lint
 ```
 
-当前`.venv`关闭system-site-packages，已独立安装202项锁定依赖；不复用其他worktree的editable安装。
+当前`.venv`关闭system-site-packages，已独立安装206项锁定依赖；不复用其他worktree的editable安装。
 `requirements-lock.txt`保存Python3.10的依赖闭包，`requirements-runtime.txt`保留直接依赖说明。
 新增/升级依赖需先验证兼容性，再运行`.venv/bin/python scripts/lock_environment.py`生成新锁，
 重新测试并登记环境版本。doctor发现版本不符会返回非零；不要静默忽略。
@@ -87,6 +87,31 @@ scripts/quant platform research --exploratory --replay-run /完整路径/原研�
 
 更换策略规则或修复计算口径时创建新运行，旧运行写失效说明并保留。
 不要覆盖最后留出结果后继续选冠军。不要将指数价格诊断称为含分红可投资收益。
+
+### 现金池、压力阶段与组合研究
+
+主实验固定源代码为`560877f`，扩展首版固定为`b448871`。运行ID和后续修复以任务看板为准。
+从原冻结价格研究读取输入，补充源版本在执行前登记，不动态读取“最新”覆盖旧实验。
+
+```bash
+scripts/quant platform cash-pool-research /完整路径/原价格研究 --config configs/cash_pool.yaml --workers 4
+scripts/quant platform cash-pool-research /完整路径/原价格研究 --config configs/cash_pool.yaml --workers 4 --resume-run /完整路径/中断运行
+scripts/quant platform cash-pool-research /完整路径/原价格研究 --config configs/cash_pool.yaml --workers 4 --replay-run /完整路径/完整运行
+scripts/quant platform cash-pool-extensions /完整路径/现金池主运行
+scripts/quant platform cash-pool-extensions /完整路径/现金池主运行 --replay-run /完整路径/扩展运行
+scripts/quant platform analyze-cash-pool /完整路径/现金池主运行 /完整路径/全新分析目录
+scripts/quant platform analyze-cash-pool-extensions /完整路径/扩展运行 /完整路径/全新扩展分析目录
+scripts/quant platform fetch-history --first-cftc-year 2006 --last-cftc-year 2026 --first-cffex-month 201004 --last-cffex-month 202609
+scripts/quant platform fetch-pressure 2026-10-19
+scripts/quant platform issuer-evidence configs/fund_actions/sh512890.json --nav-file /完整路径/已缓存发行人NAV
+scripts/quant platform audit-fund-reports /完整路径/现金池主运行 /完整路径/发行人报告目录 /完整路径/全新年报审计目录
+```
+
+重放必须在相应冻结源码工作树执行，可设置`QUANT_PYTHON`指向本项目已核实的解释器，
+同时设置`DATA_ROOT`。`scripts/quant`仍使用该工作树自己的源码，不安装到共享editable路径。
+初次失败运行只用于保留错误证据；修复后创建新登记，不继续使用原错误代码的声明。
+`payloads.json`核对逐日权益、流水、特征、所有案例及事件表的字节哈希，时间戳登记文件不要求相同。
+正式交易门槛没有因新增探索命令而放宽。
 
 ## 每日影子运行
 

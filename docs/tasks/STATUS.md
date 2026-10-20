@@ -9,15 +9,16 @@
 | 阶段 | 状态 | 证据/下一步 |
 |---|---|---|
 | 基线与审计 | inventory_complete / legacy_review_open | 初始代码/数据/73产物清单已冻结；关键路径语义修复见[审计](../restart/AUDIT.md)，旧策略未全部复现 |
-| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/份额拆分/公司行动、Decimal账本、243项离线测试通过；3项遗留集成测试未运行 |
+| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/份额拆分/公司行动、Decimal账本、291项离线测试通过；3项遗留集成测试未运行；后续基金披露口径新增2项手算测试通过 |
 | TDX更新 | structurally_accepted | 快照20261020T112255Z-2f1a3256f7；29,753,977行、12,490代码至10月19日；幂等、完整备份/隔离恢复通过 |
 | 替代源验收 | partial / formal_gate_open | 已采集公开数据并交叉核查；长期估值、股息支付、许可/PIT和历史成分仍缺 |
 | 基准及扩展回测 | price_diagnostics_reproduced / formal_blocked | 冻结120项假设；1,063条指数价格实验/窗口记录、2,999条暂停，精确重放通过；[结果及限制](../restart/RESULTS.md) |
-| 用户疑问复核及现金池研究 | cash_pool_implemented / historical_research_in_progress | 用户已授权连续执行6—10小时工作包；现金池、分批退出、阶段事件及独立流水核对已实现，276项离线测试通过。197项新实验登记；209份官方衍生品档案约96.5万行，FINRA/Shiller已留存探索版；512890/515100/510300官方行动与6897个ETF交易日价格-NAV核对完成。已修复月度代理过期的未来依赖、旧CFFEX合约尾部空格漏读、拆分停牌估值，并登记官方累计净值异常。尚无新策略有效性结论。[复核](../restart/STRATEGY_REVIEW.md)、[工作包](../restart/CASH_POOL_RESEARCH_PLAN.md) |
+| 用户疑问复核及现金池研究 | historical_research_and_replay_in_progress | 主实验冻结560877f、197项假设；主运行cash-pool-20261020T180251782214Z及独立重放进行中。扩展冻结b448871，运行cash-pool-extensions-20261020T183327795160Z及重放进行中，含真实ETF组合、币种/溢价、融资/基差/期权代理。291项全量离线测试、32个真实预检账本通过。新增SSE融资4018日、VXN/SKEW及到2019年的Put/Call；三只ETF行动与6897个价格-NAV核查完成。初次主运行Arrow时间精度失败已修复并留存。两只红利ETF2021—2025年报补齐，现金回报与披露算法分开审核。结论等待全矩阵、危机簇及重放完成。[工作包](../restart/CASH_POOL_RESEARCH_PLAN.md) |
 | 每日监控 | shadow_timer_active | UTC 00:30/09:30用户定时器已启用；首次完整更新/计算成功；12标的暂停、0交易建议；重复执行不增加日期计数，20真实交易日未验收 |
 | 长期维护 | ongoing | 文档与本机恢复具备；异地备份、正式数据晋级和未来20日验收待办 |
 
-研究/部署代码提交为`66df912cc215af2d651efdeef3e6174afb5f0d0c`；后续纯文档提交不改变研究源码。
+旧价格研究/监控代码提交为`66df912cc215af2d651efdeef3e6174afb5f0d0c`；
+现金池及扩展各自以运行registration和冻结工作树为准，不用当前HEAD代替原源码重放。
 验收证据保存在`DATA_ROOT/audits/restart-acceptance-20261020/`，
 汇总为`DATA_ROOT/audits/restart-acceptance-20261020.json`。
 旧v1—v3快照及试跑保留；其ETF派生/原价绩效不能用于投资结论。

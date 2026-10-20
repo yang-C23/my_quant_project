@@ -19,7 +19,7 @@
 | 数据schema、单位、复权 | `docs/data_platform.md` |
 | 资金、策略、绩效定义 | `docs/restart/RESEARCH_PROTOCOL.md` |
 | 来源授权与适用边界 | `configs/data_sources.yaml`；证据解读 `docs/restart/DATA_SOURCES.md` |
-| 冻结实验参数 | `configs/longterm.yaml`；每次运行的 `registration.json` |
+| 冻结实验参数 | 原基线`configs/longterm.yaml`；当前`configs/cash_pool.yaml`及`configs/cash_pool_extensions.yaml`；最终以各运行`registration.json`为准 |
 | 运行、恢复、定时器 | `docs/restart/OPERATIONS.md` |
 | 当前数据版本 | `DATA_ROOT/current.json` |
 | 最新研究与告警 | `DATA_ROOT/research/latest.json`、`DATA_ROOT/monitor/latest.json` |
