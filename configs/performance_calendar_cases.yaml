@@ -1,0 +1,8 @@
+schema_version: 1
+purpose: independently_replay_six_previously_adjudicated_calendar_cases
+assets: [nasdaq100]
+experiments: [pool_vix_relief_core0, pool_vix_relief_core0.25, pool_vix_relief_core0.5]
+windows: [retrospective_train, retrospective_validation]
+reserve_logical_cpus: 2
+internal_threads: 1
+selection: all_six_prior_calendar_adjudications_not_performance_selection

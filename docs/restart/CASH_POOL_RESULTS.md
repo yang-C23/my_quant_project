@@ -513,5 +513,5 @@ Put/Call资料只到2019年，最近支持的五年窗口在2014—2019年，不
 源代码、数据许可或原始发布时间的正确性不能单靠哈希一致证明。
 
 本轮性能优化的代码、资源、CPU/GPU完整计时、精确一致性及命令见
-[性能审查](/home/yang/projects/quant_performance/docs/restart/PERFORMANCE_AUDIT.md)。
+[性能审查](PERFORMANCE_AUDIT.md)。
 原冻结研究没有迁移到GPU，也没有因性能优化扩大金融参数搜索。

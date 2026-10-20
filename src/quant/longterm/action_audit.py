@@ -28,7 +28,11 @@ def verify_action_ledger(
         pd.Timestamp(date): frame.to_dict("records")
         for date, frame in actions.groupby("ex_date", sort=False)
     }
-    groups = {pd.Timestamp(date): group for date, group in journal.groupby("date", sort=False)}
+    # Index sparse journal events once. Daily DataFrame slicing otherwise costs
+    # much more than the independent Decimal reconstruction itself.
+    groups: dict[pd.Timestamp, list[dict]] = {}
+    for entry in journal.to_dict("records"):
+        groups.setdefault(pd.Timestamp(entry["date"]), []).append(entry)
     units = Decimal(0)
     errors = dict.fromkeys(
         ("cash", "shares", "receivable", "equity", "pre_flow_equity", "external_flow", "nav"), 0.0
@@ -51,9 +55,11 @@ def verify_action_ledger(
             Decimal(0),
         )
 
-    for date, row in daily.iterrows():
-        price = Decimal(str(close.loc[date]))
-        group = groups.get(date, journal.iloc[:0])
+    for date, row, raw_price in zip(
+        daily.index, daily.to_dict("records"), close.reindex(daily.index).to_numpy()
+    ):
+        price = Decimal(str(raw_price))
+        group = groups.get(date, ())
         expected_paid = []
         for sleeve, state in states.items():
             for event_id, (pay_date, amount) in list(state["due"].items()):
@@ -61,12 +67,12 @@ def verify_action_ledger(
                     state["cash"] += amount
                     del state["due"][event_id]
                     expected_paid.append((sleeve, event_id, amount))
-            actual_actions = group[group.sleeve.eq(sleeve)]
+            actual_actions = [entry for entry in group if entry["sleeve"] == sleeve]
             for action in action_map.get(date, []):
                 if action["kind"] == "split":
                     ratio = Decimal(str(action["ratio"]))
-                    matching = actual_actions[actual_actions.kind.eq("split")]
-                    if len(matching) != 1 or Decimal(str(matching.iloc[0].ratio)) != ratio:
+                    matching = [entry for entry in actual_actions if entry["kind"] == "split"]
+                    if len(matching) != 1 or Decimal(str(matching[0]["ratio"])) != ratio:
                         raise AssertionError("missing/incorrect split journal")
                     state["shares"] *= ratio
                 else:
@@ -74,25 +80,28 @@ def verify_action_ledger(
                     tax = cents(gross * costs.dividend_tax_rate)
                     net = gross - tax
                     event_id = str(action["event_id"])
-                    matching = actual_actions[
-                        actual_actions.kind.eq("dividend_receivable")
-                        & actual_actions.event_id.eq(event_id)
+                    matching = [
+                        entry
+                        for entry in actual_actions
+                        if entry["kind"] == "dividend_receivable" and entry["event_id"] == event_id
                     ]
                     if len(matching) != 1:
                         raise AssertionError("missing/duplicate dividend entitlement")
-                    entry = matching.iloc[0]
-                    if (entry.gross, entry.tax, entry.amount) != (gross, tax, net):
+                    entry = matching[0]
+                    if (entry["gross"], entry["tax"], entry["amount"]) != (gross, tax, net):
                         raise AssertionError("dividend amount disagrees with source terms/holdings")
                     state["due"][event_id] = (pd.Timestamp(action["pay_date"]), net)
                     expected_entitlements += 1
         before = account_value(price)
-        contributions = group[group.kind.eq("deposit")]
-        flow = sum(contributions.amount, Decimal(0))
+        contributions = [entry for entry in group if entry["kind"] == "deposit"]
+        flow = sum((entry["amount"] for entry in contributions), Decimal(0))
         subscription_nav = before / units if units else Decimal(1)
         units += flow / subscription_nav
-        for entry in contributions.to_dict("records"):
+        for entry in contributions:
             states[entry["sleeve"]]["cash"] += entry["amount"]
-        for entry in group[group.kind.isin(["buy", "sell"])].to_dict("records"):
+        for entry in group:
+            if entry["kind"] not in {"buy", "sell"}:
+                continue
             state = states[entry["sleeve"]]
             direction = 1 if entry["kind"] == "buy" else -1
             fill = price * (1 + direction * costs.slippage_bps / 10000)
@@ -113,7 +122,8 @@ def verify_action_ledger(
                     expected_paid.append((sleeve, event_id, amount))
         actual_paid = [
             (x["sleeve"], str(x["event_id"]), x["amount"])
-            for x in group[group.kind.eq("dividend_paid")].to_dict("records")
+            for x in group
+            if x["kind"] == "dividend_paid"
         ]
         if sorted(expected_paid) != sorted(actual_paid):
             raise AssertionError("dividend became spendable on the wrong session")

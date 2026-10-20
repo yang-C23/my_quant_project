@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "baseline_date": "2026-10-20",
+  "observed_host": {"cpu": "AMD Ryzen 9 9900X", "physical_cores": 12, "logical_cpus": 24, "memory_gib": 47.04, "gpu": "RTX 5090", "gpu_memory_mib": 32607},
+  "reserve_logical_cpus": 2,
+  "reserve_memory_gib": 4,
+  "controller_memory_gib": 0.5,
+  "busy_research_threshold_cores": 1,
+  "busy_worker_cap": 6,
+  "internal_threads": 1,
+  "gpu_default": "cpu",
+  "workloads": {
+    "account_batch": {"default_workers": 12, "memory_per_worker_gib": 0.5, "evidence": "52 real accounts; 12 fastest median; 16 slower"},
+    "asset_study": {"default_workers": 4, "memory_per_worker_gib": 2, "evidence": "full study verified with 4; asset scheduling has long tails; memory is a conservative allowance"},
+    "source_audit": {"default_workers": 3, "memory_per_worker_gib": 2, "evidence": "existing five-index source audit; not a worker-ladder optimum"},
+    "tdx": {"default_workers": 4, "memory_per_worker_gib": 3, "evidence": "existing accepted update setting; not a worker-ladder optimum"},
+    "io": {"default_workers": 2, "memory_per_worker_gib": 0.5, "evidence": "retain existing source fetch concurrency and provider limits"},
+    "serial": {"default_workers": 1, "memory_per_worker_gib": 1, "evidence": "ordered account or nonparallel implementation"},
+    "gpu_history": {"default_workers": 1, "memory_per_worker_gib": 1, "evidence": "explicit optional warm historical percentiles only; no automatic GPU selection"}
+  },
+  "platform_commands": {
+    "cash-pool-research": {"workload": "asset_study", "worker_option": true},
+    "confirmation-horizon-research": {"workload": "asset_study", "worker_option": true},
+    "audit-price-sources": {"workload": "source_audit", "worker_option": true},
+    "tdx-update": {"workload": "tdx", "worker_option": true},
+    "fetch-history": {"workload": "io", "worker_option": true},
+    "daily": {"workload": "tdx", "worker_option": false},
+    "research": {"workload": "serial", "worker_option": false},
+    "cash-pool-extensions": {"workload": "serial", "worker_option": false},
+    "refresh-shiller-research": {"workload": "serial", "worker_option": false},
+    "current-price-pe-research": {"workload": "serial", "worker_option": false},
+    "audit-cftc-releases": {"workload": "serial", "worker_option": false},
+    "analyze-cash-pool": {"workload": "serial", "worker_option": false},
+    "analyze-cash-pool-extensions": {"workload": "serial", "worker_option": false}
+  }
+}

@@ -190,11 +190,14 @@ PYTHONPATH=src /完整路径/解释器 scripts/check_release_primary_equivalence
 ```
 
 CPU/GPU优化在独立工作树`/home/yang/projects/quant_performance`，
-其源码基线、选择的并行度、GPU适用范围和复现命令只在
-[性能审查](/home/yang/projects/quant_performance/docs/restart/PERFORMANCE_AUDIT.md)维护。
+原工作树继续保存冻结证据；经核验的实现现已整合到本任务分支。
+源码基线、选择的并行度、GPU适用范围和复现命令在[性能审查](PERFORMANCE_AUDIT.md)维护。
 `quant_performance_baseline`保留优化前实现；不替换原冻结研究源码，不共享editable安装。
 研究解释的唯一正文仍是[CASH_POOL_RESULTS.md](CASH_POOL_RESULTS.md)，
 任务状态仍以主项目的`docs/tasks/STATUS.md`为准。
+
+新研究默认按[计算条件](../COMPUTE_POLICY.md)准入：平台重任务自动检查共享预算，
+直接脚本使用`scripts/quant compute-run`。原冻结工作树继续使用原入口重放，不能改写旧登记。
 
 ## 每日影子运行
 

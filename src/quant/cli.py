@@ -98,6 +98,10 @@ def main(
     ] = False,
 ) -> None:
     """Command-line entry point for my-quant."""
+    if os.environ.get("QUANT_COMPUTE_MANAGED") == "1":
+        from quant.compute import configure_native_threads
+
+        configure_native_threads()
 
 
 @etl_app.command("full")

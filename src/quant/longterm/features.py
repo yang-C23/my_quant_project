@@ -34,16 +34,46 @@ def historical_percentile(
     if first_valid is None:
         return result
     minimum = int(252 * years * minimum_coverage)
-    for i, (date, value) in enumerate(values.items()):
-        if pd.isna(value) or date < first_valid + pd.DateOffset(years=years):
-            continue
-        left = 0 if expanding else values.index.searchsorted(date - pd.DateOffset(years=years))
-        history = values.iloc[left:i].dropna()
-        if len(history) >= minimum:
-            result.iloc[i] = ((history < value).sum() + (history == value).sum() * 0.5) / len(
-                history
-            )
-    return result
+    array = values.to_numpy()
+    valid = np.isfinite(array)
+    counts = np.concatenate(([0], np.cumsum(valid)))
+    lefts = (
+        np.zeros(len(values), dtype=np.int64)
+        if expanding
+        else values.index.searchsorted(values.index - pd.DateOffset(years=years))
+    )
+    ready = valid & (values.index >= first_valid + pd.DateOffset(years=years))
+    output = np.full(len(values), np.nan)
+    for i in np.flatnonzero(ready):
+        left = lefts[i]
+        count = counts[i] - counts[left]
+        if count >= minimum:
+            history = array[left:i]
+            # NaNs compare false. Integer counts preserve the original tie rule
+            # and division exactly; there is no changed reduction order.
+            output[i] = (
+                np.count_nonzero(history < array[i]) + np.count_nonzero(history == array[i]) * 0.5
+            ) / count
+    return pd.Series(output, index=values.index, dtype=float)
+
+
+def kdj_j(bars: pd.DataFrame) -> pd.Series:
+    """Original RSV(9), K/D recursion; unavailable for close-only observations."""
+    if not {"high", "low"}.issubset(bars):
+        return pd.Series(np.nan, index=bars.index, name="j")
+    close = bars["close"].astype(float)
+    ll = bars["low"].rolling(9, min_periods=9).min()
+    hh = bars["high"].rolling(9, min_periods=9).max()
+    rsv = ((close - ll) / (hh - ll).replace(0, np.nan) * 100).where(hh != ll, 50)
+    k, d = 50.0, 50.0
+    js = []
+    for value in rsv:
+        if pd.isna(value):
+            js.append(np.nan)
+        else:
+            k, d = (2 * k + value) / 3, (2 * d + (2 * k + value) / 3) / 3
+            js.append(3 * k - 2 * d)
+    return pd.Series(js, index=bars.index, name="j")
 
 
 def align_available(
@@ -161,21 +191,7 @@ def price_features(
         if i - last_low >= confirmation and close.iloc[i] > sma.iloc[i]:
             out.iloc[i, out.columns.get_loc("stabilized")] = True
             event_start = None
-    if {"high", "low"}.issubset(bars):
-        ll = bars["low"].rolling(9, min_periods=9).min()
-        hh = bars["high"].rolling(9, min_periods=9).max()
-        rsv = ((close - ll) / (hh - ll).replace(0, np.nan) * 100).where(hh != ll, 50)
-        k, d = 50.0, 50.0
-        js = []
-        for value in rsv:
-            if pd.isna(value):
-                js.append(np.nan)
-            else:
-                k, d = (2 * k + value) / 3, (2 * d + (2 * k + value) / 3) / 3
-                js.append(3 * k - 2 * d)
-        out["j"] = js
-    else:
-        out["j"] = np.nan  # close-only series cannot support a genuine KDJ calculation
+    out["j"] = kdj_j(bars)
     return out
 
 

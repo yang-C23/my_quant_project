@@ -3,6 +3,8 @@
 任何 agent 从 `docs/ONBOARDING.md` 冷启动。当前工作由用户批准的
 `docs/restart/MASTER_PLAN.md` 和 `docs/tasks/TASK-080-trusted-index-restart.md` 定义。
 `docs/tasks/STATUS.md` 是唯一任务状态源。旧任务及研究记录保留。
+在此平台工作时使用仓库的 `skills/quant-analyst-myproj/SKILL.md`；
+它与模型名称无关，统一研究、资源预算和交接要求。
 
 ## 环境与命令
 
@@ -15,7 +17,18 @@ scripts/quant doctor
 scripts/quant --help
 scripts/quant test
 scripts/quant lint
+scripts/quant resources --workload account_batch
 ```
+
+## 默认计算资源
+
+按 `docs/COMPUTE_POLICY.md` 和唯一配置 `configs/compute_defaults.json` 执行。
+先汇总主机及所有研究任务占用，再启动重计算。已测账户批处理空闲上限12进程，
+完整按标的研究4进程；不得把12套用到所有任务。CPU/内存配额及其它负载会进一步降低预算。
+原生计算库线程默认1；单账户串行，独立账户/标的/窗口才并行。
+配置覆盖的platform命令自动准入；直接脚本通过 `scripts/quant compute-run` 包装并传入worker预算。
+锁忙/资源不足返回75后等待已有任务完成，不终止原进程、不另开工作树绕过共享预算。
+GPU默认不启用；仅对完整计时有净收益的批量任务显式使用。精确账本与冻结实验不因性能改变。
 
 ## 工作流程
 

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -30,7 +31,23 @@ def main() -> int:
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["PYTHONNOUSERSITE"] = "1"
     args = sys.argv[1:]
-    if args[:1] == ["test"]:
+    policy = json.loads((ROOT / "configs/compute_defaults.json").read_text())
+    if args[:1] == ["resources"]:
+        command = ["scripts/compute_resources.py", "plan", *args[1:]]
+    elif args[:1] == ["compute-run"]:
+        command = ["scripts/compute_resources.py", "run", *args[1:]]
+    elif (
+        len(args) >= 2
+        and args[0] == "platform"
+        and args[1] in policy["platform_commands"]
+        and "--help" not in args
+    ):
+        spec = policy["platform_commands"][args[1]]
+        command = ["scripts/compute_resources.py", "run", "--workload", spec["workload"]]
+        if spec["worker_option"]:
+            command.append("--worker-option")
+        command += ["--", interpreter, "-m", "quant.cli", *args]
+    elif args[:1] == ["test"]:
         command = ["-m", "pytest", "-q", "-m", "not integration", *args[1:]]
     elif args[:1] == ["lint"]:
         for command in (

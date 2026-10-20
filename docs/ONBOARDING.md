@@ -5,6 +5,8 @@
 1. 阅读 [AGENTS.md](../AGENTS.md)、[任务看板](tasks/STATUS.md)、[总计划](restart/MASTER_PLAN.md)及当前任务卡。
 2. 检查 `git status --short --branch` 和 `git worktree list`，保留用户及其他工作树的修改。
 3. 在仓库根目录执行 `scripts/quant doctor`。新环境先执行 `python3 scripts/bootstrap_env.py`；使用 `.env` 的数据路径。
+   使用[项目skill](../skills/quant-analyst-myproj/SKILL.md)和[默认计算条件](COMPUTE_POLICY.md)，
+   重计算前运行`scripts/quant resources --workload 对应类别`；直接脚本通过compute-run准入。
 4. 数据相关工作读 [数据契约](data_platform.md)，研究相关工作读 [研究协议](restart/RESEARCH_PROTOCOL.md)。
 5. 在已授权任务分支实施。更新看板中的证据、缺口和下一步；已批准的总计划可连续推进多个阶段。
 6. 提交前执行 `scripts/quant test`、`scripts/quant lint` 及当前阶段真实验收；记录实际输出。
@@ -24,7 +26,8 @@
 | 当前数据版本 | `DATA_ROOT/current.json` |
 | 最新研究与告警 | `DATA_ROOT/research/latest.json`、`DATA_ROOT/monitor/latest.json` |
 | 已计算结果与证据限制 | 新现金池`docs/restart/CASH_POOL_RESULTS.md`；旧价格诊断`docs/restart/RESULTS.md`，各自绑定冻结登记 |
-| CPU/GPU实测与优化执行 | 独立`/home/yang/projects/quant_performance`工作树；其`docs/restart/PERFORMANCE_AUDIT.md`维护唯一性能正文，状态仍在本项目STATUS |
+| CPU/GPU默认条件与执行 | `configs/compute_defaults.json`；`docs/COMPUTE_POLICY.md`；实测正文`docs/restart/PERFORMANCE_AUDIT.md`，原性能工作树保留作版本证据 |
+| 是否收尾、后续验证与Git交付 | `docs/restart/PHASE_CLOSEOUT.md`；不以工程通过代替投资问题已回答 |
 | 本轮机器可读验收 | `DATA_ROOT/audits/restart-acceptance-20261020.json` |
 
 数据、研究和审计详细产物保存在仓库外的`DATA_ROOT`。不要从旧报告复制收益结论，

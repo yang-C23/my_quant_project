@@ -61,7 +61,9 @@ def verify_price_ledger(result: Backtest, close: pd.Series) -> dict:
         raise ValueError("oracle cannot value dividend receivables")
     journal["sleeve"] = journal.get("sleeve", "single")
     state = {name: [Decimal(0), Decimal(0)] for name in journal["sleeve"].unique()}
-    groups = {pd.Timestamp(date): group for date, group in journal.groupby("date", sort=False)}
+    groups: dict[pd.Timestamp, list[dict]] = {}
+    for entry in journal.to_dict("records"):
+        groups.setdefault(pd.Timestamp(entry["date"]), []).append(entry)
     if set(groups) - set(daily.index):
         raise ValueError("journal contains dates outside the report")
     units = Decimal(0)
@@ -73,20 +75,25 @@ def verify_price_ledger(result: Backtest, close: pd.Series) -> dict:
     def cents(value: Decimal) -> Decimal:
         return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
 
-    for date, row in daily.iterrows():
-        price = Decimal(str(close.loc[date]))
+    for date, row, raw_price in zip(
+        daily.index, daily.to_dict("records"), close.reindex(daily.index).to_numpy()
+    ):
+        price = Decimal(str(raw_price))
         before = sum((cents(cash + shares * price) for cash, shares in state.values()), Decimal(0))
-        group = groups.get(date, journal.iloc[:0])
+        group = groups.get(date, ())
         flow = sum(
-            (entry["amount"] for entry in group.to_dict("records") if entry["kind"] == "deposit"),
+            (entry["amount"] for entry in group if entry["kind"] == "deposit"),
             Decimal(0),
         )
         subscription_nav = before / units if units else Decimal(1)
         units += flow / subscription_nav
         # Contributions occur before any same-close execution in every sleeve.
-        for entry in group[group["kind"] == "deposit"].to_dict("records"):
-            state[entry["sleeve"]][0] += entry["amount"]
-        for entry in group[group["kind"] != "deposit"].to_dict("records"):
+        for entry in group:
+            if entry["kind"] == "deposit":
+                state[entry["sleeve"]][0] += entry["amount"]
+        for entry in group:
+            if entry["kind"] == "deposit":
+                continue
             cash, shares = state[entry["sleeve"]]
             direction = 1 if entry["kind"] == "buy" else -1
             if cents(entry["quantity"] * entry["price"]) != entry["notional"]:

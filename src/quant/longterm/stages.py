@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 import numpy as np
 import pandas as pd
 
-from quant.longterm.features import price_features
+from quant.longterm.features import kdj_j
 
 
 @dataclass(frozen=True)
@@ -67,7 +67,7 @@ def stage_features(
     )
     out["sma_10"] = close.rolling(10).mean()
     # KDJ is retained only when true high and low observations exist.
-    out["j"] = price_features(bars)["j"]
+    out["j"] = kdj_j(bars)
     if supplemental is not None:
         if not supplemental.index.equals(bars.index):
             raise ValueError("supplemental observations must already use the signal calendar")

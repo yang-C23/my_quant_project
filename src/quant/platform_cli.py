@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 
 import typer
@@ -398,7 +399,9 @@ def daily_cmd(
     refresh = {}
     if update_tdx:
         try:
-            refresh["tdx"] = update_snapshot(settings, workers=4)
+            refresh["tdx"] = update_snapshot(
+                settings, workers=int(os.environ.get("QUANT_WORKERS", "4"))
+            )
         except Exception as exc:
             refresh["tdx"] = {"status": "failed", "reason": str(exc)}
     if refresh_public:

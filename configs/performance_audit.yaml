@@ -1,0 +1,18 @@
+schema_version: 1
+purpose: throughput_without_financial_or_research_selection_changes
+assets: [nasdaq100, csi300, csi300_etf, dividend_lowvol, dividend_lowvol100]
+selection_reason: long_history_OHLC_cash_dividends_and_split_cases_not_performance
+experiments: [pool_unconditional_core0, pool_stabilized_core0, pool_stabilized_core0.5, recovery_exit_stabilized]
+windows: [full, latest_5y, latest_10y]
+internal_threads: 1
+worker_ladder: [1, 2, 4, 6, 8, 12, 16]
+reserve_logical_cpus: 2
+maximum_new_workers_with_legacy_jobs: 6
+precision:
+  cash_journal: exact_Decimal_and_identical_serialized_bytes
+  dates_directions_signals: exact
+  historical_midrank: exact_float64_with_integer_tie_counts
+  diagnostic_float64_tolerance: {rtol: 1.0e-12, atol: 1.0e-12}
+  threshold_ambiguity: keep_CPU_decision_never_relax_tolerance
+gpu_timing: include_transfer_warmup_sync_and_download_report_cold_separately
+selection: no_strategy_or_parameter_changes

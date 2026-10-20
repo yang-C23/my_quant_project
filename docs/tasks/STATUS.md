@@ -9,12 +9,13 @@
 | 阶段 | 状态 | 证据/下一步 |
 |---|---|---|
 | 基线与审计 | inventory_complete / legacy_review_open | 初始代码/数据/73产物清单已冻结；关键路径语义修复见[审计](../restart/AUDIT.md)，旧策略未全部复现 |
-| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/份额拆分/公司行动、Decimal账本；主项目314项、独立性能分支319项离线测试通过；各3项遗留集成测试未运行；2项上游弃用警告保留 |
+| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/份额拆分/公司行动、Decimal账本；整合性能及资源预算后主项目330项离线测试通过；3项遗留集成测试未运行；2项上游弃用警告保留 |
 | TDX更新 | structurally_accepted | 快照20261020T112255Z-2f1a3256f7；29,753,977行、12,490代码至10月19日；幂等、完整备份/隔离恢复通过 |
 | 替代源验收 | partial / formal_gate_open | 已采集公开数据并交叉核查；长期估值、股息支付、许可/PIT和历史成分仍缺 |
 | 基准及扩展回测 | price_diagnostics_reproduced / formal_blocked | 冻结120项假设；1,063条指数价格实验/窗口记录、2,999条暂停，精确重放通过；[结果及限制](../restart/RESULTS.md) |
 | 用户疑问复核及现金池研究 | exploratory_report_delivered / formal_gate_open | 主研究197项、14205账户/853暂停；85364产物原样重放，实际重算170728文件哈希。扩展2136、Shiller384、现价PE408、双源1728、CFTC408、确认期限3660、月度ETF668账户全部保留并重放。6个VIX日历裁定另存；旧Put/Call错误48窗口、旧年报源码身份失败均保留。确认期限1708原规则等价账户及180未来追加测试通过。完整正负结果、分标的结论与复现索引见[CASH_POOL_RESULTS.md](../restart/CASH_POOL_RESULTS.md)；不能把重叠窗口或已见历史当正式最终样本外证据 |
-| CPU/GPU吞吐优化 | implemented_and_verified | 独立task/TASK-080-cpu-gpu-throughput；52账户完整CLI 56.62→2.49秒，按账户批处理采用12worker；GPU真实22851观测热调用约1.67ms，冷调用382ms，默认账户/日更保持CPU。全14205账户、85359文件对既有裁定版精确核验，33项优化前已有差异明列，6个裁定案例又由优化前代码逐笔重算；无容差放宽。性能权威正文在[独立工作树报告](/home/yang/projects/quant_performance/docs/restart/PERFORMANCE_AUDIT.md) |
+| CPU/GPU吞吐优化 | integrated / default_entry_acceptance_in_progress | 原独立分支的已核验实现整合到当前任务分支，冻结工作树保持不变。52账户原完整CLI 56.62→2.49秒；12worker仅适用已测账户批处理，GPU默认CPU。全14205账户对既有裁定版精确核验，33项历史差异明列。新默认配置/共享准入和skill已实现，资源预算测试通过；正在运行整合后的真实回归。见[性能正文](../restart/PERFORMANCE_AUDIT.md)和[默认计算条件](../COMPUTE_POLICY.md) |
+| 长期持有与入场/退出取舍 | focused_review_in_progress / phase_open | 用户要求不立即封版，先明确标普500/纳斯达克100长期持有、入场和止盈的量化取舍；先汇总全部固定窗口，下一步区分账户长度和成交后持有长度，并补标普长历史证据。红利低波保留。见[研究与收尾条件](../restart/PHASE_CLOSEOUT.md) |
 | 每日监控 | shadow_timer_active | UTC 00:30/09:30用户定时器已启用；首次完整更新/计算成功；12标的暂停、0交易建议；重复执行不增加日期计数，20真实交易日未验收 |
 | 长期维护 | ongoing | 文档与本机恢复具备；异地备份、正式数据晋级和未来20日验收待办 |
 
@@ -25,6 +26,9 @@
 旧v1—v3快照及试跑保留；其ETF派生/原价绩效不能用于投资结论。
 
 ## 当前接手顺序
+
+用户最新补充：先清楚回答长期持有与入场/退出问题，再决定收尾；当前不创建阶段完成标签或推送。
+运行先读[默认计算条件](../COMPUTE_POLICY.md)与项目skill，共享预算适用于所有新重计算。
 
 1. 先读[本轮研究结论](../restart/CASH_POOL_RESULTS.md)、[本次策略复核](../restart/STRATEGY_REVIEW.md)
    与[现金池执行协议](../restart/CASH_POOL_RESEARCH_PLAN.md)，不要重复启动已完成的大批次。

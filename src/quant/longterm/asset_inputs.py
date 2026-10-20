@@ -48,15 +48,19 @@ def prepare_action_prices(
             signal[column] = signal[column].astype(float)
     adjustments = []
     previous_mark, previous_raw, accumulated = None, None, 1.0
-    for i, (date, row) in enumerate(bars.iterrows()):
+    columns = [column for column in ("open", "high", "low", "close") if column in signal]
+    signal_arrays = {column: signal[column].to_numpy(copy=True) for column in columns}
+    raw_arrays = {column: bars[column].to_numpy() for column in columns}
+    tradable = execution["tradable"].to_numpy()
+    for i, date in enumerate(bars.index):
         group = by_date.get(date, [])
         ratio = float(np.prod([float(a["ratio"]) for a in group if a["kind"] == "split"]))
         dividend = sum(float(a["per_share"]) for a in group if a["kind"] == "dividend")
         if ratio <= 0 or dividend < 0:
             raise ValueError("invalid company action terms")
-        quoted = float(row.close)
+        quoted = float(raw_arrays["close"][i])
         mark = quoted
-        halted = not bool(execution.at[date, "tradable"])
+        halted = not bool(tradable[i])
         if previous_mark is not None and halted:
             theoretical = previous_mark / ratio - dividend
             if theoretical <= 0:
@@ -82,15 +86,16 @@ def prepare_action_prices(
             gross_factor = (ratio * (mark + dividend)) / previous_mark
             # accumulated is the signal index / preceding unadjusted valuation mark.
             accumulated = accumulated * previous_mark * gross_factor / mark
-        for column in ("open", "high", "low", "close"):
-            if column in signal:
-                value = mark if column == "close" else row[column]
-                signal.loc[date, column] = float(value) * accumulated
+        for column in columns:
+            value = mark if column == "close" else raw_arrays[column][i]
+            signal_arrays[column][i] = float(value) * accumulated
         if halted:
             # No invented intraday high/low for KDJ on a nontrading session.
             for column in ("open", "high", "low"):
-                if column in signal:
-                    signal.loc[date, column] = np.nan
+                if column in signal_arrays:
+                    signal_arrays[column][i] = np.nan
         previous_mark, previous_raw = mark, quoted
+    for column, values in signal_arrays.items():
+        signal[column] = values
     execution["tradable"] = execution["tradable"].astype(bool)
     return execution, signal, pd.DataFrame(adjustments)
