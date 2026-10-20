@@ -31,6 +31,10 @@ def _source_asset(job: tuple[str, str]) -> list[dict]:
         vendor: pd.read_parquet(root / "inputs" / f"{name}_{vendor}.parquet")
         for vendor in ("tdx", "baostock")
     }
+    for bars in frames.values():
+        # Arrow-restored microsecond dates and pandas nanosecond dates denote
+        # identical sessions; normalize precision before comparing calendars.
+        bars.index = bars.index.as_unit("ns")
     calendar = frames["tdx"].index
     if not frames["baostock"].index.equals(calendar):
         raise ValueError("source comparison cannot change the funding or observation calendar")

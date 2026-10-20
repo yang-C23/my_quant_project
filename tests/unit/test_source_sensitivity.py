@@ -35,8 +35,9 @@ def test_vendor_sensitivity_retains_losing_case_and_rejects_a_missing_date(tmp_p
         },
         index=dates,
     )
-    original.to_parquet(tmp_path / "inputs/X_tdx.parquet")
     alternative = original.copy()
+    original.index = original.index.as_unit("us")
+    original.to_parquet(tmp_path / "inputs/X_tdx.parquet")
     alternative.loc[dates[500] :, ["open", "high", "low", "close"]] *= 0.95
     alternative.to_parquet(tmp_path / "inputs/X_baostock.parquet")
     rows = _source_asset(("X", str(tmp_path)))
