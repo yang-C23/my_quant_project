@@ -148,6 +148,17 @@ sources:
     cost: public
     retention: review_required
     caveats: [earnings_interpolation, monthly_average_prices, not_certified_pit]
+  cboe_spx_history:
+    publisher: Cboe Global Indices / S&P Dow Jones Indices
+    role: exploratory_long_SP500_price_reference
+    documentation: https://www.cboe.com/us/indices/dashboard/spx/
+    download: https://cdn.cboe.com/api/global/us_indices/daily_prices/SPX_History.csv
+    terms: https://www.cboe.com/terms/
+    cost: public_download
+    retention: limited_personal_download_clause_archive_and_derived_use_require_review
+    redistribution: false
+    formal_accepted: false
+    caveats: [price_index_excludes_dividends, assumed_close_availability_not_verified_vintage, 30_FRED_overlap_discrepancies_preserved]
   flow_primary:
     publishers: [SSE, SZSE, ETF_issuers, ICI, CFTC]
     documentation:

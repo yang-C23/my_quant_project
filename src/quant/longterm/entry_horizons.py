@@ -145,6 +145,11 @@ def prepare_inputs(data_root: Path, root: Path, config: dict) -> dict:
             raw = catalog.read("cboe_spx_close", version=config["spx_dataset_version"])
             raw["date"] = pd.to_datetime(raw.date)
             bars = raw.set_index("date")[["close"]].copy()
+            if config.get("spx_overlap_override", False):
+                reference = catalog.read("fred_sp500", version="d209369708d3fffdfe3d5805")
+                reference["date"] = pd.to_datetime(reference.date)
+                aligned = reference.set_index("date").close.reindex(bars.index)
+                bars.loc[aligned.notna(), "close"] = aligned.dropna()
             signals, actions = bars.copy(), None
             evidence = dict(
                 symbol="SP500",
@@ -201,6 +206,20 @@ def prepare_inputs(data_root: Path, root: Path, config: dict) -> dict:
             )
     write_json(root / "coverage.json", metadata)
     write_json(root / "feature_prefix_checks.json", prefix_checks)
+    write_json(
+        root / "blocked_evidence.json",
+        {
+            "valuation": {
+                asset: "historical_index_specific_PIT_PE_PB_missing"
+                for asset in config["assets"]
+                if asset not in config["valuation_assets"]
+            },
+            "sp500_valuation": "revised_interpolated_Shiller_earnings_not_formally_PIT",
+            "SPHD": "complete_price_actions_and_archive_license_missing",
+            "derivatives": "no_new_Gamma_0DTE_forced_liquidation_claims_from_price_signals",
+            "US_execution": "index_prices_exclude_dividends_not_ETF_or_QDII_execution",
+        },
+    )
     return metadata
 
 
@@ -620,7 +639,7 @@ def run_study(
             if sha256_file(replay / name) != digest:
                 raise ValueError(f"replay input changed: {name}")
         shutil.copytree(replay / "inputs", root / "inputs")
-        for name in ("coverage.json", "feature_prefix_checks.json"):
+        for name in ("coverage.json", "feature_prefix_checks.json", "blocked_evidence.json"):
             shutil.copy2(replay / name, root / name)
         metadata = json.loads((root / "coverage.json").read_text())
         registration = original
