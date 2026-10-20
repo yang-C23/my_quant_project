@@ -16,7 +16,7 @@
 | 中金所 | 2010年4月至2026年9月，198个月，917,914条合约日记录 | 固定宽度代码尾空格已修复；不拼接事后主力，不推断净Gamma |
 | CFTC | 2006—2016合并档案及2017—2026逐年档案，共47,027条新增批次记录 | 2010年前TFF类别为回补；合并档案优先，排除重叠旧年文件 |
 | FINRA | 1997年1月至2026年9月，357个月度记录 | 美元百万；次月发布日期仅保守情景，不能当逐条PIT证据 |
-| Shiller | 官方文件1,833个月，1871年至2023年9月 | 已过期，月均价/插值盈利/现行修订版，只作延迟6/12个月探索 |
+| Shiller | Yale旧文件1,833个月至2023年9月；维护中官网新文件1,869个月至2026年9月 | 新文件盈利/股息仅到2026年6月，缺失保持缺失；两个修订版本分别保存，延迟6/12个月仍不证明历史可得性 |
 | Cboe补充 | VXN 4,303行、SKEW 9,251行，至2026-10-19；总Put/Call 3,253行，仅至2019-10-04 | Put/Call在2012年6月改变统计方式，分段预热；旧文件不是当前信号源 |
 | 上交所融资融券 | 2010-03-31至2026-10-19共4,018日 | 每页实际最多2,000行，已补齐分页；融资+融券余额逐日对账，金额元/数量股 |
 
@@ -108,6 +108,37 @@ SPHD成立于2012-10-18，其发行人提供除息日、登记日与支付日信
 上交所原接口：[融资汇总](https://www.sse.com.cn/market/othersdata/margin/detail/index.shtml)；
 FINRA：[历史统计及方法变化](https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics)；
 Shiller：[原始说明](https://www.econ.yale.edu/~shiller/data.htm)。
+
+维护中来源为[作者数据站](https://shillerdata.com/)，作者归属由
+[Yale Cowles论文脚注6](https://cowles.yale.edu/sites/default/files/2024-07/d2397.pdf)交叉确认。
+新工作簿通过官网实际下载链接获取，保存页面、响应字节、SHA256及解析记录；
+`shiller_monthly`新版本为`3a48524911896cd5518ff7eb`，旧版`a503673af60d10f6295d636b`保留。
+重叠历史中3个盈利值和7个CAPE值发生变化，不能因为文件更新就宣称历史数值未经修订。
+新版研究只重跑原先登记的52项估值代理，没有因表现增加或删除规则。
+
+### 历史发布时间的反例
+
+CFTC的固定10/17日延迟不能覆盖政府停摆和供应商中断。根据
+[历史特别公告](https://www.cftc.gov/MarketReports/CommitmentsofTraders/HistoricalSpecialAnnouncements/index.htm)、
+[2013年恢复公告](https://www.cftc.gov/PressRoom/PressReleases/6745-13)、
+[2019年恢复公告](https://www.cftc.gov/PressRoom/PressReleases/7864-19)及
+[2025年修订补发日程](https://www.cftc.gov/PressRoom/PressReleases/9147-25)，
+`configs/cftc_release_audit.yaml`登记四段保守隔离区间，并重算全部六个原持仓规则。
+隔离区间由发布时间证据决定，不由回测收益决定；它仍不是逐份历史发布记录的完整重建。
+原CFTC假设组不能被当作可执行业绩，隔离组只用于揭示发布时间敏感性。
+
+美联储H.10虽然提供每日观测，正常按周一16:15发布上一周数据；
+例如[2021-10-25发布档案](https://www.federalreserve.gov/releases/h10/20211025/)包含10月18—22日观测。
+[官方说明](https://www.federalreserve.gov/releases/h10/about.htm)同时说明历史发布档案不随数据库修订。
+现有人民币/溢价实验使用的日频延迟假设不满足这个发布时间边界，
+只能作为不可执行的渠道敏感性情景，不能替代当时可成交汇率或实际QDII价格。
+上述网页及原始证据已保存在`source_probes/cftc-release-audit-20261020/`
+和`source_probes/h10-publication-audit-20261020/`。
+
+Put/Call分段预热造成的2012—2017年内部缺口必须保留在账户日历中；
+不能把五年账户起点推到2017年，再将实际两年左右的账户标为五年。
+扩展首版48条相关窗口标签已列入审计，修复版使用完整价格日历，缺失期间暂停依赖因子的买入。
+这属于研究窗口修复，不改变原始Put/Call文件。
 
 中金所成交额/成交量换算均价越出高低价的记录进入隔离，未擅自修正原值；
 其占比、缺Delta和不明到期日均在每个因子的质量报告中列出。

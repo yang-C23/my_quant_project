@@ -10,7 +10,7 @@ import pandas as pd
 from quant.data.catalog import DataCatalog
 from quant.data.snapshots import sha256_file, write_json
 from quant.longterm.cash_pool import FACTOR_COLUMNS, PoolPolicy
-from quant.longterm.pool_data import shiller_temperature
+from quant.longterm.pool_data import shiller_temperature, supplemental_features
 from quant.longterm.pool_registry import pool_windows
 
 
@@ -30,13 +30,14 @@ def main() -> None:
         "shiller_monthly", version=registration["catalog_versions"]["shiller_monthly"]
     )
     checked, changed = [], []
+    universe = {item["id"]: item for item in registration["universe"]}
     for asset in coverage:
         if asset.get("status") == "blocked":
             continue
         name = asset["asset"]
         bars = pd.read_parquet(args.source / "inputs" / f"{name}.parquet")
         factors = pd.read_parquet(args.source / name / "supplemental.parquet")
-        cache = {}
+        cache, supplemental_cache = {}, {}
         for experiment in registration["experiments"]:
             if experiment.get("assets") and name not in experiment["assets"]:
                 continue
@@ -53,8 +54,21 @@ def main() -> None:
                 bars.index >= pd.Timestamp(asset["funding_start_after_shared_warmup"]),
                 index=bars.index,
             )
-            lagged_path = args.source / name / f"supplemental_{identifier}.parquet"
-            frame = pd.read_parquet(lagged_path) if lagged_path.exists() else factors
+            lags = experiment.get("supplemental_lags", {})
+            if lags:
+                lag_key = json.dumps(lags, sort_keys=True)
+                if lag_key not in supplemental_cache:
+                    supplemental_cache[lag_key] = supplemental_features(
+                        bars,
+                        universe[name],
+                        catalog,
+                        registration["catalog_versions"],
+                        config,
+                        **lags,
+                    )[0]
+                frame = supplemental_cache[lag_key]
+            else:
+                frame = factors
             frame = frame.shift(experiment.get("availability_delay", 0))
             columns = FACTOR_COLUMNS.get(policy.event_column, [])
             if not set(columns).issubset(frame):

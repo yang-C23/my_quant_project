@@ -90,7 +90,9 @@ scripts/quant platform research --exploratory --replay-run /完整路径/原研�
 
 ### 现金池、压力阶段与组合研究
 
-主实验固定源代码为`560877f`，扩展首版固定为`b448871`。运行ID和后续修复以任务看板为准。
+主实验固定源代码为`560877f`，扩展首版为`b448871`，完整账户日历修复版为`ef8eee4`。
+首版Put/Call的48条年限标签不能用于五年结论。主研究的六个VIX时间分段边界修正单独保存；
+分析时用校验和绑定的修正文件覆盖相应展示行，原运行文件不变。运行ID以任务看板为准。
 从原冻结价格研究读取输入，补充源版本在执行前登记，不动态读取“最新”覆盖旧实验。
 
 ```bash
@@ -100,11 +102,18 @@ scripts/quant platform cash-pool-research /完整路径/原价格研究 --config
 scripts/quant platform cash-pool-extensions /完整路径/现金池主运行
 scripts/quant platform cash-pool-extensions /完整路径/现金池主运行 --replay-run /完整路径/扩展运行
 scripts/quant platform analyze-cash-pool /完整路径/现金池主运行 /完整路径/全新分析目录
+scripts/quant platform analyze-cash-pool /完整路径/现金池主运行 /完整路径/全新分析目录 --corrections /完整路径/日历修正
 scripts/quant platform analyze-cash-pool-extensions /完整路径/扩展运行 /完整路径/全新扩展分析目录
 scripts/quant platform fetch-history --first-cftc-year 2006 --last-cftc-year 2026 --first-cffex-month 201004 --last-cffex-month 202609
 scripts/quant platform fetch-pressure 2026-10-19
 scripts/quant platform issuer-evidence configs/fund_actions/sh512890.json --nav-file /完整路径/已缓存发行人NAV
 scripts/quant platform audit-fund-reports /完整路径/现金池主运行 /完整路径/发行人报告目录 /完整路径/全新年报审计目录
+scripts/quant platform audit-cftc-releases /完整路径/现金池主运行 /完整路径/全新发布时间审查
+scripts/quant platform fetch-shiller
+scripts/quant platform refresh-shiller-research /完整路径/现金池主运行 /完整路径/全新估值代理运行 --version 指定版本
+scripts/quant platform refresh-shiller-research /完整路径/现金池主运行 /完整路径/全新估值重放 --replay-run /完整路径/估值代理运行
+scripts/quant platform audit-price-sources /完整路径/现金池主运行 /完整路径/全新行情来源审查
+scripts/quant platform audit-price-sources /完整路径/现金池主运行 /完整路径/全新行情重放 --replay-run /完整路径/行情来源审查
 ```
 
 重放必须在相应冻结源码工作树执行，可设置`QUANT_PYTHON`指向本项目已核实的解释器，
@@ -112,6 +121,19 @@ scripts/quant platform audit-fund-reports /完整路径/现金池主运行 /完�
 初次失败运行只用于保留错误证据；修复后创建新登记，不继续使用原错误代码的声明。
 `payloads.json`核对逐日权益、流水、特征、所有案例及事件表的字节哈希，时间戳登记文件不要求相同。
 正式交易门槛没有因新增探索命令而放宽。
+
+阶段统计和窗口审计脚本使用同一解释器及冻结源码，例如：
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/audit_cash_pool_calendars.py /完整路径/主运行 /完整路径/DATA_ROOT /完整路径/新日历审计.json
+PYTHONPATH=src .venv/bin/python scripts/correct_cash_pool_calendars.py /完整路径/主运行 /完整路径/日历审计.json /完整路径/新修正目录
+PYTHONPATH=src .venv/bin/python scripts/analyze_stage_funnels.py /完整路径/主运行 /完整路径/估值代理运行 /完整路径/DATA_ROOT /完整路径/新阶段统计目录
+```
+
+冻结工作树没有`.venv`时，将上述解释器路径换成已核验的绝对路径。
+日历修正拒绝未登记案例、原记录哈希不符或未通过独立账本的记录；不按收益选择修正。
+行情来源审查冻结五个指数和八条规则，要求相同价格日历、资金流及成本；
+缺报价时暂停该标的，不能前填价格或缩短账户。两家一致仍不等于官方真实性认证。
 
 ## 每日影子运行
 
