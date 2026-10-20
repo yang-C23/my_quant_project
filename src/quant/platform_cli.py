@@ -11,6 +11,41 @@ import typer
 app = typer.Typer(add_completion=False, help="Trusted data snapshots and long-term research.")
 
 
+@app.command("cash-pool-extensions")
+def cash_pool_extensions_cmd(
+    source: Path,
+    config: Path = Path("configs/cash_pool_extensions.yaml"),
+    replay_run: Path | None = None,
+) -> None:
+    """Run registered style, currency and first-party pressure extensions."""
+    from quant.config import get_settings
+    from quant.longterm.pool_extensions import run_pool_extensions
+
+    output(run_pool_extensions(get_settings(), source, config, replay_run=replay_run))
+
+
+@app.command("fetch-pressure")
+def fetch_pressure_cmd(end: str, cached_cboe_dir: Path | None = None) -> None:
+    """Acquire first-party Shanghai financing and Cboe pressure reference histories."""
+    from quant.config import get_settings
+    from quant.data.pressure import fetch_pressure_data
+
+    output(fetch_pressure_data(get_settings().data_root, end=end, cached_cboe_dir=cached_cboe_dir))
+
+
+@app.command("analyze-cash-pool")
+def analyze_cash_pool_cmd(
+    source: Path,
+    destination: Path,
+    config: Path = Path("configs/cash_pool_extensions.yaml"),
+) -> None:
+    """Analyze all saved windows and crisis clusters without selecting only winners."""
+    from quant.config import load_config
+    from quant.longterm.pool_analysis import analyze_pool_run
+
+    output(analyze_pool_run(source, load_config(config), destination))
+
+
 @app.command("issuer-evidence")
 def issuer_evidence_cmd(
     declaration: Path,

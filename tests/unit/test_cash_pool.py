@@ -21,6 +21,40 @@ def inputs(dates, temperatures=None):
     return bars, features
 
 
+def test_external_factor_event_never_trades_without_available_evidence():
+    dates = pd.bdate_range("2020-01-01", periods=40)
+    bars, features = inputs(dates)
+    features["external_event"] = False
+    features["external_evidence"] = np.nan
+    features.loc[dates[5], "external_event"] = True
+    unavailable = run_cash_pool(
+        bars,
+        features,
+        PoolPolicy(entry="external_event", exit="none"),
+        symbol="ETF",
+        costs=FREE,
+    )
+    assert unavailable.metrics["trades"] == 0
+    features.loc[dates[5] :, "external_evidence"] = 1.0
+    result = run_cash_pool(
+        bars,
+        features,
+        PoolPolicy(entry="external_event", exit="none"),
+        symbol="ETF",
+        costs=FREE,
+    )
+    first = result.journal[result.journal.kind.eq("buy")].iloc[0]
+    assert first.date == dates[6]
+    prefix = run_cash_pool(
+        bars.iloc[:20],
+        features.iloc[:20],
+        PoolPolicy(entry="external_event", exit="none"),
+        symbol="ETF",
+        costs=FREE,
+    )
+    pd.testing.assert_frame_equal(prefix.daily, result.daily.iloc[:20])
+
+
 def test_accumulated_savings_enter_the_cash_pool_hand_calculation():
     bars, features = inputs(
         [

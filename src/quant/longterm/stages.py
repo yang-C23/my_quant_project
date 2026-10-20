@@ -148,6 +148,7 @@ def event_study(
     stages: pd.DataFrame,
     *,
     forward_sessions: tuple[int, ...] = (20, 60, 252, 1260, 2520),
+    additional_stages: dict[str, tuple[str, ...]] | None = None,
 ) -> pd.DataFrame:
     """Retain every stress event and each absent/censored confirmation.
 
@@ -164,6 +165,7 @@ def event_study(
         "margin_relief": ("margin_drawdown_12m", "margin_change_1m", "margin_prior_change_1m"),
         "position_relief": ("leveraged_long_percentile",),
     }
+    requirements.update(additional_stages or {})
     window = stages.attrs["spec"]["event_window"]
     rows = []
     for event_start in np.flatnonzero(stages["pressure"]):
@@ -177,6 +179,7 @@ def event_study(
             "vix_relief",
             "margin_relief",
             "position_relief",
+            *(additional_stages or {}),
         ):
             triggers = cluster.index[cluster[name]]
             signal_date = triggers[0] if len(triggers) else None

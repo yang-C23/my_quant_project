@@ -29,6 +29,7 @@ FACTOR_COLUMNS = {
     "vix_relief": ["vix", "vix_percentile"],
     "margin_relief": ["margin_drawdown_12m", "margin_change_1m", "margin_prior_change_1m"],
     "position_relief": ["leveraged_long_percentile"],
+    "external_event": ["external_evidence"],
 }
 
 
@@ -54,6 +55,7 @@ class PoolPolicy:
     def __post_init__(self) -> None:
         if self.entry not in {
             "never",
+            "external_event",
             "unconditional",
             "valuation",
             "pressure",
@@ -110,6 +112,7 @@ class PoolPolicy:
                 "vix_relief",
                 "margin_relief",
                 "position_relief",
+                "external_event",
             }
             else None
         )
