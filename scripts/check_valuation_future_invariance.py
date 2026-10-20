@@ -11,6 +11,7 @@ from quant.data.catalog import DataCatalog
 from quant.data.snapshots import sha256_file, write_json
 from quant.etl.restart import code_revision
 from quant.longterm.cash_pool import PoolPolicy, run_cash_pool
+from quant.longterm.current_pe import current_pe_temperature
 from quant.longterm.ledger import Costs, dec
 from quant.longterm.pool_data import shiller_temperature
 from quant.longterm.stages import qualify_value_events
@@ -52,8 +53,17 @@ def main() -> None:
             continue
         key = (experiment["metric"], experiment["window"], experiment["observation_lag_months"])
         if key not in temperatures:
-            full = shiller_temperature(bars, observed, *key, config)
-            prefix = shiller_temperature(shorter_bars, earlier, *key, config)
+            if experiment.get("valuation_source") == "shiller_current_price_proxy":
+                proxy_config = registration["current_pe_config"]
+                full = current_pe_temperature(bars.close, observed, key[1], key[2], proxy_config)[
+                    0
+                ].temperature
+                prefix = current_pe_temperature(
+                    shorter_bars.close, earlier, key[1], key[2], proxy_config
+                )[0].temperature
+            else:
+                full = shiller_temperature(bars, observed, *key, config)
+                prefix = shiller_temperature(shorter_bars, earlier, *key, config)
             pd.testing.assert_series_equal(full.loc[:cutoff], prefix, check_exact=True)
             temperatures[key] = full, prefix
         full, prefix = temperatures[key]

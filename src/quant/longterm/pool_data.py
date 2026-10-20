@@ -9,6 +9,26 @@ from quant.data.catalog import DataCatalog
 from quant.longterm.features import align_available, historical_percentile
 
 
+def apply_publication_bounds(source: pd.DataFrame, intervals: list[dict]) -> pd.DataFrame:
+    """Delay affected observations while preserving previously published evidence.
+
+    These are conservative audit bounds, not reconstructed historical releases.
+    Freshness still expires from the economic observation date in align_available.
+    """
+    output = source.copy()
+    dates = pd.to_datetime(output["date"])
+    releases = pd.to_datetime(output["available_at"], utc=True)
+    for interval in intervals:
+        start, end = pd.Timestamp(interval["start"]), pd.Timestamp(interval["end"])
+        if end < start:
+            raise ValueError("invalid publication interruption")
+        affected = dates.between(start, end)
+        bound = (end + pd.Timedelta(hours=23, minutes=59)).tz_localize("UTC")
+        releases = releases.mask(affected & releases.lt(bound), bound)
+    output["available_at"] = releases
+    return output
+
+
 def periodic_percentile(
     values: pd.Series, *, years: int, frequency: int, expanding: bool = False
 ) -> pd.Series:
@@ -41,6 +61,7 @@ def supplemental_features(
     *,
     finra_lag_months: int = 1,
     cftc_lag_days: int = 10,
+    cftc_publication_bounds: list[dict] | None = None,
 ) -> tuple[pd.DataFrame, list[dict]]:
     """VIX closes and slow leverage proxies are never joined on observation date alone."""
     out = pd.DataFrame(index=bars.index)
@@ -123,6 +144,8 @@ def supplemental_features(
         source["available_at"] = (
             source.date + pd.Timedelta(days=cftc_lag_days, hours=23, minutes=59)
         ).dt.tz_localize("UTC")
+        if cftc_publication_bounds:
+            source = apply_publication_bounds(source, cftc_publication_bounds)
         out["leveraged_long_percentile"] = align(
             source, "leveraged_long_percentile", cftc_lag_days + 14
         )
@@ -132,6 +155,7 @@ def supplemental_features(
                 "contract_market_code": code,
                 "release_rule": f"observation_plus_{cftc_lag_days}_days_assumption",
                 "historical_publication_verified": False,
+                "conservative_publication_bounds": cftc_publication_bounds,
                 "pre_2010_observations_are_backfilled_TFF_categories": True,
                 "scope": "leveraged_fund_directional_long_contracts_over_OI_excludes_spreading",
             }

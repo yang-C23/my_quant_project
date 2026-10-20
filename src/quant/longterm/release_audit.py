@@ -34,7 +34,7 @@ def quarantine_factor(frame: pd.DataFrame, config: dict) -> tuple[pd.DataFrame, 
 
 
 def run_release_audit(settings: Settings, source: Path, config_path: Path, output: Path) -> dict:
-    """Run every registered CFTC variant with and without documented blackouts."""
+    """Compare fixed lags, whole-period masks and source-observation release bounds."""
     if output.exists():
         raise ValueError("preserve prior audit output")
     config = load_config(config_path)
@@ -77,15 +77,24 @@ def run_release_audit(settings: Settings, source: Path, config_path: Path, outpu
             lags = experiment.get("supplemental_lags", {})
             key = json.dumps(lags, sort_keys=True)
             if key not in source_cache:
-                source_cache[key] = supplemental_features(
-                    bars,
-                    {"id": asset, "market": "US"},
-                    catalog,
-                    reference["catalog_versions"],
-                    primary,
-                    **lags,
-                )[0]
-            observed = source_cache[key].shift(experiment.get("availability_delay", 0))
+                source_cache[key] = {
+                    mode: supplemental_features(
+                        bars,
+                        {"id": asset, "market": "US"},
+                        catalog,
+                        reference["catalog_versions"],
+                        primary,
+                        cftc_publication_bounds=bounds,
+                        **lags,
+                    )[0]
+                    for mode, bounds in (
+                        ("registered", None),
+                        ("bounded", config["quarantine"]),
+                    )
+                }
+            delay = experiment.get("availability_delay", 0)
+            observed = source_cache[key]["registered"].shift(delay)
+            bounded = source_cache[key]["bounded"].shift(delay)
             restricted, excluded = quarantine_factor(observed, config)
             original_features = stage_features(
                 signals, StageSpec(**experiment["stages"]), supplemental=observed
@@ -93,10 +102,14 @@ def run_release_audit(settings: Settings, source: Path, config_path: Path, outpu
             masked_features = stage_features(
                 signals, StageSpec(**experiment["stages"]), supplemental=restricted
             )
+            bounded_features = stage_features(
+                signals, StageSpec(**experiment["stages"]), supplemental=bounded
+            )
             path = output / "inputs" / asset / identifier
             path.mkdir(parents=True)
             original_features.to_parquet(path / "registered.parquet", compression="zstd")
             masked_features.to_parquet(path / "quarantined.parquet", compression="zstd")
+            bounded_features.to_parquet(path / "source_bounded.parquet", compression="zstd")
             policy = PoolPolicy(**experiment["policy"])
             eligible = observed[config["factor"]].notna() & (
                 bars.index >= pd.Timestamp(coverage[asset]["funding_start_after_shared_warmup"])
@@ -105,6 +118,7 @@ def run_release_audit(settings: Settings, source: Path, config_path: Path, outpu
             for mode, features in (
                 ("registered_assumption", original_features),
                 ("quarantine", masked_features),
+                ("source_release_bound", bounded_features),
             ):
                 events = event_study(
                     signals,
@@ -158,22 +172,28 @@ def run_release_audit(settings: Settings, source: Path, config_path: Path, outpu
     original = table[table["mode"].eq("registered_assumption")].set_index(
         ["asset", "experiment", "window"]
     )
-    masked = table[table["mode"].eq("quarantine")].set_index(["asset", "experiment", "window"])
-    for metric in ("annualized_return", "max_drawdown", "ending_wealth", "initial_wait_days"):
-        masked[f"delta_{metric}_vs_registered_assumption"] = masked[metric] - original[metric]
+    pairs = {}
+    for mode in ("quarantine", "source_release_bound"):
+        paired = table[table["mode"].eq(mode)].set_index(["asset", "experiment", "window"])
+        for metric in ("annualized_return", "max_drawdown", "ending_wealth", "initial_wait_days"):
+            paired[f"delta_{metric}_vs_registered_assumption"] = paired[metric] - original[metric]
+        paired.reset_index().to_csv(output / f"paired_{mode}.csv", index=False)
+        pairs[mode] = len(paired)
     table.to_parquet(output / "results.parquet", compression="zstd")
     table.to_csv(output / "results.csv", index=False)
-    masked.reset_index().to_csv(output / "paired_quarantine.csv", index=False)
     pd.concat(event_rows, ignore_index=True).to_parquet(
         output / "events.parquet", compression="zstd"
     )
     summary = {
         "directory": str(output),
         "computed": len(table),
-        "paired": len(masked),
+        "paired": pairs,
         "all_ledgers_verified": bool(table.independent_ledger_verified.all()),
         "formal_accepted": False,
-        "interpretation": "quarantine_sensitivity_not_complete_historical_release_reconstruction",
+        "interpretation": (
+            "whole_period_quarantine_and_source_bounds_are_distinct_sensitivities;"
+            "neither_is_a_complete_historical_release_reconstruction"
+        ),
     }
     write_json(output / "summary.json", summary)
     write_json(

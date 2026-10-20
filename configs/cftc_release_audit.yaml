@@ -1,5 +1,5 @@
-schema_version: 1
-purpose: known_publication_interruptions_quarantine_sensitivity_not_strategy_optimization
+schema_version: 2
+purpose: compare_fixed_lag_whole_period_mask_and_source_release_bounds
 assets: [sp500, nasdaq100]
 experiments:
   - pool_position_relief_core0
@@ -16,6 +16,10 @@ interpretation: >
   in these periods. These deliberately broad quarantine windows are an audit
   scenario, not a claim to reconstruct every actual release instant.
   They are chosen from disclosure interruptions, never portfolio outcomes.
+  The source_release_bound variant delays only observations dated inside each
+  interval to at least its end; previously published values remain usable until
+  their existing economic-date freshness limit expires. The whole-period mask
+  can remove legitimate old information and is not a corrected historical path.
 quarantine:
   - start: '2013-10-01'
     end: '2013-12-31'
