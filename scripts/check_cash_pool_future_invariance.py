@@ -23,11 +23,25 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--registered-confirmations", action="store_true")
     arguments = parser.parse_args()
     if arguments.output.exists():
         raise ValueError("preserve previous verification")
     registration = json.loads((arguments.source / "registration.json").read_text())
     config = registration["config"]
+    if arguments.registered_confirmations:
+        if "confirmation_config" not in registration:
+            raise ValueError("registered confirmation study required")
+        experiments = registration["experiments"]
+    else:
+        experiments = [
+            {
+                "id": f"{entry}_core{core:g}",
+                "policy": dict(**config["funding"], entry=entry, core_fraction=core, exit="none"),
+                "stages": config["stages"],
+            }
+            for entry, core in (("unconditional", 0), ("stabilized", 0), ("stabilized", 0.5))
+        ]
     rows = []
     for path in sorted((arguments.source / "inputs").glob("*.parquet")):
         if path.stem.endswith("_actions"):
@@ -52,11 +66,17 @@ def main() -> None:
             short_bars, short_signals, _ = prepare_action_prices(truncated, past_actions)
         pd.testing.assert_frame_equal(bars.iloc[:cut], short_bars, check_exact=True)
         pd.testing.assert_frame_equal(signals.iloc[:cut], short_signals, check_exact=True)
-        features = stage_features(signals, StageSpec(**config["stages"]))
-        short_features = stage_features(short_signals, StageSpec(**config["stages"]))
-        pd.testing.assert_frame_equal(features.iloc[:cut], short_features, check_exact=True)
-        for entry, core in (("unconditional", 0), ("stabilized", 0), ("stabilized", 0.5)):
-            policy = PoolPolicy(**config["funding"], entry=entry, core_fraction=core, exit="none")
+        stage_cache = {}
+        for experiment in experiments:
+            key = json.dumps(experiment["stages"], sort_keys=True)
+            if key not in stage_cache:
+                spec = StageSpec(**experiment["stages"])
+                features = stage_features(signals, spec)
+                short_features = stage_features(short_signals, spec)
+                pd.testing.assert_frame_equal(features.iloc[:cut], short_features, check_exact=True)
+                stage_cache[key] = features, short_features
+            features, short_features = stage_cache[key]
+            policy = PoolPolicy(**experiment["policy"])
             kwargs = {
                 "symbol": actions.symbol.iloc[0] if actions is not None else path.stem,
                 "start": observed.index[config["validation"]["initial_price_warmup"]],
@@ -85,8 +105,10 @@ def main() -> None:
             rows.append(
                 {
                     "asset": path.stem,
-                    "entry": entry,
-                    "core": core,
+                    "experiment": experiment["id"],
+                    "entry": policy.entry,
+                    "core": policy.core_fraction,
+                    "event_window": experiment["stages"]["event_window"],
                     "cutoff": str(truncated.index[-1].date()),
                     "passed": True,
                 }
