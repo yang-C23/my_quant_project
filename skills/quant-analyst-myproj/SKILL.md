@@ -7,21 +7,22 @@ description: "Maintain and research the my_quant_project platform: trusted marke
 
 本skill的权威版本在仓库skills/quant-analyst-myproj。对当前checkout工作，不切换共享editable安装。
 本机主项目为/home/yang/projects/my_quant_project；从其它工作树接手时先确认实际路径。
+下文文件路径均相对当前仓库根目录，不相对本机skill安装目录。
 
 ## 接手与事实来源
 
-1. 阅读当前仓库[AGENTS.md](../../AGENTS.md)和[ONBOARDING.md](../../docs/ONBOARDING.md)。
+1. 阅读当前仓库的AGENTS.md和docs/ONBOARDING.md。
    任务进度只维护docs/tasks/STATUS.md；在途及旧冻结工作树保留。
 2. 检查git status、当前分支、工作树及scripts/quant doctor。
    主环境使用项目.venv或明确的QUANT_PYTHON，入口固定实际源码位置。
-3. 先读[现金池结果](../../docs/restart/CASH_POOL_RESULTS.md)，再决定是否需要新计算。
+3. 先读docs/restart/CASH_POOL_RESULTS.md，再决定是否需要新计算。
    已完成的大批次不因接手或算力空闲而重复启动；新增假设独立登记。
 4. 数据和研究分别遵循docs/data_platform.md、docs/restart/RESEARCH_PROTOCOL.md及当前实验登记。
    Parquet/原始证据是长期存档；Qlib是可重建适配层。数据库旧命令仅用于明确的历史复现任务。
 
 ## 每次重计算的默认条件
 
-执行前读取[计算资源规则](../../docs/COMPUTE_POLICY.md)和configs/compute_defaults.json，运行：
+执行前读取docs/COMPUTE_POLICY.md和configs/compute_defaults.json，运行：
 
 ```bash
 scripts/quant resources --workload account_batch

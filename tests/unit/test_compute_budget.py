@@ -5,10 +5,17 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
-from quant.compute import admission_lock, cgroup_limits, execution_environment, worker_plan
+from quant.compute import (
+    admission_lock,
+    cgroup_limits,
+    execution_environment,
+    research_processes,
+    worker_plan,
+)
 
 
 @pytest.fixture
@@ -90,3 +97,21 @@ def test_other_process_cannot_admit_a_second_batch_and_lock_releases(tmp_path):
     with admission_lock(lock):
         assert subprocess.run([sys.executable, "-c", code, str(lock)], env=env).returncode == 75
     assert subprocess.run([sys.executable, "-c", code, str(lock)], env=env).returncode == 0
+
+
+def test_spawned_workers_counted_once_without_project_name(monkeypatch):
+    worker = SimpleNamespace(
+        pid=22,
+        name=lambda: "python",
+        cmdline=lambda: ["python", "spawn_main"],
+        children=lambda **kw: [],
+    )
+    parent = SimpleNamespace(
+        pid=11,
+        name=lambda: "python",
+        cmdline=lambda: ["quant_research.py"],
+        children=lambda **kw: [worker],
+    )
+    monkeypatch.setattr("quant.compute.psutil.process_iter", lambda fields: [parent, worker])
+    assert {p.pid for p in research_processes(set())} == {11, 22}
+    assert {p.pid for p in research_processes({22})} == {11}

@@ -54,20 +54,34 @@ def cgroup_limits(root: Path, membership: str) -> dict:
     }
 
 
-def probe_resources(interval: float = 0.25) -> dict:
-    """Sample aggregate load without exposing process arguments or changing processes."""
-    affinity = sorted(os.sched_getaffinity(0))
-    excluded = {os.getpid(), *(p.pid for p in psutil.Process().parents())}
-    candidates = []
+def research_processes(excluded: set[int]) -> list:
+    """Include worker descendants even when spawned argv has no project name."""
+    candidates = {}
     for process in psutil.process_iter(["pid", "name"]):
         try:
             if process.pid in excluded or "python" not in process.name().lower():
                 continue
             if any("quant" in arg.lower() for arg in process.cmdline()):
-                process.cpu_percent()
-                candidates.append(process)
+                # Spawned Python workers often have no project name in argv.
+                # Include descendants and deduplicate across controller matches.
+                for related in [process, *process.children(recursive=True)]:
+                    if related.pid not in excluded:
+                        candidates[related.pid] = related
         except psutil.Error:
             continue
+    return list(candidates.values())
+
+
+def probe_resources(interval: float = 0.25) -> dict:
+    """Sample aggregate load without exposing process arguments or changing processes."""
+    affinity = sorted(os.sched_getaffinity(0))
+    excluded = {os.getpid(), *(p.pid for p in psutil.Process().parents())}
+    candidates = research_processes(excluded)
+    for process in candidates:
+        try:
+            process.cpu_percent()
+        except psutil.Error:
+            pass
     per_cpu = psutil.cpu_percent(interval=interval, percpu=True)
     rows = []
     for process in candidates:

@@ -25,7 +25,7 @@
 | 运行、恢复、定时器 | `docs/restart/OPERATIONS.md` |
 | 当前数据版本 | `DATA_ROOT/current.json` |
 | 最新研究与告警 | `DATA_ROOT/research/latest.json`、`DATA_ROOT/monitor/latest.json` |
-| 已计算结果与证据限制 | 新现金池`docs/restart/CASH_POOL_RESULTS.md`；旧价格诊断`docs/restart/RESULTS.md`，各自绑定冻结登记 |
+| 已计算结果与证据限制 | 新现金池`docs/restart/CASH_POOL_RESULTS.md`；美股持有取舍`docs/restart/US_HOLDING_REVIEW.md`；旧价格诊断`docs/restart/RESULTS.md`，各自绑定冻结登记 |
 | CPU/GPU默认条件与执行 | `configs/compute_defaults.json`；`docs/COMPUTE_POLICY.md`；实测正文`docs/restart/PERFORMANCE_AUDIT.md`，原性能工作树保留作版本证据 |
 | 是否收尾、后续验证与Git交付 | `docs/restart/PHASE_CLOSEOUT.md`；不以工程通过代替投资问题已回答 |
 | 本轮机器可读验收 | `DATA_ROOT/audits/restart-acceptance-20261020.json` |
