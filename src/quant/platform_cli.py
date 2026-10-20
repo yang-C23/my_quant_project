@@ -11,6 +11,17 @@ import typer
 app = typer.Typer(add_completion=False, help="Trusted data snapshots and long-term research.")
 
 
+@app.command("verify-research-replay")
+def verify_research_replay_cmd(original: Path, replay: Path) -> None:
+    """Rehash every result file before trusting a replay comparison."""
+    from quant.data.research_integrity import verify_research_replay
+
+    result = verify_research_replay(original, replay)
+    output(result)
+    if not result["ok"]:
+        raise typer.Exit(code=1)
+
+
 @app.command("confirmation-horizon-research")
 def confirmation_horizon_research_cmd(
     source: Path,
