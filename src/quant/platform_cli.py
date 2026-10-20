@@ -11,6 +11,25 @@ import typer
 app = typer.Typer(add_completion=False, help="Trusted data snapshots and long-term research.")
 
 
+@app.command("confirmation-horizon-research")
+def confirmation_horizon_research_cmd(
+    source: Path,
+    destination: Path,
+    config: Path = Path("configs/confirmation_horizon.yaml"),
+    workers: int = 4,
+    replay_run: Path | None = None,
+) -> None:
+    """Retain every post-review expiry variant, including failures and no-entry accounts."""
+    from quant.config import get_settings
+    from quant.longterm.confirmation_study import run_confirmation_study
+
+    output(
+        run_confirmation_study(
+            get_settings(), source, destination, config, workers=workers, replay_run=replay_run
+        )
+    )
+
+
 @app.command("refresh-shiller-research")
 def refresh_shiller_research_cmd(
     source: Path,

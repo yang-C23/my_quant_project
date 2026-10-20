@@ -1,0 +1,14 @@
+schema_version: 1
+origin: followup_after_observing_2008_expired_confirmation_and_long_cash_waits
+status: exploratory_seen_history_no_unseen_test_claim
+confirmation_windows_sessions: [20, 60, 120]
+entries: [stabilized, relief]
+core_fractions: [0, 0.5]
+controls: [pool_unconditional_core0, pool_unconditional_core0.5, pool_pressure_core0]
+rolling_years: [5, 10]
+selection: none
+interpretation: >
+  Change only event confirmation expiry. Keep the pressure definition, five-day
+  no-new-low requirement, ten-day average, funding, twelve batches and costs.
+  Every loaded broad index and both dividend-low-volatility funds are retained.
+  A longer event memory can admit false recoveries; it does not prove a bottom.
