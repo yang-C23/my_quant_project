@@ -10,12 +10,32 @@ import pytest
 from quant.config import load_config
 from quant.data.snapshots import write_json
 from quant.longterm.pool_data import periodic_percentile, shiller_temperature
+from quant.longterm.features import align_available
 from quant.longterm.pool_registry import pool_registry
 from quant.longterm.pool_research import _run_asset, make_pool_report
 from quant.longterm.stages import StageSpec
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_arrow_microsecond_publications_align_to_nanosecond_decisions(tmp_path):
+    observations = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2020-01-02"]),
+            "available_at": pd.Series(pd.to_datetime(["2020-01-02 22:00Z"])).astype(
+                "datetime64[us, UTC]"
+            ),
+            "value": [10.0],
+        }
+    )
+    path = tmp_path / "arrow.parquet"
+    observations.to_parquet(path)
+    restored = pd.read_parquet(path)
+    decisions = pd.to_datetime(["2020-01-02 21:00Z", "2020-01-03 21:00Z"])
+    result = align_available(restored, decisions, "value")
+    assert pd.isna(result.iloc[0])
+    assert result.iloc[1] == 10.0
 
 
 def test_registry_has_all_stages_exits_and_no_duplicate_identifiers():
