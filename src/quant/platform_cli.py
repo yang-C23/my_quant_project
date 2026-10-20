@@ -110,6 +110,19 @@ def crosscheck_cmd() -> None:
     output(crosscheck(get_settings()))
 
 
+@app.command("review-results")
+def review_results_cmd(
+    reference_run: Path,
+    start: str = "2016-10-20",
+    end: str = "2026-10-19",
+) -> None:
+    """Audit journals and compare unchanged rules on a common price-index window."""
+    from quant.config import get_settings
+    from quant.longterm.diagnostics import review_results
+
+    output(review_results(get_settings(), reference_run, start=start, end=end))
+
+
 @app.command("backup")
 def backup_cmd(snapshot_id: str, restore: bool = True) -> None:
     """Back up a sealed snapshot and optionally perform a complete isolated restore drill."""
