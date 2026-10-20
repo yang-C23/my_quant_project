@@ -68,6 +68,7 @@ def run_release_audit(settings: Settings, source: Path, config_path: Path, outpu
         slippage_bps=dec(defaults["slippage_bps"]),
     )
     coverage = {row["asset"]: row for row in json.loads((source / "coverage.json").read_text())}
+    symbols = {row["id"]: row["index"] for row in reference["universe"]}
     records, event_rows = [], []
     for asset in config["assets"]:
         bars, signals, _ = load_study_asset(source, asset)
@@ -134,7 +135,7 @@ def run_release_audit(settings: Settings, source: Path, config_path: Path, outpu
                     ):
                         continue
                     arguments = {
-                        "symbol": asset,
+                        "symbol": coverage[asset].get("symbol", symbols[asset]),
                         "start": window["start"],
                         "end": window["end"],
                         "costs": costs,
