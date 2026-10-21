@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from quant.data.catalog import DataCatalog
+from quant.data.calendar_adjudication import adjudicate_sessions
 from quant.data.snapshots import sha256_file, utc_now, write_json
 from quant.etl.restart import code_revision
 from quant.longterm.action_audit import verify_action_ledger
@@ -166,6 +167,12 @@ def prepare_inputs(data_root: Path, root: Path, config: dict) -> dict:
             evidence = coverage[asset] | {"lot": "100" if actions is not None else "0.000001"}
             evidence["symbol"] = evidence.get("symbol", "NASDAQ100")
         bars, signals = bars.loc[: config["cutoff"]].copy(), signals.loc[: config["cutoff"]].copy()
+        if config.get("calendar_adjudication") and asset in {"sp500", "nasdaq100"}:
+            decision = json.loads(Path(config["calendar_adjudication"]).read_text())
+            bars, adjudication = adjudicate_sessions(bars, asset, decision, data_root)
+            signals = bars.copy()
+            evidence["calendar_adjudication"] = adjudication
+            write_json(root / "inputs" / "calendar_adjudication.json", decision)
         bars.to_parquet(root / "inputs" / f"{asset}_bars.parquet", compression="zstd")
         signals.to_parquet(root / "inputs" / f"{asset}_signals.parquet", compression="zstd")
         if actions is not None:
@@ -240,6 +247,11 @@ def build_jobs(root: Path, config: dict, metadata: dict) -> tuple[list[dict], li
     jobs, cohorts = {}, []
 
     def add(asset, rule, policy, start, end, engine="pool"):
+        bars = _load(root, asset, rule)[0]
+        lookback_start = bars.index[max(0, bars.index.searchsorted(start) - 252)]
+        known_gaps = (
+            metadata[asset].get("calendar_adjudication", {}).get("unresolved_missing_sessions", [])
+        )
         spec = dict(
             asset=asset,
             feature=rule,
@@ -250,6 +262,9 @@ def build_jobs(root: Path, config: dict, metadata: dict) -> tuple[list[dict], li
             symbol=metadata[asset]["symbol"],
             lot=metadata[asset]["lot"],
             costs=config["execution"],
+            missing_sessions_in_input=[
+                d for d in known_gaps if lookback_start <= pd.Timestamp(d) <= end
+            ],
         )
         key = hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()[:20]
         jobs[key] = dict(spec, id=key, root=str(root))
@@ -423,6 +438,8 @@ def execute_job(job: dict) -> dict:
         save_result(result, target)
         write_json(target / "ledger_audit.json", audit)
         row = dict(id=job["id"], status="computed", **result.metrics)
+        row["known_calendar_gap_in_input"] = bool(job.get("missing_sessions_in_input"))
+        row["missing_sessions_in_input"] = job.get("missing_sessions_in_input", [])
         if job.get("prefix_check") and len(result.daily) > 100:
             cutoff = result.daily.index[-32]
             earlier, _ = _execute(job, shortened_end=cutoff)
@@ -653,7 +670,8 @@ def run_study(
             formal_accepted=False,
             input_hashes={
                 str(p.relative_to(root)): sha256_file(p)
-                for p in sorted((root / "inputs").glob("*.parquet"))
+                for p in sorted((root / "inputs").iterdir())
+                if p.is_file()
             },
         )
     write_json(root / "registration.json", registration)

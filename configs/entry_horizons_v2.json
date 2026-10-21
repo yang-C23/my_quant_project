@@ -1,0 +1,118 @@
+{
+  "protocol": "actual-entry-calendar-horizons-v2-adjudicated",
+  "registered_before_new_returns": true,
+  "cutoff": "2026-10-19",
+  "parent_run": "cash-pool-20261020T180251782214Z",
+  "assets": [
+    "sp500",
+    "nasdaq100",
+    "csi300_etf",
+    "dividend_lowvol",
+    "dividend_lowvol100"
+  ],
+  "spx_dataset_version": "c15b344ec7a41cdc01157e77",
+  "horizons_years": [
+    5,
+    10
+  ],
+  "origin_schedule": "first_eligible_session_then_first_session_each_calendar_year_after_252_session_warmup",
+  "funding": {
+    "initial": 100000,
+    "monthly": 1000,
+    "tranches": 12
+  },
+  "execution": {
+    "commission_rate": 0.0003,
+    "minimum_commission": 0,
+    "slippage_bps": 5
+  },
+  "stage": {
+    "drawdown": 0.2,
+    "sigma": 2,
+    "confirmation": 5,
+    "quiet_sessions": 20,
+    "volatility_lag": 5
+  },
+  "confirmation_windows": [
+    20,
+    60
+  ],
+  "price_entries": [
+    "unconditional",
+    "pressure",
+    "stabilized_20",
+    "stabilized_60"
+  ],
+  "valuation_assets": [
+    "sp500"
+  ],
+  "earnings_lag_months": [
+    6,
+    12
+  ],
+  "valuation_entries": [
+    "valuation",
+    "value_pressure",
+    "value_stabilized_20",
+    "value_stabilized_60"
+  ],
+  "buy_threshold": 0.4,
+  "sell_threshold": 0.8,
+  "valuation_neighbors": {
+    "entry": "value_stabilized_60",
+    "buy_thresholds": [
+      0.3,
+      0.5
+    ]
+  },
+  "dividend_lowvol_drawdown_neighbors": [
+    0.15
+  ],
+  "core_fractions": [
+    0,
+    0.5
+  ],
+  "price_exits": [
+    "none",
+    "recovery_time"
+  ],
+  "value_exits": [
+    "none",
+    "valuation_time",
+    "valuation_tiers"
+  ],
+  "waiting_months": [
+    6,
+    12,
+    24
+  ],
+  "waiting_forces_purchase": false,
+  "valuation_formula": "current_daily_price_over_lagged_revised_Shiller_EPS_prior_monthly_10_year_midrank",
+  "valuation_version": "3a48524911896cd5518ff7eb",
+  "valuation_settings": {
+    "first_comparable_month": "1957-03-31",
+    "maximum_staleness_after_assumed_release_days": 35,
+    "minimum_history_coverage": 0.8
+  },
+  "complete_horizon_rule": "first_observed_session_on_or_after_reference_first_tactical_fill_plus_calendar_years",
+  "reference_first_fill": "same_entry_no_exit_no_core_account",
+  "right_censoring": "retain_all_no_entry_and_not_matured_cohorts_separately_do_not_mix_with_complete",
+  "paired_controls": [
+    "origin_lump_hold",
+    "origin_pool_hold",
+    "entry_lump_hold",
+    "entry_pool_hold"
+  ],
+  "post_entry_twr": "reset_at_entry_pretrade_equity_plus_same_day_flow_include_entry_costs",
+  "principal_loss": "equity_versus_all_original_external_contributions_not_peak_drawdown",
+  "selection": "none_retrospective_research_not_unseen_OOS",
+  "overlap": "report_unique_entries_and_event_clusters_do_not_treat_annual_cohorts_as_independent",
+  "tolerances": {
+    "account_replay": "exact_all_financial_payloads",
+    "signal_and_journal_prefix": "exact",
+    "price_overlap_abs": 1e-09,
+    "independent_ledger": "existing_frozen_oracle_cent_and_NAV_limits_unchanged"
+  },
+  "formal_accepted": false,
+  "calendar_adjudication": "configs/us_calendar_adjudication.json"
+}

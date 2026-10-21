@@ -1,6 +1,6 @@
 # 来源、授权、费用与覆盖审查
 
-审查日：2026-10-20。可执行登记在`configs/data_sources.yaml`；每次真实采集结果在
+审查日：2026-10-21。可执行登记在`configs/data_sources.yaml`；每次真实采集结果在
 `DATA_ROOT/source_reports/`，原始响应、解析器版本、schema和哈希在`DATA_ROOT/lake/`。
 “已取得”只证明该次可获取，不保证永久稳定、历史完全正确或允许永久留存。
 
@@ -36,6 +36,39 @@ CFTC来自[官方归档](https://www.cftc.gov/MarketReports/CommitmentsofTraders
 
 FRED明确限制SP500为约10年日线，且不含股息，并注明再分发限制；不能包装成15年总回报数据。
 [FRED序列说明](https://fred.stlouisfed.org/series/SP500)
+
+2026-10-21补齐长日线：从[Cboe SPX页面](https://www.cboe.com/us/indices/dashboard/spx/)
+对应公开CSV取得1975-01-02至2026-10-20共13,059条价格指数收盘。
+新数据集`cboe_spx_close/c15b344ec7a41cdc01157e77`追加保存；本轮研究统一截至10月19日。
+原始证据与检查在`DATA_ROOT/source_probes/sp500-long-20261021`。
+CSV与Cboe图表JSON全部收盘相同；图表早期open和volume有0占位，因此仅导入close。
+FRED重叠2,512日无缺日，30日报价不同；最大为2019-02-28的7.89点（Cboe2792.38、FRED2784.49），
+不能据此认定任一源所有历史正确。原值保留，以整段FRED替换的固定敏感性检验观察影响。
+与Shiller的621个月均价比较，绝对相对差中位数约0.000317%，最大约0.301%；
+月均价核对不能证明每个早期交易日都没有错误。
+
+[Cboe条款§2](https://www.cboe.com/terms/)包含有限个人非商业下载条款，也限制其他存储、
+派生、核对及分发用途；不能将其解释为无条件长期档案授权。本轮保留个人探索证据，
+不再分发原始数据，不将此来源晋级为唯一正式历史底座。历史发布时点仍是收盘时间假设。
+`available_at`不意味着取得当年的原始发布版本。
+
+另从[SPY发行人页面](https://www.ssga.com/us/en/individual/etfs/state-street-spdr-sp-500-etf-trust-spy)
+取得NAV和折溢价文件：此次NAV覆盖2003-12-01至2026-10-19，折溢价覆盖2025年起。
+NAV不等于可成交价，页面折溢价使用4PM买卖报价中点，不能据此还原官方收盘价；
+目前不将它们拼成1993年以来的可投资ETF总回报。
+
+交易日历进一步裁定：Cboe标普含1985-09-27休市报价、缺1999-12-31；FRED纳指含
+1998-07-03、2001-01-01、2019-04-19休市报价，缺2002-01-29。
+不能把“另一个指数没有报价”直接等同于休市：
+[SEC当日公告](https://www.sec.gov/newsroom/press-releases/99-177-foreign-markets-experience-millennium-change-its-business-usual-us-securities-markets)
+确认1999年最后一天开市，
+[花旗的SEC披露](https://www.sec.gov/Archives/edgar/data/831001/000119312507124389/d424b2.htm)
+提供S&P发布的年末收盘1469.25。裁定逐项写入`configs/us_calendar_adjudication.json`；
+原始文件不改写。纳指缺价尚未补造，受影响区间单列，不能只留删去熊市后的“干净”好结果。
+日历工具在独立环境中生成，固定版本4.13.2，运行研究只读固定JSON，不改变主环境依赖。
+
+发行人分红文件另已取得SPY自1993-03-19至2026-09-18共136次分红，支付日全部非空；
+最后一笔10月30日支付，在本轮10月19日截止日仍不能当作可用现金。
 
 BaoStock 0.9.4的`get_data()`仍调用旧Pandas接口，适配器改为`next/get_row_data`。
 `query_history_k_data_plus`不作为ETF通用历史接口；专用`query_daily_history_k_ETF`已实测。
