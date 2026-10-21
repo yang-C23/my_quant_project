@@ -92,6 +92,15 @@ def test_missing_quote_cannot_be_forward_filled(tmp_path):
         chart_prices(path, "T", "2000-12-31")
 
 
+def test_corrupt_archive_workbook_is_explicitly_rejected(monkeypatch, tmp_path):
+    def corrupt(_):
+        raise IndexError("truncated OLE sector")
+
+    monkeypatch.setattr(pd, "ExcelFile", corrupt)
+    with pytest.raises(ValueError, match="unreadable workbook: IndexError"):
+        parse_shiller_vintage(tmp_path / "bad.raw", "2010-01-01T00:00:00Z")
+
+
 def test_issuer_precedence_emits_conflicts_not_silent_rounding(tmp_path):
     path = tmp_path / "issuer.txt"
     path.write_text("12/24/2018 | 12/26/2018 | 12/31/2018 | 0.42060\n")

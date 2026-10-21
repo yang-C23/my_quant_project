@@ -1,5 +1,5 @@
 schema_version: 1
-review_date: '2026-10-20'
+review_date: '2026-10-21'
 defaults:
   paid_purchase_authorized: false
   redistribution_authorized: false
@@ -123,12 +123,45 @@ sources:
     caveats: [annual_disclosure_return_not_actual_cash_payment_return, no_survivorship_free_ETF_universe, NAV_rounding_changes, one_verified_cumulative_NAV_typo]
   invesco_us:
     publisher: Invesco US
-    role: SPHD_candidate_action_source
+    role: QQQ_historical_table_evidence_and_SPHD_candidate
     documentation: https://www.invesco.com/us/en/financial-products/etfs/invesco-sp-500-high-dividend-low-volatility-etf.html
     terms: https://www.invesco.com/us/en/resources/terms-of-use.html
     collection_enabled: false
     retention: separate_automated_history_permission_required
-    caveats: [public_product_page_not_complete_licensed_archive]
+    caveats: [public_product_page_not_complete_licensed_archive, QQQ_early_table_search_rendered_not_original_response, SPHD_complete_payment_history_still_missing]
+  yahoo_chart:
+    publisher: Yahoo Finance / underlying quote licensors
+    role: exploratory_ETF_price_reference
+    documentation: https://finance.yahoo.com/
+    cost: public_endpoint_no_purchase
+    retention: review_required_not_unique_permanent_archive
+    redistribution: false
+    formal_accepted: false
+    caveats: [split_only_close_must_restore_old_units, adjusted_close_not_cash_ledger, QQQ_ghost_and_missing_dividends, SPY_cross_source_conflicts, incomplete_latest_session_rejected]
+  nasdaq_public:
+    publisher: Nasdaq public market-data pages
+    role: secondary_ETF_quote_and_cash_date_crosscheck
+    documentation: https://www.nasdaq.com/market-activity/etf/qqq/dividend-history
+    cost: public_endpoint_no_purchase
+    retention: review_required
+    formal_accepted: false
+    caveats: [history_endpoint_actual_ten_year_limit, index_quotes_may_have_integer_precision, not_fund_issuer, early_dividend_history_incomplete]
+  ssga_us:
+    publisher: State Street Investment Management
+    role: issuer_SPY_BIL_cash_distributions_and_split_evidence
+    documentation: https://www.ssga.com/library-content/products/fund-data/etfs/us/spdr-etf-historical-distributions.xlsx
+    cost: public_disclosures
+    retention: review_required
+    formal_accepted: false
+    caveats: [BIL_20080303_pay_date_precedes_ex_date_rejected, explicit_zero_distributions_not_missing, capital_gains_separate_from_income, SPY_amount_conflicts_preserved]
+  shiller_archive:
+    publisher: Robert Shiller / Yale files preserved by Internet Archive
+    role: historical_version_availability_experiment
+    documentation: https://www.econ.yale.edu/~shiller/data.htm
+    cost: public_archives
+    retention: underlying_publisher_terms_review_required
+    formal_accepted: false
+    caveats: [capture_time_not_original_publication_time, earnings_interpolation, stale_and_corrupt_archives_rejected, actual_early_market_closes, incomplete_continuous_PIT_coverage]
   cme:
     publisher: CME Group
     role: paid_us_futures_candidate

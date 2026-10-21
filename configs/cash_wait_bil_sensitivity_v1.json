@@ -1,6 +1,6 @@
 {
   "protocol": "actual-BIL-source-uncertainty-v1",
-  "parent_run": "etf-total-return-v1-20261021",
+  "parent_run": "etf-total-return-v2-20261021",
   "source_directory": "source_probes/us-etf-20261021",
   "ssga_distribution_file": "source_probes/sp500-long-20261021/ssga_distributions.raw",
   "calendar_file": "audits/entry-horizons-20261021/xnys-sessions.json",

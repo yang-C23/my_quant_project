@@ -223,7 +223,7 @@
     "derivatives": "no_Gamma_or_forced_liquidation_fact_inferred_from_prices"
   },
   "calendar_adjudication_file": "configs/us_calendar_adjudication_v2.json",
-  "frozen_etf_parent": "etf-total-return-v1-20261021",
+  "frozen_etf_parent": "etf-total-return-v2-20261021",
   "input_overrides": [
     {
       "asset": "spy",

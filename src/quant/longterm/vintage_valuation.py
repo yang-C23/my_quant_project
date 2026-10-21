@@ -6,12 +6,21 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from xlrd.biffh import XLRDError
+from xlrd.compdoc import CompDocError
 
 
 def parse_shiller_vintage(path: Path, available_at: str) -> pd.DataFrame:
     """Read P and E columns by their labels across old and new workbook formats."""
-    book = pd.ExcelFile(path)
-    frame = pd.read_excel(book, sheet_name="Data" if "Data" in book.sheet_names else 0, header=None)
+    try:
+        book = pd.ExcelFile(path)
+        frame = pd.read_excel(
+            book, sheet_name="Data" if "Data" in book.sheet_names else 0, header=None
+        )
+    except (XLRDError, CompDocError, IndexError) as exc:
+        # Archived HTTP 200 bytes may contain a truncated OLE compound file.
+        # Reject that entire vintage; never try to repair its numerical cells.
+        raise ValueError(f"unreadable workbook: {type(exc).__name__}: {exc}") from exc
     headers = frame[0].astype(str).str.strip().eq("Date")
     if headers.sum() != 1:
         raise ValueError("ambiguous Shiller date header")
