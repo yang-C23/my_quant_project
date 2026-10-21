@@ -7,6 +7,16 @@ Python、Parquet、DuckDB数据底座，包含可回滚通达信迁移、公开�
 任何agent从 [接手入口](docs/ONBOARDING.md) 开始；执行范围见
 [总计划](docs/restart/MASTER_PLAN.md)，当前状态仅在 [任务看板](docs/tasks/STATUS.md) 维护。
 
+本轮探索研究的阅读顺序：
+
+1. [结果摘要](docs/restart/MORNING_REVIEW_20261021.md)：宽基与红利低波、买入/退出及等待成本。
+2. [完整ETF研究](docs/restart/ETF_TOTAL_RETURN_RESULTS.md)：真实分红、实际买入后5/10年、全部正负结果。
+3. [复现入口](docs/restart/REPRODUCING_ETF_RESEARCH.md)：冻结代码、配置、数据清单和命令。
+4. [下一阶段优先级](docs/restart/PHASE_CLOSEOUT.md#下一阶段的有限工作)：渠道、风险预算、估值证据与运行验收。
+
+仓库保存代码、配置、研究摘要和证据索引。原始行情、供应商文件、完整账户账本及本机凭据不随仓库分发；
+重放真实研究需要按来源许可准备对应的冻结数据。离线单测使用仓库内的小型fixtures。
+
 ```bash
 python3 scripts/bootstrap_env.py
 scripts/quant doctor
@@ -38,6 +48,7 @@ scripts/quant platform --help
 - [固定研究协议](docs/restart/RESEARCH_PROTOCOL.md)
 - [来源、授权与覆盖](docs/restart/DATA_SOURCES.md)
 - [审计发现](docs/restart/AUDIT.md)
-- [已计算结果与未通过项](docs/restart/RESULTS.md)
+- [最新ETF结果与未通过项](docs/restart/ETF_TOTAL_RETURN_RESULTS.md)
+- [旧价格研究与版本边界](docs/restart/RESULTS.md)
 - [总计划交付映射](docs/restart/DELIVERY_MATRIX.md)
 - [架构](docs/architecture.md)
