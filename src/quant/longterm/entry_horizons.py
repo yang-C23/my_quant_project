@@ -33,6 +33,8 @@ _CACHE: dict = {}
 
 def entry_rules(config: dict, asset: str) -> list[dict]:
     """Expand only registered mechanisms; no outcome-dependent selection."""
+    if "registered_rules" in config:
+        return config["registered_rules"][asset]
     rows = []
 
     def add(name, entry, expiry=20, lag=0, buy=0.4, drawdown=0.20, neighbor=False):
@@ -133,6 +135,10 @@ def _make_features(signals, rule, config, valuations):
 
 def prepare_inputs(data_root: Path, root: Path, config: dict) -> dict:
     """Save fixed input bytes and verify causal feature prefixes before accounts."""
+    if config.get("input_kind") == "etf_cash_actions":
+        from quant.longterm.etf_inputs import prepare_etf_inputs
+
+        return prepare_etf_inputs(data_root, root, config)
     catalog = DataCatalog(data_root)
     parent = data_root / "research" / config["parent_run"]
     original_hashes = json.loads((parent / "payloads.json").read_text())
@@ -244,7 +250,7 @@ def _load(root: Path, asset: str, rule: str):
 
 def build_jobs(root: Path, config: dict, metadata: dict) -> tuple[list[dict], list[dict]]:
     """Deduplicate identical control accounts without discarding any cohorts."""
-    jobs, cohorts = {}, []
+    jobs, cohorts, eligibility_exclusions = {}, [], []
 
     def add(asset, rule, policy, start, end, engine="pool"):
         bars = _load(root, asset, rule)[0]
@@ -280,6 +286,22 @@ def build_jobs(root: Path, config: dict, metadata: dict) -> tuple[list[dict], li
                 )
             )
             for origin in annual_origins(bars.index):
+                not_before = config.get("origin_not_before", {}).get(asset)
+                if not_before and origin < pd.Timestamp(not_before):
+                    continue
+                if config.get("require_value_at_origin") and rule["lag"]:
+                    previous = bars.index.get_loc(origin) - 1
+                    if previous < 0 or pd.isna(features.temperature.iloc[previous]):
+                        eligibility_exclusions.append(
+                            dict(
+                                asset=asset,
+                                rule=rule["id"],
+                                origin=str(origin.date()),
+                                reason="valuation_not_available_before_account_origin",
+                                horizons=config["horizons_years"],
+                            )
+                        )
+                        continue
                 candidate = first_fill(bars, features, PoolPolicy(**base), origin)
                 # Verify actual affordable/pending fills in a short prefix. The
                 # subsequent full reference must independently match this anchor.
@@ -392,6 +414,8 @@ def build_jobs(root: Path, config: dict, metadata: dict) -> tuple[list[dict], li
                             end,
                         )
                     cohorts.append(item)
+    if config.get("require_value_at_origin"):
+        write_json(root / "eligibility_exclusions.json", eligibility_exclusions)
     return list(jobs.values()), cohorts
 
 

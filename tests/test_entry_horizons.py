@@ -1,6 +1,7 @@
 """Calendar maturity, actual cash flows, threshold boundaries and prefix equality."""
 
 from dataclasses import asdict
+import json
 
 import pandas as pd
 import pytest
@@ -12,6 +13,7 @@ from quant.longterm.entry_horizons import (
     horizon_end,
     first_fill,
     post_entry_metrics,
+    build_jobs,
 )
 from quant.longterm.ledger import Costs, dec
 
@@ -32,6 +34,31 @@ def test_origins_keep_first_partial_eligible_year():
     origins = annual_origins(dates)
     assert origins[0] == dates[252]
     assert origins[1:] == [pd.Timestamp("2021-01-01"), pd.Timestamp("2022-01-03")]
+
+
+def test_missing_origin_valuation_is_data_exclusion_not_waiting_success(tmp_path):
+    base = tmp_path / "inputs"
+    base.mkdir()
+    dates = pd.bdate_range("2018-01-01", periods=260)
+    bars = pd.DataFrame({"close": 10.0}, index=dates)
+    features = bars.assign(temperature=float("nan"))
+    features.iloc[-2:, features.columns.get_loc("temperature")] = 0.1
+    bars.to_parquet(base / "T_bars.parquet")
+    bars.to_parquet(base / "T_unconditional_features.parquet")
+    features.to_parquet(base / "T_value_features.parquet")
+    rule = dict(id="value", entry="valuation", lag=1, buy=0.4, scope="primary")
+    config = dict(
+        assets=["T"],
+        funding=dict(initial=100000, monthly=1000),
+        registered_rules={"T": [rule]},
+        horizons_years=[5, 10],
+        require_value_at_origin=True,
+    )
+    jobs, cohorts = build_jobs(tmp_path, config, {"T": dict(symbol="T", lot="1")})
+    assert jobs == cohorts == []
+    excluded = json.loads((tmp_path / "eligibility_exclusions.json").read_text())
+    assert len(excluded) == len(annual_origins(dates))
+    assert {row["reason"] for row in excluded} == {"valuation_not_available_before_account_origin"}
 
 
 def test_cash_accumulation_and_strict_valuation_boundary():

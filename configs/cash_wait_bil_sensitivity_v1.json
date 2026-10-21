@@ -1,0 +1,45 @@
+{
+  "protocol": "actual-BIL-source-uncertainty-v1",
+  "parent_run": "etf-total-return-v1-20261021",
+  "source_directory": "source_probes/us-etf-20261021",
+  "ssga_distribution_file": "source_probes/sp500-long-20261021/ssga_distributions.raw",
+  "calendar_file": "audits/entry-horizons-20261021/xnys-sessions.json",
+  "cutoff": "2026-10-19",
+  "assets": [
+    "spy",
+    "qqq"
+  ],
+  "minimum_listed_sessions": 60,
+  "actions_from": "2008-04-01",
+  "excluded_early_history": "issuer_2008-03-03_dividend_lists_payment_2008-02-11_before_ex_date; no_invented_repair",
+  "funding": {
+    "initial": 100000,
+    "monthly": 1000
+  },
+  "waiting_months": [
+    6,
+    12,
+    24
+  ],
+  "execution": {
+    "commission_rate": 0.0003,
+    "minimum_commission": 0,
+    "slippage_bps": 5
+  },
+  "lot": "buy_even_shares_to_avoid_reverse_split_cash_in_lieu",
+  "terminal_value": "sale_cost_adjusted; receivables_separate; cash_only_after_sale_settlement",
+  "cash_management_after_equity_entry": "not_modelled_no_free_daily_sweep",
+  "formal_accepted": false,
+  "distribution_overrides": [
+    {
+      "date": "2022-03-01",
+      "expected": 0.0,
+      "value": 0.022
+    },
+    {
+      "date": "2022-09-01",
+      "expected": 0.138459,
+      "value": 0.139
+    }
+  ]
+}
