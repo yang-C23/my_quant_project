@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import base64
+import hashlib
 from pathlib import Path
 import shutil
 
@@ -36,6 +38,10 @@ def archive_observations(source_root: Path) -> tuple[pd.DataFrame, list[dict]]:
             continue
         if sha256_file(path) != meta["sha256"]:
             raise ValueError("vintage source bytes changed")
+        archive_digest = base64.b32encode(hashlib.sha1(path.read_bytes()).digest()).decode()
+        if archive_digest != meta["cdx"][5]:
+            evidence.append(row | {"status": "rejected", "reason": "CDX response digest mismatch"})
+            continue
         stamp = meta["cdx"][1]
         # Archive redirects to a different version cannot inherit an earlier date.
         actual = (
@@ -77,8 +83,33 @@ def _features(signals, rule, config, value):
     if rule["lag"]:
         features["temperature"] = value.temperature
         if rule["entry"].startswith("value_"):
-            features = qualify_value_events(features, rule["buy"])
+            features = (
+                qualify_value_during_stress(features, rule["buy"])
+                if rule.get("event_value_mode") == "during_event_stress"
+                else qualify_value_events(features, rule["buy"])
+            )
     return features
+
+
+def qualify_value_during_stress(features: pd.DataFrame, threshold: float) -> pd.DataFrame:
+    """An ongoing stress event can become cheap later, with no retroactive flag.
+
+    Entry still independently requires cheap valuation at the confirmation date.
+    This registered alternative does not alter the original event-onset rule.
+    """
+    eligible, flags = set(), []
+    for row in features.itertuples():
+        if (
+            pd.notna(row.event_id)
+            and row.stress
+            and pd.notna(row.temperature)
+            and row.temperature < threshold
+        ):
+            eligible.add(row.event_id)
+        flags.append(pd.notna(row.event_id) and row.event_id in eligible)
+    out = features.copy()
+    out["event_value_eligible"] = flags
+    return out
 
 
 def prepare_etf_inputs(data_root: Path, root: Path, config: dict) -> dict:
@@ -245,6 +276,23 @@ def reuse_etf_inputs(data_root: Path, root: Path, config: dict) -> dict:
         target = root / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(parent / name, target)
+    if config.get("recompute_registered_features"):
+        value = pd.read_parquet(root / "inputs" / "sp500_archive_temperature.parquet")
+        checks = []
+        for asset in config["assets"]:
+            signals = pd.read_parquet(root / "inputs" / f"{asset}_signals.parquet")
+            for rule in config["registered_rules"][asset]:
+                features = _features(signals, rule, config, value.reindex(signals.index))
+                past = signals.iloc[:-75]
+                earlier = _features(past, rule, config, value.reindex(past.index))
+                pd.testing.assert_frame_equal(
+                    features.loc[earlier.index], earlier, check_exact=True
+                )
+                features.to_parquet(
+                    root / "inputs" / f"{asset}_{rule['id']}_features.parquet", compression="zstd"
+                )
+                checks.append(dict(asset=asset, rule=rule["id"], sessions=len(earlier), exact=True))
+        write_json(root / "feature_prefix_checks.json", checks)
     changes = []
     for override in config.get("input_overrides", []):
         path = root / "inputs" / f"{override['asset']}_{override['table']}.parquet"

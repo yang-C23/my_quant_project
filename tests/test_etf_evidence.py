@@ -1,6 +1,8 @@
 """Financial-unit, publication-time, missing-data and evidence-conflict checks."""
 
 import json
+import base64
+import hashlib
 
 import numpy as np
 import pandas as pd
@@ -17,6 +19,7 @@ from quant.longterm.etf_sources import (
 from quant.longterm.vintage_valuation import archive_temperature, parse_shiller_vintage
 from quant.longterm.cash_wait import liquidation_quote
 from quant.longterm.ledger import Costs, dec
+from quant.longterm.etf_inputs import archive_observations, qualify_value_during_stress
 
 
 def test_split_only_prices_restore_old_units_without_duplicate_return(tmp_path):
@@ -101,6 +104,33 @@ def test_corrupt_archive_workbook_is_explicitly_rejected(monkeypatch, tmp_path):
         parse_shiller_vintage(tmp_path / "bad.raw", "2010-01-01T00:00:00Z")
 
 
+def test_local_checksum_does_not_replace_archive_content_digest(tmp_path):
+    workbook = tmp_path / "fixture.xlsx"
+    pd.DataFrame([["Date", "P", "E"], [2010.01, 10, 1]]).to_excel(
+        workbook, header=False, index=False
+    )
+    data = workbook.read_bytes()
+    digest = base64.b32encode(hashlib.sha1(data).digest()).decode()
+    for stamp, expected in [("20100215120000", digest), ("20100315120000", "incorrect")]:
+        path = tmp_path / f"shiller_{stamp}.raw"
+        path.write_bytes(data)
+        url = f"https://web.archive.org/web/{stamp}id_/http://example.test/a.xls"
+        path.with_suffix(".json").write_text(
+            json.dumps(
+                dict(
+                    status=200,
+                    sha256=hashlib.sha256(data).hexdigest(),
+                    cdx=["", stamp, "", "", "200", expected, ""],
+                    url=url,
+                    final_url=url,
+                )
+            )
+        )
+    values, evidence = archive_observations(tmp_path)
+    assert values.vintage.unique().tolist() == ["shiller_20100215120000"]
+    assert [r["status"] for r in evidence] == ["parsed", "rejected"]
+
+
 def test_issuer_precedence_emits_conflicts_not_silent_rounding(tmp_path):
     path = tmp_path / "issuer.txt"
     path.write_text("12/24/2018 | 12/26/2018 | 12/31/2018 | 0.42060\n")
@@ -153,6 +183,21 @@ def test_early_exchange_close_cannot_use_later_same_day_archive():
     assert result.vintage.tolist() == ["old", "new"]
     with pytest.raises(ValueError, match="closing timestamp missing"):
         archive_temperature(close, old, decision_times=decisions.iloc[:1])
+
+
+def test_later_low_valuation_cannot_retroactively_qualify_a_stress_event():
+    f = pd.DataFrame(
+        {
+            "event_id": [1, 1, 1, 1, 2, 2],
+            "stress": [True, True, True, False, True, False],
+            "temperature": [0.5, 0.4, 0.3, 0.2, 0.6, 0.1],
+        }
+    )
+    result = qualify_value_during_stress(f, 0.4)
+    assert result.event_value_eligible.tolist() == [False, False, True, True, False, False]
+    pd.testing.assert_frame_equal(
+        result.iloc[:2], qualify_value_during_stress(f.iloc[:2], 0.4), check_exact=True
+    )
 
 
 def test_negative_latest_earnings_missing_history_and_staleness_fail_closed():
