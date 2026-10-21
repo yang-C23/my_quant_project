@@ -1,7 +1,7 @@
 # STATUS.md — 任务看板（唯一状态源）
 
 > 2026-10-21 当前任务 TASK-080，分支 task/TASK-080-etf-total-return-20261021。
-> 用户已授权整理并上传Git；探索交付已整理，正在核对公开发布范围，正式准入仍开放。
+> 用户已授权整理并上传Git；研究分支已上传，草稿PR #1以v2为基线开放审阅，正式准入仍开放。
 > 使用 scripts/quant 固定当前工作树；总计划见 ../restart/MASTER_PLAN.md。
 > 以下旧任务状态保留作为历史记录，旧“角色分流/只准IS”不约束已授权的新研究。
 
@@ -18,7 +18,7 @@
 | CPU/GPU吞吐优化 | integrated / defaults_verified | 原性能实现已整合，冻结工作树不变。52账户原完整CLI 56.62→2.49秒；12worker仅适用已测账户批处理，GPU默认CPU。新默认入口两轮自动分配12worker，各52账户/260金融文件精确相同；内部负载1.97/2.02秒，不与原完整CLI混比。daily自动准入完成，12暂停/0建议。项目skill已安装Codex并同步Cursor/OpenCode，旧副本已备份。证据DATA_ROOT/audits/compute-defaults-20261020；见[性能正文](../restart/PERFORMANCE_AUDIT.md)和[默认计算条件](../COMPUTE_POLICY.md) |
 | 长期持有与入场/退出取舍（旧价格） | actual_entry_horizons_replayed / superseded_for_ETFs | 标普Cboe自1975年；d76a043的12,479账户/2,286队列/19,752行、74,939文件精确重放，38特征/73账户未来检查。NDX旧缺价影响563账户仍标记；新ETF输入已补1519.33但不改旧文件。旧价格及来源敏感性保留，见[原报告](../restart/ENTRY_HORIZONS_RESULTS.md) |
 | 含分红ETF、入场/退出及等待利息 | exploratory_review_ready / formal_gate_open | 主组2ba339d：3,697账户/886队列/6,576行；358满期、334未满期、194未入场；76估值起点/规则另排除。7组含诊断共9,835账户独立核验，59,717对产物、119,434实际文件重哈希完全相同；追加规则d49441e仍无满5年联合估值样本。SPY/QQQ/BIL公司行动、同窗口财富/本金/等待、红利低波及负结果见[ETF报告](../restart/ETF_TOTAL_RETURN_RESULTS.md)。BIL只为等待账户，不冒称完整结算组合 |
-| 本轮交付与代码收敛 | publication_authorized / preparing | [晨间审阅](../restart/MORNING_REVIEW_20261021.md)、[数据裁定](../restart/ETF_DATA_AUDIT.md)、[复现](../restart/REPRODUCING_ETF_RESEARCH.md)已整理；公开origin已确认，计划推送研究分支并建立以v2为基线的草稿PR；保留冻结源码与所有失败。发布证据另存DATA_ROOT/audits/git-publication-20261021 |
+| 本轮交付与代码收敛 | branch_uploaded / draft_review | 研究分支已推送公开origin，首次发布82ea150；[草稿PR #1](https://github.com/yang-C23/my_quant_project/pull/1)以v2为基线，未合并。355项本机测试、lint/doctor及新增历史公开范围检查通过；冻结源码和失败保留。报告入口在README，发布/远端CI回执存DATA_ROOT/audits/git-publication-20261021，最新云端结果以PR检查为准 |
 | 每日监控 | shadow_timer_active | UTC 00:30/09:30用户定时器已启用；首次完整更新/计算成功；12标的暂停、0交易建议；重复执行不增加日期计数，20真实交易日未验收 |
 | 长期维护 | ongoing | 文档与本机恢复具备；异地备份、正式数据晋级和未来20日验收待办 |
 
@@ -38,7 +38,8 @@
    和[复现手册](../restart/REPRODUCING_ETF_RESEARCH.md)。新主批`etf-total-return-v2-20261021`、
    六组诊断及全部重放已完成，不默认重启；主源码`2ba339d`、追加事件规则`d49441e`各有冻结工作树。
    机器统计位于`DATA_ROOT/audits/us-etf-20261021/report-v2`，详细账本在各research目录。
-   按本次明确授权完成任务分支上传和草稿PR；不自动合并v2/main，完整数据和私人环境不随公开代码分发。
+   本次授权的任务分支已上传并建立[草稿PR #1](https://github.com/yang-C23/my_quant_project/pull/1)；
+   不自动合并v2/main，完整数据和私人环境不随公开代码分发。审阅最新PR检查后再决定合并。
    下一阶段的任务价值、依赖和验收统一见[优先级](../restart/PHASE_CLOSEOUT.md#下一阶段的有限工作)，
    本轮仅整理发布与分析，不重复启动已完成的大批次。
    下一阶段优先实际渠道、官方连续PIT、纳指自身估值、SPHD支付、来源留存、固定风险预算；
@@ -118,4 +119,4 @@ lint/doctor通过。未改变旧engine/features/ledger/metrics，未启动新的
 
 | ID | 状态 | 说明 |
 |---|---|---|
-| TASK-080 | publication_authorized / formal_open | [任务卡](TASK-080-trusted-index-restart.md)；本轮探索交付收敛，用户已授权上传，正式数据/渠道与20真实交易日仍开放 |
+| TASK-080 | draft_review / formal_open | [草稿PR #1](https://github.com/yang-C23/my_quant_project/pull/1)；探索交付已上传，正式数据/渠道与20真实交易日仍开放；下一阶段优先级见PHASE_CLOSEOUT.md |
