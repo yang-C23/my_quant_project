@@ -1,6 +1,6 @@
 # STATUS.md — 任务看板（唯一状态源）
 
-> 2026-10-20 用户批准实施重启总计划。当前任务 TASK-080，分支 task/TASK-080-trusted-index-restart。
+> 2026-10-20 用户批准实施重启总计划。当前任务 TASK-080，分支 task/TASK-080-entry-horizons-20261021。
 > 使用 scripts/quant 固定当前工作树；总计划见 ../restart/MASTER_PLAN.md。
 > 以下旧任务状态保留作为历史记录，旧“角色分流/只准IS”不约束已授权的新研究。
 
@@ -9,13 +9,13 @@
 | 阶段 | 状态 | 证据/下一步 |
 |---|---|---|
 | 基线与审计 | inventory_complete / legacy_review_open | 初始代码/数据/73产物清单已冻结；关键路径语义修复见[审计](../restart/AUDIT.md)，旧策略未全部复现 |
-| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/份额拆分/公司行动、Decimal账本；整合性能及资源预算后331项离线测试通过，包含spawn子进程统计及共享锁核验；3项遗留集成测试未运行；2项上游弃用警告保留 |
+| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/份额拆分/公司行动、Decimal账本；长历史适配及日历裁定后342项离线测试通过，包含spawn子进程统计及共享锁核验；3项遗留集成测试未运行；2项上游弃用警告保留 |
 | TDX更新 | structurally_accepted | 快照20261020T112255Z-2f1a3256f7；29,753,977行、12,490代码至10月19日；幂等、完整备份/隔离恢复通过 |
 | 替代源验收 | partial / formal_gate_open | 已采集公开数据并交叉核查；长期估值、股息支付、许可/PIT和历史成分仍缺 |
 | 基准及扩展回测 | price_diagnostics_reproduced / formal_blocked | 冻结120项假设；1,063条指数价格实验/窗口记录、2,999条暂停，精确重放通过；[结果及限制](../restart/RESULTS.md) |
 | 用户疑问复核及现金池研究 | exploratory_report_delivered / formal_gate_open | 主研究197项、14205账户/853暂停；85364产物原样重放，实际重算170728文件哈希。扩展2136、Shiller384、现价PE408、双源1728、CFTC408、确认期限3660、月度ETF668账户全部保留并重放。6个VIX日历裁定另存；旧Put/Call错误48窗口、旧年报源码身份失败均保留。确认期限1708原规则等价账户及180未来追加测试通过。完整正负结果、分标的结论与复现索引见[CASH_POOL_RESULTS.md](../restart/CASH_POOL_RESULTS.md)；不能把重叠窗口或已见历史当正式最终样本外证据 |
 | CPU/GPU吞吐优化 | integrated / defaults_verified | 原性能实现已整合，冻结工作树不变。52账户原完整CLI 56.62→2.49秒；12worker仅适用已测账户批处理，GPU默认CPU。新默认入口两轮自动分配12worker，各52账户/260金融文件精确相同；内部负载1.97/2.02秒，不与原完整CLI混比。daily自动准入完成，12暂停/0建议。项目skill已安装Codex并同步Cursor/OpenCode，旧副本已备份。证据DATA_ROOT/audits/compute-defaults-20261020；见[性能正文](../restart/PERFORMANCE_AUDIT.md)和[默认计算条件](../COMPUTE_POLICY.md) |
-| 长期持有与入场/退出取舍 | existing_windows_reviewed / further_validation_open | 用户要求不立即封版。已固定六机制、完整414账户及18组汇总，核查2070源文件；5汇总产物精确重放。见[美股持有复核](../restart/US_HOLDING_REVIEW.md)。下一步从实际首次成交观察5/10年、保留未满期及等待成本，补标普长历史与可投资性。红利低波保留；依据[研究与收尾条件](../restart/PHASE_CLOSEOUT.md)继续，不创建完成标签或推送 |
+| 长期持有与入场/退出取舍 | actual_entry_horizons_replayed / formal_gate_open | 标普Cboe日线扩至1975年；v2代码d76a043，12,479去重账户/2,286队列/19,752比较行，74,939文件精确重放；38组特征及73组账户未来追加检查通过。1,545满期、465未满期、276未入场均保留；红利低波5年样本仅2/1个、无10年。发现并裁定四个美国休市报价和一个SP缺价；NDX 2002-01-29仍缺报价，563账户输入受影响并显式标记。来源敏感性9,933账户另存，v1也保留重放。见[实际入场结果](../restart/ENTRY_HORIZONS_RESULTS.md)。美股仍为不含分红价格指数、估值非严格PIT；不能形成正式买卖规则，不封版或推送 |
 | 每日监控 | shadow_timer_active | UTC 00:30/09:30用户定时器已启用；首次完整更新/计算成功；12标的暂停、0交易建议；重复执行不增加日期计数，20真实交易日未验收 |
 | 长期维护 | ongoing | 文档与本机恢复具备；异地备份、正式数据晋级和未来20日验收待办 |
 
@@ -30,7 +30,15 @@
 用户最新补充：先清楚回答长期持有与入场/退出问题，再决定收尾；当前不创建阶段完成标签或推送。
 运行先读[默认计算条件](../COMPUTE_POLICY.md)与项目skill，共享预算适用于所有新重计算。
 
-1. 优先读[美股持有取舍](../restart/US_HOLDING_REVIEW.md)，继续真实入场后完整持有期和标普长历史证据。
+1. 优先读[实际入场后5/10年结果](../restart/ENTRY_HORIZONS_RESULTS.md)及[登记协议](../restart/ENTRY_HORIZONS_PROTOCOL.md)。
+   新主批`DATA_ROOT/research/entry-horizons-v2-20261021`和同名`-replay`已完成，不重复启动。
+   代码`d76a043`的冻结工作树为`/home/yang/projects/quant_entry_horizons_frozen_d76a043`；
+   配对/等待/图表正文为`DATA_ROOT/audits/entry-horizons-20261021/report-v2`，原v1和初版报告保留。
+   下一步优先补可投资ETF含分红和真实成交、QDII汇率/折溢价、严格PIT估值及现金管理情景。
+   纠正“估值退出=盈利止盈”的混称，真正盈利退出应另登记，不能改旧冻结策略。
+   先处理NDX缺报价及美国交易日历进入平台数据层的迁移，再重算受影响的旧结果；
+   不通过删除互联网泡沫窗口消除缺口，不将修正前可复现等同于输入正确。
+   [美股持有取舍](../restart/US_HOLDING_REVIEW.md)保留为先前短窗口审查。
    再读[本轮研究结论](../restart/CASH_POOL_RESULTS.md)、[本次策略复核](../restart/STRATEGY_REVIEW.md)
    与[现金池执行协议](../restart/CASH_POOL_RESEARCH_PLAN.md)，不要重复启动已完成的大批次。
    用户新增约束：免费/已有数据优先，5—10年投资，示例资金即可；月供先积累、信号后分批入场/退出，

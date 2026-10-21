@@ -28,6 +28,7 @@
 | 已计算结果与证据限制 | 新现金池`docs/restart/CASH_POOL_RESULTS.md`；美股持有取舍`docs/restart/US_HOLDING_REVIEW.md`；旧价格诊断`docs/restart/RESULTS.md`，各自绑定冻结登记 |
 | CPU/GPU默认条件与执行 | `configs/compute_defaults.json`；`docs/COMPUTE_POLICY.md`；实测正文`docs/restart/PERFORMANCE_AUDIT.md`，原性能工作树保留作版本证据 |
 | 是否收尾、后续验证与Git交付 | `docs/restart/PHASE_CLOSEOUT.md`；不以工程通过代替投资问题已回答 |
+| 标普长历史与真实入场后5/10年 | `docs/restart/ENTRY_HORIZONS_RESULTS.md`；规则在`ENTRY_HORIZONS_PROTOCOL.md`，区分已裁定日历版本和旧原始版本 |
 | 本轮机器可读验收 | `DATA_ROOT/audits/restart-acceptance-20261020.json` |
 
 数据、研究和审计详细产物保存在仓库外的`DATA_ROOT`。不要从旧报告复制收益结论，
