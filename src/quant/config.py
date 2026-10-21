@@ -34,12 +34,21 @@ class Settings(BaseSettings):
     @property
     def staging_dir(self) -> Path:
         """Directory containing Parquet staging data."""
-        return self.data_root / "staging"
+        return self.active_data_dir / "staging"
+
+    @property
+    def active_data_dir(self) -> Path:
+        """Resolve the atomic snapshot pointer, retaining legacy compatibility."""
+        from quant.data.snapshots import SnapshotStore
+
+        store = SnapshotStore(self.data_root)
+        current = store.current()
+        return store.path(current) if current else self.data_root
 
     @property
     def qlib_cn_daily_uri(self) -> Path:
         """Directory containing qlib China daily data."""
-        return self.data_root / "qlib" / "cn_daily"
+        return self.active_data_dir / "qlib" / "cn_daily"
 
     @property
     def qlib_us_daily_uri(self) -> Path:

@@ -1,0 +1,71 @@
+schema_version: 1
+status: prespecified_extensions_exploratory
+style_portfolios:
+  pairs: [[csi300_etf, dividend_lowvol], [csi300_etf, dividend_lowvol100]]
+  weight: 0.5
+  annual_rebalance: [true, false]
+  reinvest_dividends: [true, false]
+  initial: 100000
+  monthly: 1000
+  tranches: 12
+  comparison: same_dates_costs_and_funding_single_funds_and_50_50_pool
+event_analysis:
+  crisis_gap_days: 120
+  horizons: [20, 60, 126, 252, 756, 1260, 2520]
+  bootstrap_seed: 20261020
+  bootstrap_repetitions: 2000
+  unit: calendar_crisis_cluster_not_independent_daily_signal
+  leave_one_cluster_out: true
+  simultaneous_markets_independent: false
+  selection: none
+fx_and_premium:
+  first_currency_scenario: '2016-10-20'
+  assets: [sp500, nasdaq100]
+  funding_currency: CNY
+  exchange_rate: fred_dexchus
+  fx_lag_sessions: 1
+  maximum_fx_staleness_days: 7
+  initial_premium: [0, 0.02, 0.05, 0.10]
+  premium_decay_calendar_days: 365
+  policy: unconditional_and_stabilized
+  classification: translated_price_index_and_hypothetical_premium_not_actual_QDII_history
+derivatives:
+  assets: {csi300: IF, sse50: IH, csi500: IC, csi1000: IM}
+  options: {csi300: IO, sse50: HO, csi1000: MO}
+  basis:
+    first_aligned_close: '2016-01-01'
+    target_calendar_days: 30
+    interpolation: bracketed_expiries_only_no_extrapolation
+    historical_window_years: 3
+    seasonal_window_calendar_days: 45
+    minimum_prior_observations: 40
+    stress_percentile: 0.10
+    relief_percentile: 0.30
+    claim: empirical_seasonal_basis_not_fully_carry_adjusted_without_expected_dividends
+  options_activity:
+    delta_abs_range: [0.05, 0.15]
+    maturity_days: [7, 45]
+    stress_percentile: 0.90
+    history_years: 2
+    delta_definition: exchange_reported_signed_delta
+    volume_definition: premium_turnover_and_contract_volume_separate
+    zero_dte: expiry_day_summary_only_not_US_daily_expiration_or_intraday_hedging
+    gamma: blocked_actual_dealer_direction_and_synchronized_quotes_missing
+  publication_lag_sessions: [1, 2]
+  decision: pressure_event_then_five_no_new_lows_above_MA10_plus_factor_relief_within_20_sessions
+  pre_2016_close_mismatch: excluded_from_spot_close_comparison
+  expiry_calendar: independently_pinned_observed_China_calendar_reconstruction_not_verified_historical_notices
+additional_pressure:
+  us_volatility_index: {nasdaq100: cboe_vxn}
+  skew_assets: [sp500]
+  total_putcall_assets: [sp500, nasdaq100]
+  shanghai_margin_assets: [csi300, sse50]
+  margin_peak_window: 252
+  margin_drawdown: -0.10
+  margin_change_sessions: 5
+  high_percentile: 0.90
+  relieved_percentile: 0.70
+  index_percentile_years: 5
+  observation_lag_sessions: [1, 2]
+  ttl_calendar_days: 7
+  claims: market_pressure_proxies_not_forced_liquidation_or_net_dealer_gamma

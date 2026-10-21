@@ -1,0 +1,258 @@
+{
+  "schema_version": 1,
+  "symbol": "sh510300",
+  "publisher": "Huatai-PineBridge",
+  "coverage_start": "2012-05-04",
+  "coverage_end": "2026-10-19",
+  "actions": [
+    {
+      "event_id": "sh510300_split_20120511",
+      "kind": "split",
+      "ex_date": "2012-05-11",
+      "record_date": "2012-05-11",
+      "announcement_date": "2012-05-09",
+      "confirmation_date": "2012-05-15",
+      "ratio": 0.37094933,
+      "scope": "prelisting_NAV_reconciliation_only"
+    },
+    {
+      "announcement_date": "2012-12-12",
+      "record_date": "2012-12-17",
+      "ex_date": "2012-12-18",
+      "pay_date": "2012-12-24",
+      "event_id": "sh510300_dividend_20121218",
+      "kind": "dividend",
+      "per_share": 0.033
+    },
+    {
+      "announcement_date": "2014-01-15",
+      "record_date": "2014-01-20",
+      "ex_date": "2014-01-21",
+      "pay_date": "2014-01-27",
+      "event_id": "sh510300_dividend_20140121",
+      "kind": "dividend",
+      "per_share": 0.048
+    },
+    {
+      "announcement_date": "2015-01-14",
+      "record_date": "2015-01-19",
+      "ex_date": "2015-01-20",
+      "pay_date": "2015-01-23",
+      "event_id": "sh510300_dividend_20150120",
+      "kind": "dividend",
+      "per_share": 0.035
+    },
+    {
+      "announcement_date": "2016-01-14",
+      "record_date": "2016-01-19",
+      "ex_date": "2016-01-20",
+      "pay_date": "2016-01-25",
+      "event_id": "sh510300_dividend_20160120",
+      "kind": "dividend",
+      "per_share": 0.051
+    },
+    {
+      "announcement_date": "2017-01-17",
+      "record_date": "2017-01-20",
+      "ex_date": "2017-01-23",
+      "pay_date": "2017-01-26",
+      "event_id": "sh510300_dividend_20170123",
+      "kind": "dividend",
+      "per_share": 0.055
+    },
+    {
+      "announcement_date": "2018-01-17",
+      "record_date": "2018-01-22",
+      "ex_date": "2018-01-23",
+      "pay_date": "2018-01-26",
+      "event_id": "sh510300_dividend_20180123",
+      "kind": "dividend",
+      "per_share": 0.046
+    },
+    {
+      "announcement_date": "2019-01-10",
+      "record_date": "2019-01-15",
+      "ex_date": "2019-01-16",
+      "pay_date": "2019-01-21",
+      "event_id": "sh510300_dividend_20190116",
+      "kind": "dividend",
+      "per_share": 0.059
+    },
+    {
+      "announcement_date": "2019-12-05",
+      "record_date": "2019-12-10",
+      "ex_date": "2019-12-11",
+      "pay_date": "2019-12-16",
+      "event_id": "sh510300_dividend_20191211",
+      "kind": "dividend",
+      "per_share": 0.062
+    },
+    {
+      "announcement_date": "2021-01-11",
+      "record_date": "2021-01-15",
+      "ex_date": "2021-01-18",
+      "pay_date": "2021-01-21",
+      "event_id": "sh510300_dividend_20210118",
+      "kind": "dividend",
+      "per_share": 0.072
+    },
+    {
+      "announcement_date": "2022-01-12",
+      "record_date": "2022-01-18",
+      "ex_date": "2022-01-19",
+      "pay_date": "2022-01-24",
+      "event_id": "sh510300_dividend_20220119",
+      "kind": "dividend",
+      "per_share": 0.075
+    },
+    {
+      "announcement_date": "2023-01-09",
+      "record_date": "2023-01-13",
+      "ex_date": "2023-01-16",
+      "pay_date": "2023-01-19",
+      "event_id": "sh510300_dividend_20230116",
+      "kind": "dividend",
+      "per_share": 0.064
+    },
+    {
+      "announcement_date": "2024-01-11",
+      "record_date": "2024-01-17",
+      "ex_date": "2024-01-18",
+      "pay_date": "2024-01-23",
+      "event_id": "sh510300_dividend_20240118",
+      "kind": "dividend",
+      "per_share": 0.069
+    },
+    {
+      "announcement_date": "2025-06-11",
+      "record_date": "2025-06-17",
+      "ex_date": "2025-06-18",
+      "pay_date": "2025-06-27",
+      "event_id": "sh510300_dividend_20250618",
+      "kind": "dividend",
+      "per_share": 0.088
+    },
+    {
+      "announcement_date": "2026-01-12",
+      "record_date": "2026-01-16",
+      "ex_date": "2026-01-19",
+      "pay_date": "2026-01-27",
+      "event_id": "sh510300_dividend_20260119",
+      "kind": "dividend",
+      "per_share": 0.123
+    }
+  ],
+  "evidence": [
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_dividend_00.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1767950700103-20260109-172203-669.pdf",
+      "sha256": "d4073f5225643a5ef6265ba91ea7758dc92bec9fe47ba26b15e159808c86d552",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_dividend_01.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1749541083497-htbrhs300jyxkfszszqtzjjfhgg.pdf",
+      "sha256": "ace1d190bfe1a8e49676545854f82a5a8736d55dbe5802f5fed20981dbbd7728",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_dividend_02.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1704874922035-htbrhs300jyxkfszszqtzjjfhgg.pdf",
+      "sha256": "691104d07d7722233b2edbdf2ea75b5b13de508bb563dccb5e5f5128bcafd5a8",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_dividend_03.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1673237008274-htbrhs300jyxkfszszqtzjjfhgg.pdf",
+      "sha256": "3f590f221de7f87ca66ad59848eed156f6c3334c0ec2f9596f1de6bf0190cf6d",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_dividend_04.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1641900109264-htbrhs300jyxkfszszqtzjjfhgg.pdf",
+      "sha256": "9e886b1ae9726a86783abaeb97f3d632a3a8f425f44f5fbe97d28bf68246d1be",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_dividend_05.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1575508443555-htbrhs300jyxkfszszqtzjj2019nlsgg_fhbscjjfhgg.pdf",
+      "sha256": "4a29d63d0f43642d4e9d74d2008b06c50d693cb1cb33d43adfc7dc6773d5038d",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_dividend_06.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/2017-01-17-083702-huataiborui300ETF2016nianfenhonggonggao.pdf",
+      "sha256": "50a2efdfcb3d70c1497a2f58edab630bfa7aa0fdc249d899d4b5f3e7395362ae",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_dividend_07.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/2016-01-14-085823-huataiboruijijinhushen300ETFfenhonggonggao.pdf",
+      "sha256": "0b354b7369ab2818e613d2427f754b7fa33ea12c8934772fe66817e9bfacd81a",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_extra_00.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1610324048975-htbrhs300jyxkfszszqtzjjsyfpgg.pdf",
+      "sha256": "2e35a1e401588cadfdaa4ca136262fd46a50b107261b5d3c028c8ef9d9a79630",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_extra_01.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1547082716096-htbrhs300%20jyxkfszszqtzjjsyfpgg.pdf",
+      "sha256": "79139fefbf473d5ef73dd7b63059ac986a108e19851bdbc916d77e9e85374574",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_extra_02.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1516148318312-htbrhs300jyxkfszszqtzjjsyfpgg.pdf",
+      "sha256": "a6a4d97bc0770859b4e31c3b45f44e3d7e1478d887f38d1600167ab28643da7f",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_extra_03.pdf",
+      "url": "https://www.huatai-pb.com/data/20150113152357300.pdf",
+      "sha256": "1283cc43fef60ca994c9f62c52ebb52e9ab68dd6bf6ab974a68220cc5a945940",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_extra_04.pdf",
+      "url": "https://www.huatai-pb.com/data/20140114155942300etf%20.pdf",
+      "sha256": "c5d4d30a7df3ce87c6b278acf427cd96b9e4d9184dd148cff1a7435f6aa57aa6",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_extra_05.pdf",
+      "url": "https://www.huatai-pb.com/data/20121211173433300.pdf",
+      "sha256": "71ebcf3aca16da434ed468b461938659c38394d21abc7eb254ac66a02d90bc26",
+      "role": "verified_dividend_announcement"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_extra_06.pdf",
+      "url": "https://www.huatai-pb.com/upload/pdf/1640050397893-huataiboruihushen300ETFjijinfenezhesuanjieguodegonggao.pdf",
+      "sha256": "57e69fce3fac9f8b1695e9d96e98aa0643b2a7aa685fffbc8830541f11bbe5c7",
+      "role": "prelisting_split_result"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_extra_07.html",
+      "url": "https://www.huatai-pb.com/contents/2012/5/15-037f1847d51f7af8e063260212ace593.html",
+      "sha256": "6c5671db91ad3d486a67e76e175459cc75da1bdfa0dfac9c5df5360e527831a8",
+      "role": "prelisting_split_result"
+    },
+    {
+      "data_root_relative_path": "source_probes/20261020T170250Z/huatai510300_split_initial.html",
+      "url": "https://www.huatai-pb.com/contents/2012/5/9-037f1847d5257af8e063260212ace593.html",
+      "sha256": "1b79b1bb257044b3e213e1fa2d53ad16e2c413f2769eae669ea4f7079b890f01",
+      "role": "initial_split_date_notice_20120509"
+    }
+  ],
+  "review": "14 original distribution notices; prelisting conversion is used only for issuer cumulative-NAV reconciliation, not re-applied to listed trading prices; historical NAV rounding precision differs.",
+  "nav_precision_periods": [
+    {
+      "start": "2012-05-04",
+      "end": "2013-01-04",
+      "unit_decimals": 3,
+      "cumulative_decimals": 3
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+schema_version: 1
+status: exploratory_seen_history_no_unseen_test_claim
+reason: audit_annual_sampling_after_observing_ten_year_ETF_exit_results
+assets: [csi300_etf, dividend_lowvol, dividend_lowvol100]
+selection: all_three_ETFs_with_reviewed_actions_not_return_ranking
+experiments: [pool_unconditional_core0, legacy_dca, pool_stabilized_core0, recovery_exit_stabilized]
+rolling_years: [5, 10]
+window_rule: every_calendar_month_end_and_latest_observed_end
+funding_and_costs: unchanged_primary_registration
+limitations: highly_overlapping_windows_not_independent_trials

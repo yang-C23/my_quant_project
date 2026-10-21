@@ -1,0 +1,96 @@
+schema_version: 1
+protocol_version: cash-pool-stages-v1
+base_universe_config: configs/longterm.yaml
+research_mode: exploratory
+funding: {initial: 100000, monthly: 1000, tranches: 12}
+execution: {commission_rate: 0.0003, minimum_commission: 0, slippage_bps: 5, cash_yield: 0}
+stages:
+  drawdown: 0.20
+  sigma: 2.0
+  confirmation: 5
+  event_window: 20
+  quiet_sessions: 20
+  relief_fraction: 0.80
+  volatility_lag: 5
+  vix_high_percentile: 0.90
+  vix_relief_fraction: 0.80
+primary_entries: [unconditional, pressure, stabilized, relief, vix_relief, margin_relief, position_relief, kdj]
+valuation_entries: [valuation, value_pressure, value_stabilized, value_relief, value_vix_relief, value_kdj]
+valuation_metrics: [pe, pb, dividend_yield, earnings_yield_spread, dividend_yield_spread]
+valuation_windows: [5, 10, expanding_10]
+valuation_exits: [valuation_time, valuation_tiers]
+core_fractions: [0, 0.25, 0.5]
+cash_controls:
+  equity_contribution_fractions: [0, 0.25, 0.5, 0.75]
+  rule: fixed_fraction_of_initial_and_monthly_contributions_buy_and_hold_remainder_cash
+  rebalance: false
+primary_valuation: {metric: pe, window: 10, buy_threshold: 0.4, sell_threshold: 0.8}
+value_stage_sequence: cheap_on_pressure_date_and_still_cheap_at_confirmation
+signal_comparison_event_tranches: 0
+operational_event_tranches: [1, 2, 3]
+batch_counts: [3, 6, 12]
+parameter_neighbors:
+  drawdown: [0.15, 0.25]
+  sigma: [1.5, 2.5]
+  confirmation: [3, 7]
+  relief_fraction: [0.65, 0.95]
+  volatility_lag: [1]
+valuation_neighbors:
+  buy_threshold: [0.2, 0.3, 0.5]
+  sell_threshold: [0.75, 0.85]
+dynamic_deep_threshold: 0.2
+sensitivity:
+  monthly_ratio: [0.005, 0.02]
+  commission_rate: [0.0001, 0.001]
+  slippage_bps: [0, 15]
+  initial: [50000, 200000]
+  supplemental_release_extra_sessions: [1, 3]
+validation:
+  initial_price_warmup: 252
+  chronological_split: [0.50, 0.25, 0.25]
+  retrospective_seen_history: true
+  rolling_years: [5, 10, 15]
+  rolling_step_years: 1
+  overlapping_windows_independent: false
+  waiting_months: [6, 12, 24]
+  waiting_limit_forces_entry: false
+  bootstrap_seed: 20261020
+  bootstrap_repetitions: 2000
+  selection: none_until_formal_data_acceptance
+  neighbor_windows: [full, latest_5y, latest_10y, latest_15y]
+  common_start: '2016-10-20'
+  event_horizons_sessions: [20, 60, 126, 252, 756, 1260, 2520]
+supplemental:
+  vix_percentile_years: 5
+  finra_release_lag_months: [1, 2]
+  finra_release_rule: end_of_following_month_conservative_assumption_not_verified
+  cftc_release_lag_days: [10, 17]
+  cftc_release_rule: lagged_observation_sensitivity_not_verified_release_history
+  stale_weekly_days: 14
+  stale_monthly_days: 70
+  pit_status: latest_vintage_exploration_only
+shiller_exploration:
+  source: shiller_monthly
+  assets: [sp500]
+  observation_lag_months: [6, 12]
+  metrics: [pe, cape, dividend_yield, earnings_yield_spread, dividend_yield_spread]
+  first_comparable_month: '1957-03-31'
+  maximum_staleness_after_assumed_release_days: 35
+  status: revised_interpolated_monthly_proxy_not_verified_historical_index_valuation
+dividend_policy:
+  default: reinvest_paid_cash
+  additional_comparison: preserve_cash_distributions
+  signal_price: causal_gross_total_return_removes_mechanical_ex_distribution_drop
+  execution_price: raw_price_with_verified_company_actions
+  selection: named_product_case_study_not_survivorship_free_universe_selection
+corporate_action_sources:
+  dividend_lowvol: issuer_actions_sh512890
+  dividend_lowvol100: issuer_actions_sh515100
+  csi300_etf: issuer_actions_sh510300
+additional_assets:
+  - {id: csi300_etf, name: 华泰柏瑞沪深300ETF, market: CN, index: sh510300, instrument_kind: ETF, etfs: [sh510300]}
+technical_exit:
+  name: recovery_time
+  rule: three_monthly_sales_after_close_recovers_fixed_pre_event_252_session_high
+  interpretation: price_recovery_experiment_not_high_valuation
+  entries: [pressure, stabilized, relief]

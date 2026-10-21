@@ -1,64 +1,44 @@
-# ONBOARDING.md — 空白上下文冷接手引导
+# 接手入口
 
-本文件是一段**可直接粘贴进任意 AI 编码工具**的引导语。任何模型/工具在没有任何先验上下文时，
-照此执行即可安全接手本仓库。全部流程存在于仓库内、跟 git 走——不要依赖本对话之外的记忆。
+从任何agent、空白上下文或新工作树接手，按以下顺序执行。
 
----
+1. 阅读 [AGENTS.md](../AGENTS.md)、[任务看板](tasks/STATUS.md)、[总计划](restart/MASTER_PLAN.md)及当前任务卡。
+2. 检查 `git status --short --branch` 和 `git worktree list`，保留用户及其他工作树的修改。
+3. 在仓库根目录执行 `scripts/quant doctor`。新环境先执行 `python3 scripts/bootstrap_env.py`；使用 `.env` 的数据路径。
+   使用[项目skill](../skills/quant-analyst-myproj/SKILL.md)和[默认计算条件](COMPUTE_POLICY.md)，
+   重计算前运行`scripts/quant resources --workload 对应类别`；直接脚本通过compute-run准入。
+4. 数据相关工作读 [数据契约](data_platform.md)，研究相关工作读 [研究协议](restart/RESEARCH_PROTOCOL.md)。
+5. 在已授权任务分支实施。更新看板中的证据、缺口和下一步；已批准的总计划可连续推进多个阶段。
+6. 提交前执行 `scripts/quant test`、`scripts/quant lint` 及当前阶段真实验收；记录实际输出。
 
-## 冷接手引导语（复制以下整段）
+## 事实源
 
-> 你正在接手 `my_quant_project`（A股量化研究平台 v2）。这是一个**双代理开发仓库**，
-> 全部规则以仓库内文件为准。请严格按下列步骤，不要自行发明流程。
->
-> **第 0 步 · 确认你的角色**
-> - 如果你要**写代码 + 单测** → 你是开发者，先完整读 `AGENTS.md`。
-> - 如果你要**写任务卡 / 审查 / 合并 / 打 tag** → 你是规划者/审查者，先完整读 `CLAUDE.md`。
-> - 两种角色随后都必须读 `docs/workflow.md`（状态机全文）与 `docs/tasks/STATUS.md`（唯一活状态源）。
->
-> **第 1 步 · 只做一张卡（开发者）**
-> - 从 `docs/tasks/STATUS.md` 选一张**状态 = `ready` 且指派给你（或无指派）**的卡；
->   `backlog` / 其他状态的卡一律不许动。
-> - 任务卡的 Context / Scope / Non-goals / Files-to-touch / Acceptance criteria 是**唯一需求来源**：
->   卡里没写的不要做，写了的必须做完。
-> - 从 `v2` 切出分支 `task/TASK-XXX-<slug>`，所有提交都在该分支；提交信息用
->   `type(scope): summary [TASK-XXX]`。
->
-> **第 2 步 · 守住硬红线（违反 = 直接打回，且大多有机器门会拦你）**
-> - 改动文件**不得超出**该卡 `## Files to touch` 白名单 → `python scripts/check_whitelist.py` 会拦。
-> - `src/quant/` 内**禁止硬编码绝对路径**（用 `quant.config.Settings` / `.env`）→ `python scripts/check_no_hardcoded_paths.py` 会拦。
-> - **不提交 >200KB 数据文件**；单测不联网、只用 `tests/fixtures/` 与 `tmp_path`。
-> - **金融正确性**：指标只用 ≤t 数据（禁未来函数）；入场一律 t 日信号 → t+1 开盘；
->   有涨跌停/停牌标记时必须过滤不可成交样本。语义见 `docs/conventions.md`、`docs/backtest_platform.md`。
-> - **永不**自行合并到 `v2`/`main`、永不打 tag、永不 push `main`。
->
-> **第 3 步 · 提交前必须全绿（本地先跑）**
-> ```bash
-> ruff check . && ruff format --check .
-> pytest -q -m "not integration"
-> python scripts/check_no_hardcoded_paths.py
-> python scripts/check_whitelist.py          # 在 task 分支上
-> ```
-> 外加：卡内每一条 Acceptance criteria 命令本地可跑且结果符合预期。
->
-> **第 4 步 · 收尾**
-> - 全部满足 → 把 `docs/tasks/STATUS.md` 中自己那行状态改为 `review` 并提交 → **停止**，等审查者。
-> - 若实现中发现卡本身设计不可行 → 不要绕路自造方案，在 STATUS.md 备注列说明并置 `review`，等规划者改卡。
-
----
-
-## 机器门一览（无需记忆，跑绿即可）
-
-流程红线尽量由检查强制，清单见 `docs/workflow.md` §机器强制门。你不需要背规则，
-只要让下列命令全绿、并跑通卡内验收命令即可：`ruff`、`pytest -m "not integration"`、
-`check_no_hardcoded_paths.py`、`check_whitelist.py`（task 分支）。语义级红线（未来函数、
-对齐口径）无法机器化，由任务卡验收命令 + 规划者审查把守。
-
-## 延伸阅读（按需）
-
-| 要做什么 | 先读 |
+| 问题 | 唯一正文/查询 |
 |---|---|
-| 为什么是这个架构 | `docs/architecture.md` + `docs/decisions/ADR-000x` |
-| 里程碑与 gate | `docs/roadmap.md` |
-| ETL / staging / qlib dump | `docs/data_platform.md` |
-| 指标移植 | `docs/indicators/README.md` |
-| 回测 / 事件研究 / 约束语义 | `docs/backtest_platform.md` |
+| 当前阶段、未决问题 | `docs/tasks/STATUS.md` |
+| 本轮全部范围 | `docs/restart/MASTER_PLAN.md` |
+| 模块与依赖 | `docs/architecture.md` |
+| 数据schema、单位、复权 | `docs/data_platform.md` |
+| 资金、策略、绩效定义 | `docs/restart/RESEARCH_PROTOCOL.md` |
+| 来源授权与适用边界 | `configs/data_sources.yaml`；证据解读 `docs/restart/DATA_SOURCES.md` |
+| 冻结实验参数 | 原基线`configs/longterm.yaml`；主组`cash_pool.yaml`、扩展`cash_pool_extensions.yaml`、追加`current_price_pe.yaml`及`confirmation_horizon.yaml`；最终以各运行`registration.json`为准 |
+| 运行、恢复、定时器 | `docs/restart/OPERATIONS.md` |
+| 当前数据版本 | `DATA_ROOT/current.json` |
+| 最新研究与告警 | `DATA_ROOT/research/latest.json`、`DATA_ROOT/monitor/latest.json` |
+| 已计算结果与证据限制 | 最新`docs/restart/MORNING_REVIEW_20261021.md`→`ETF_TOTAL_RETURN_RESULTS.md`；旧现金池`CASH_POOL_RESULTS.md`及价格报告保留，各自绑定冻结登记 |
+| CPU/GPU默认条件与执行 | `configs/compute_defaults.json`；`docs/COMPUTE_POLICY.md`；实测正文`docs/restart/PERFORMANCE_AUDIT.md`，原性能工作树保留作版本证据 |
+| 是否收尾、后续验证与Git交付 | `docs/restart/PHASE_CLOSEOUT.md`；不以工程通过代替投资问题已回答 |
+| 标普长历史与真实入场后5/10年 | `docs/restart/ENTRY_HORIZONS_RESULTS.md`；规则在`ENTRY_HORIZONS_PROTOCOL.md`，区分已裁定日历版本和旧原始版本 |
+| 含分红ETF、历史版本估值与真实等待利息 | `docs/restart/ETF_TOTAL_RETURN_RESULTS.md`；数据裁定`ETF_DATA_AUDIT.md`；冻结版本/完整命令`REPRODUCING_ETF_RESEARCH.md`；已完成7组及重放，不默认重启 |
+| 本轮机器可读验收 | `DATA_ROOT/audits/restart-acceptance-20261020.json` |
+
+数据、研究和审计详细产物保存在仓库外的`DATA_ROOT`。不要从旧报告复制收益结论，
+不要把“解析成功”理解为“数据已准入”，不要把影子监控的暂停信息解读为卖出建议。
+
+目前所有新投资结论均需通过数据和研究门槛。20交易日影子运行必须按真实时间累计，
+历史重放不计天数。费用和预算示例不是用户真实账户状态。
+
+交接至少写明：分支/提交、解释器/源码位置、快照ID、配置与数据版本、已执行命令、
+测试结果、未决门槛、下一条可执行命令。无需依赖某一模型或之前的聊天记录。
+
+总计划各条要求的实现与剩余缺口见[交付映射](restart/DELIVERY_MATRIX.md)。

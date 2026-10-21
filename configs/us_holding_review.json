@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "purpose": "Retrospective synthesis of existing fixed rules, not new parameter optimization or unseen validation",
+  "assets": ["sp500", "nasdaq100"],
+  "horizons_years": [5, 10],
+  "experiments": ["legacy_lump_sum", "legacy_dca", "pool_unconditional_core0", "pool_stabilized_core0", "pool_stabilized_core0.5", "recovery_exit_stabilized"],
+  "selection_reason": "User question: long holding versus conditional entry and profit taking; retain all registered annual rolling and latest windows for these six mechanisms",
+  "baseline": "pool_unconditional_core0",
+  "interpretation": "Price-index accounts with identical external cash-flow schedules; overlapping retrospective windows, not independent samples or ETF performance",
+  "first_buy_measure": "Calendar time from first actual purchase to account end, not continuous holding duration"
+}

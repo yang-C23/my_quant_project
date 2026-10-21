@@ -31,8 +31,8 @@ def _shares_timeline(gbbq: pd.DataFrame) -> pd.DataFrame:
     if shares.empty:
         return pd.DataFrame(columns=["symbol", "date", "float_shares", "total_shares"])
     shares["date"] = pd.to_datetime(shares["date"])
-    shares["float_shares"] = shares["c3"].astype(float) * 10_000.0
-    shares["total_shares"] = shares["c4"].astype(float) * 10_000.0
+    shares["float_shares"] = shares["c3"].astype(float).where(shares["c3"] > 0) * 10_000.0
+    shares["total_shares"] = shares["c4"].astype(float).where(shares["c4"] > 0) * 10_000.0
     return shares[["symbol", "date", "float_shares", "total_shares"]].sort_values(
         ["symbol", "date"]
     )
@@ -42,8 +42,8 @@ def _attach_shares(daily: pd.DataFrame, gbbq: pd.DataFrame) -> pd.DataFrame:
     shares = _shares_timeline(gbbq)
     if shares.empty:
         daily = daily.copy()
-        daily["float_shares"] = 0.0
-        daily["total_shares"] = 0.0
+        daily["float_shares"] = np.nan
+        daily["total_shares"] = np.nan
         return daily
 
     parts: list[pd.DataFrame] = []
@@ -53,8 +53,8 @@ def _attach_shares(daily: pd.DataFrame, gbbq: pd.DataFrame) -> pd.DataFrame:
         ]
         if share_part.empty:
             enriched = daily_part.copy()
-            enriched["float_shares"] = 0.0
-            enriched["total_shares"] = 0.0
+            enriched["float_shares"] = np.nan
+            enriched["total_shares"] = np.nan
         else:
             enriched = pd.merge_asof(
                 daily_part.sort_values("date"),
@@ -62,9 +62,7 @@ def _attach_shares(daily: pd.DataFrame, gbbq: pd.DataFrame) -> pd.DataFrame:
                 on="date",
                 direction="backward",
             )
-            enriched[["float_shares", "total_shares"]] = enriched[
-                ["float_shares", "total_shares"]
-            ].fillna(0.0)
+            enriched[["float_shares", "total_shares"]] = enriched[["float_shares", "total_shares"]]
         parts.append(enriched)
     return pd.concat(parts, ignore_index=True)
 
@@ -80,18 +78,18 @@ def compute_basics(daily: pd.DataFrame, gbbq: pd.DataFrame) -> pd.DataFrame:
     frame["pct_chg"] = np.where(
         frame["preclose"].gt(0),
         ((frame["close"] - frame["preclose"]) / frame["preclose"] * 100.0).round(2),
-        0.0,
+        np.nan,
     )
     frame["amplitude"] = np.where(
         frame["preclose"].gt(0),
         ((frame["high"] - frame["low"]) / frame["preclose"] * 100.0).round(2),
-        0.0,
+        np.nan,
     )
     frame = _attach_shares(frame, gbbq)
     frame["turnover"] = np.where(
         frame["float_shares"].gt(0),
         (frame["volume"].astype(float) / frame["float_shares"]).round(6),
-        0.0,
+        np.nan,
     )
     frame["float_mktcap"] = (frame["float_shares"] * frame["close"].astype(float)).round(2)
     frame["total_mktcap"] = (frame["total_shares"] * frame["close"].astype(float)).round(2)
@@ -114,6 +112,9 @@ def compute_basics(daily: pd.DataFrame, gbbq: pd.DataFrame) -> pd.DataFrame:
 
 def build_basics_staging(staging_dir: Path) -> int:
     """Build ``staging/basics.parquet`` from daily and gbbq staging tables."""
+    from quant.data.snapshots import assert_unsealed
+
+    assert_unsealed(staging_dir)
     daily = _read_staging_table(staging_dir, "daily")
     gbbq = _read_staging_table(staging_dir, "gbbq")
     basics = compute_basics(daily, gbbq)

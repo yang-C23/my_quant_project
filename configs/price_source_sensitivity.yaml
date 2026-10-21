@@ -1,0 +1,21 @@
+schema_version: 1
+status: prespecified_source_sensitivity_exploratory
+assets:
+  csi300: baostock_sh000300
+  sse50: baostock_sh000016
+  csi500: baostock_sh000905
+  csi1000: baostock_sh000852
+  chinext: baostock_sz399006
+experiments:
+  - legacy_dca
+  - pool_unconditional_core0
+  - pool_pressure_core0
+  - pool_stabilized_core0
+  - pool_relief_core0
+  - pool_kdj_core0
+  - pool_stabilized_core0.5
+  - recovery_exit_stabilized
+windows: full_and_all_five_ten_year_windows
+missing_alternative_dates: block_without_filling_or_shortening_account
+selection: none
+claim: two_source_sensitivity_not_adjudication_of_exchange_truth

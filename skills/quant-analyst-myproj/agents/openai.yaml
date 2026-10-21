@@ -1,0 +1,6 @@
+interface:
+  display_name: "量化平台研究与维护"
+  short_description: "维护本地量化平台，按共享资源预算执行可复现的宽基与红利研究"
+  default_prompt: "使用 $quant-analyst-myproj 接手当前量化平台，先检查任务状态和共享计算资源，再执行已授权工作。"
+policy:
+  allow_implicit_invocation: true

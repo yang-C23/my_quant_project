@@ -180,3 +180,78 @@ def test_stop_exit_defers_when_next_open_is_limit_down() -> None:
     trade = result.trades.iloc[0]
     assert trade["exit_signal_date"] == pd.Timestamp("2020-01-04")
     assert trade["exit_date"] == pd.Timestamp("2020-01-06")
+
+
+def test_dead_cross_exit_defers_when_next_open_is_limit_down() -> None:
+    prices = _prices()
+    prices["limit_down_price"] = np.nan
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-03")), "limit_down_price"] = 11.0
+
+    result = run_pair_study(
+        _signal("2020-01-01"),
+        {"dead_cross": _signal("2020-01-02")},
+        prices,
+        max_hold=5,
+    )
+
+    trade = result.trades.iloc[0]
+    assert trade["exit_reason"] == "dead_cross"
+    assert trade["exit_signal_date"] == pd.Timestamp("2020-01-02")
+    assert trade["exit_date"] == pd.Timestamp("2020-01-04")
+    assert trade["exit_price"] == pytest.approx(12.0)
+    assert trade["return"] == pytest.approx(0.20)
+    assert trade["exit_date"] > pd.Timestamp("2020-01-03")
+
+
+def test_max_hold_exit_defers_when_next_open_is_limit_down() -> None:
+    prices = _prices()
+    prices["limit_down_price"] = np.nan
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-04")), "limit_down_price"] = 12.0
+
+    result = run_pair_study(_signal("2020-01-01"), {}, prices, max_hold=2)
+
+    trade = result.trades.iloc[0]
+    assert trade["exit_reason"] == "max_hold"
+    assert trade["exit_signal_date"] == pd.Timestamp("2020-01-03")
+    assert trade["exit_date"] == pd.Timestamp("2020-01-05")
+    assert trade["exit_price"] == pytest.approx(9.0)
+    assert trade["return"] == pytest.approx(-0.10)
+    assert trade["exit_date"] > pd.Timestamp("2020-01-04")
+
+
+def test_deferred_exit_mae_uses_delay_low_and_mfe_uses_exit_price() -> None:
+    prices = _prices()
+    prices["limit_down_price"] = np.nan
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-03")), "limit_down_price"] = 11.0
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-03")), "low"] = 8.0
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-03")), "high"] = 11.5
+
+    result = run_pair_study(
+        _signal("2020-01-01"),
+        {"dead_cross": _signal("2020-01-02")},
+        prices,
+        max_hold=5,
+    )
+
+    trade = result.trades.iloc[0]
+    assert trade["mae"] == pytest.approx(-0.20)
+    assert trade["mfe"] == pytest.approx(0.20)
+
+
+def test_deferred_exit_mae_uses_exit_price_below_all_held_lows() -> None:
+    prices = _prices()
+    prices["limit_down_price"] = np.nan
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-03")), "limit_down_price"] = 11.0
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-03")), "low"] = 8.0
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-04")), "open"] = 7.0
+    prices.loc[prices["date"].eq(pd.Timestamp("2020-01-04")), "raw_open"] = 7.0
+
+    result = run_pair_study(
+        _signal("2020-01-01"),
+        {"dead_cross": _signal("2020-01-02")},
+        prices,
+        max_hold=5,
+    )
+
+    trade = result.trades.iloc[0]
+    assert trade["mae"] == pytest.approx(-0.30)

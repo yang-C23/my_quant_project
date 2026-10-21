@@ -1,3 +1,5 @@
+> 2026-10-20范围说明：本文件保留旧个股研究路线与原实验冻结纪律。当前授权重启任务以`docs/restart/MASTER_PLAN.md`、`AGENTS.md`及任务看板为准；旧模型身份分工不约束新任务。
+
 # roadmap.md — 里程碑与通过门槛
 
 > 优先级来自用户需求：① 数据+回测平台 → ② 用已有指标验证回测系统 → ③ TradingView 可视化 → ④ 先A股后美股。
@@ -44,9 +46,29 @@
 
 ## M3 — 回测平台 + PG 退役（卡：TASK-030 ~ 033，届时补卡）
 
-030 qlib TopkDropout 基线 + mlflow ｜ 031 bt_feed + bt_constraints（T+1/涨跌停锁死/停牌回归测试）｜ 032 DualTrend bt 复现历史 `dualtrend_breath_*` 报告 ｜ 033 PG 归档 dump → 删除 db 代码/旧脚本/容器（ADR-0002 标记 executed）。
+030 qlib TopkDropout 基线 + mlflow ｜ 031 bt_feed + bt_constraints（T+1/涨跌停锁死/停牌回归测试）｜ 032 DualTrend bt 复现历史 `dualtrend_breath_*` 报告 ｜ 073 快照冻结 manifest + PG 归档 dump（033 前置，ADR-0005 §8）｜ 033 PG 归档退役 → 删除 db 代码/旧脚本、停容器（ADR-0002 标记 executed）。
 
-**Gate M3**：016/025/032 三份对齐报告全绿 **之后** 才允许合并 033；此后 `grep -r psycopg2 src/` 为空，停掉 pg_quant 容器全测试仍绿。
+**Gate M3**：016/025/032 三份对齐报告全绿 + TASK-073 manifest freeze/verify 通过 + **恢复演练**（规划者在无 pg_quant 容器环境从 dump 恢复并复跑 016/025/032 黄金验证，ADR-0005 §8）**之后** 才允许合并 033；此后 `grep -r psycopg2 src/` 为空，停掉 pg_quant 容器全测试仍绿。
+
+## M3.5 — Research Validity Hardening（卡：TASK-074 ~ 076 + 二批届时补卡）
+
+研究有效性加固（立项依据与全部裁定见 ADR-0005）。M4 可与之并行；**M6 被本 gate 阻塞**。
+
+| 批次 | 卡 | 内容 |
+|---|---|---|
+| 一批 | TASK-074 | 研究语义契约 LabelSpec：Tier1/IC 标签统一（消 off-by-one、IC 补 ashare 过滤、spec hash 进报告） |
+| 一批 | TASK-075 | 稳定哈希抽样（乱序不变、universe ±1 最多换 1 个成员、均匀性反截断） |
+| 一批 | TASK-076 | trade_pairs 退出语义统一（全部卖出受跌停/停牌约束 + MAE/MFE 顺延窗口） |
+| 一批 | TASK-077 | 工程债：worktree 测试隔离（pytest pythonpath）+ cli `__main__` 守卫 |
+| 二批 | TASK-078 | 日度 PIT EligibilityPanel + UniverseProfile 两档（research 3000万 / tradable 1亿 ADV20；非 ST、上市满 250 交易日、close≥1 元；**禁"未来收益完整"类前视过滤**，退市股留到退市日） |
+| 二批 | TASK-079 | UniverseProfile 接线（optimize/exploratory/qlib_topk 横截面按面板过滤 + 报告带 profile hash；等 071/074/075/078） |
+| 二批 | 届时补卡 | HAC/block bootstrap/聚类推断；trial ledger + holdout 访问台账；signed factor evaluator；FDR/DSR/PBO 报告；canonical 复利净值；executable return（费用/延期/部分成交 + 退市清算语义）；成本容量与冲击；benchmark suite |
+
+**Gate M3.5**（详见 ADR-0005 §2–§7；通过后才开 R2 正式研究与 M6 晋级类卡）：
+① 事件研究/IC/未来 ML 标签引用同一 LabelSpec 且报告带 spec hash；② 抽样变形测试全过，
+正式研究默认全 universe；③ 重叠推断工具（HAC/block bootstrap）与参考实现对拍一致；
+④ trial ledger 与 holdout 台账运转（全部试验入账、OOS 消费自动标记）；⑤ 对抗验收：
+合成随机无 alpha 因子集的晋级率 ≈ 预声明一类错误率。
 
 ## M4 — 看板 + Pine（卡：TASK-040 ~ 043，届时补卡）｜优先级③
 
@@ -63,8 +85,9 @@
 ## M6 — 因子模型 / ML（届时补卡）
 
 指标→因子数据集 handler、LightGBM 基线（GPU 可选）、walk-forward 验证协议、IC 报告体系。与 qlib Alpha158 对比基线。
+**前置：M3.5 gate 通过（ADR-0005）**；模型复杂度阶梯 signed rank → 线性 → 正则 → 浅 LightGBM，逐层同协议增量晋级。
 
-**Gate M6**：walk-forward 报告 + 规划者走查（无泄漏、无过拟合红旗）。
+**Gate M6**：walk-forward 报告 + 规划者走查（无泄漏、无过拟合红旗）+ ADR-0005 统计/经济/执行门（trial ledger 完整、FDR/DSR/PBO 达预冻结门槛、成本后 active return、容量分析）。
 
 ## R1 — 指标优化研究（与 M3/M4 并行的研究轨道）
 

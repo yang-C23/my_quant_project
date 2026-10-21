@@ -1,8 +1,69 @@
 # STATUS.md — 任务看板（唯一状态源）
 
-> 公告：当前开发环境 = `my_quant_env`（若 TASK-001 触发新建 `my_quant_v2`，由其 review 更新本行）。
-> 状态机与流程见 `docs/workflow.md`；`backlog` 的卡不许认领。
-> **冷接手**：先读 `docs/ONBOARDING.md` 按角色分流。开发者只做**状态=ready 且指派给你（或无指派）**的一张卡；改动文件不得超出该卡 `## Files to touch` 白名单（由 CI `scripts/check_whitelist.py` 强制）；提交前须跑通卡内全部验收命令 + 质量门（`ruff`、`pytest -m "not integration"`）。
+> 2026-10-21 当前任务 TASK-080，分支 task/TASK-080-etf-total-return-20261021。
+> 用户已授权整理并上传Git；研究分支已上传，草稿PR #1以v2为基线开放审阅，正式准入仍开放。
+> 使用 scripts/quant 固定当前工作树；总计划见 ../restart/MASTER_PLAN.md。
+> 以下旧任务状态保留作为历史记录，旧“角色分流/只准IS”不约束已授权的新研究。
+
+## 重启阶段
+
+| 阶段 | 状态 | 证据/下一步 |
+|---|---|---|
+| 基线与审计 | inventory_complete / legacy_review_open | 初始代码/数据/73产物清单已冻结；关键路径语义修复见[审计](../restart/AUDIT.md)，旧策略未全部复现 |
+| 工程与TDX修复 | implemented_and_tested | 独立环境、正确单位/份额拆分/公司行动、Decimal账本；新增ETF现金行动/历史版本适配后355项离线测试通过，包含spawn子进程统计及共享锁核验；3项遗留集成测试未运行；2项上游弃用警告保留 |
+| TDX更新 | structurally_accepted | 快照20261020T112255Z-2f1a3256f7；29,753,977行、12,490代码至10月19日；幂等、完整备份/隔离恢复通过 |
+| 替代源验收 | partial / formal_gate_open | 已采集及交叉核查；SPY/QQQ现金分配、BIL、129份有效历史估值存档已做探索；连续官方PIT、QQQ早期原始证据、SPHD支付、许可与历史成分仍缺，详见ETF_DATA_AUDIT.md |
+| 基准及扩展回测 | price_diagnostics_reproduced / formal_blocked | 冻结120项假设；1,063条指数价格实验/窗口记录、2,999条暂停，精确重放通过；[结果及限制](../restart/RESULTS.md) |
+| 用户疑问复核及现金池研究 | exploratory_report_delivered / formal_gate_open | 主研究197项、14205账户/853暂停；85364产物原样重放，实际重算170728文件哈希。扩展2136、Shiller384、现价PE408、双源1728、CFTC408、确认期限3660、月度ETF668账户全部保留并重放。6个VIX日历裁定另存；旧Put/Call错误48窗口、旧年报源码身份失败均保留。确认期限1708原规则等价账户及180未来追加测试通过。完整正负结果、分标的结论与复现索引见[CASH_POOL_RESULTS.md](../restart/CASH_POOL_RESULTS.md)；不能把重叠窗口或已见历史当正式最终样本外证据 |
+| CPU/GPU吞吐优化 | integrated / defaults_verified | 原性能实现已整合，冻结工作树不变。52账户原完整CLI 56.62→2.49秒；12worker仅适用已测账户批处理，GPU默认CPU。新默认入口两轮自动分配12worker，各52账户/260金融文件精确相同；内部负载1.97/2.02秒，不与原完整CLI混比。daily自动准入完成，12暂停/0建议。项目skill已安装Codex并同步Cursor/OpenCode，旧副本已备份。证据DATA_ROOT/audits/compute-defaults-20261020；见[性能正文](../restart/PERFORMANCE_AUDIT.md)和[默认计算条件](../COMPUTE_POLICY.md) |
+| 长期持有与入场/退出取舍（旧价格） | actual_entry_horizons_replayed / superseded_for_ETFs | 标普Cboe自1975年；d76a043的12,479账户/2,286队列/19,752行、74,939文件精确重放，38特征/73账户未来检查。NDX旧缺价影响563账户仍标记；新ETF输入已补1519.33但不改旧文件。旧价格及来源敏感性保留，见[原报告](../restart/ENTRY_HORIZONS_RESULTS.md) |
+| 含分红ETF、入场/退出及等待利息 | exploratory_review_ready / formal_gate_open | 主组2ba339d：3,697账户/886队列/6,576行；358满期、334未满期、194未入场；76估值起点/规则另排除。7组含诊断共9,835账户独立核验，59,717对产物、119,434实际文件重哈希完全相同；追加规则d49441e仍无满5年联合估值样本。SPY/QQQ/BIL公司行动、同窗口财富/本金/等待、红利低波及负结果见[ETF报告](../restart/ETF_TOTAL_RETURN_RESULTS.md)。BIL只为等待账户，不冒称完整结算组合 |
+| 本轮交付与代码收敛 | branch_uploaded / draft_review | 研究分支已推送公开origin，首次发布82ea150；[草稿PR #1](https://github.com/yang-C23/my_quant_project/pull/1)以v2为基线，未合并。355项本机测试、lint/doctor及新增历史公开范围检查通过；冻结源码和失败保留。报告入口在README，发布/远端CI回执存DATA_ROOT/audits/git-publication-20261021，最新云端结果以PR检查为准 |
+| 每日监控 | shadow_timer_active | UTC 00:30/09:30用户定时器已启用；首次完整更新/计算成功；12标的暂停、0交易建议；重复执行不增加日期计数，20真实交易日未验收 |
+| 长期维护 | ongoing | 文档与本机恢复具备；异地备份、正式数据晋级和未来20日验收待办 |
+
+旧价格研究/监控代码提交为`66df912cc215af2d651efdeef3e6174afb5f0d0c`；
+现金池及扩展各自以运行registration和冻结工作树为准，不用当前HEAD代替原源码重放。
+验收证据保存在`DATA_ROOT/audits/restart-acceptance-20261020/`，
+汇总为`DATA_ROOT/audits/restart-acceptance-20261020.json`。
+旧v1—v3快照及试跑保留；其ETF派生/原价绩效不能用于投资结论。
+
+## 当前接手顺序
+
+用户最新授权：整理上传Git，并分析下一阶段值得做的任务。
+本轮探索可封存并进入代码审阅，未创建正式策略晋级。总计划的正式数据和真实影子门槛仍未完成。
+运行先读[默认计算条件](../COMPUTE_POLICY.md)与项目skill，共享预算适用于所有新重计算。
+
+1. 优先读[晨间审阅](../restart/MORNING_REVIEW_20261021.md)、[ETF完整结果](../restart/ETF_TOTAL_RETURN_RESULTS.md)
+   和[复现手册](../restart/REPRODUCING_ETF_RESEARCH.md)。新主批`etf-total-return-v2-20261021`、
+   六组诊断及全部重放已完成，不默认重启；主源码`2ba339d`、追加事件规则`d49441e`各有冻结工作树。
+   机器统计位于`DATA_ROOT/audits/us-etf-20261021/report-v2`，详细账本在各research目录。
+   本次授权的任务分支已上传并建立[草稿PR #1](https://github.com/yang-C23/my_quant_project/pull/1)；
+   不自动合并v2/main，完整数据和私人环境不随公开代码分发。审阅最新PR检查后再决定合并。
+   下一阶段的任务价值、依赖和验收统一见[优先级](../restart/PHASE_CLOSEOUT.md#下一阶段的有限工作)，
+   本轮仅整理发布与分析，不重复启动已完成的大批次。
+   下一阶段优先实际渠道、官方连续PIT、纳指自身估值、SPHD支付、来源留存、固定风险预算；
+   不将全仓QQQ的高历史中位数变成回撤可控承诺。BIL只验证等待段，整合结算/入场后现金管理须另登记。
+   旧价格研究、CASH_POOL_RESULTS中的KDJ/压力代理/红利组合及失败完整保留；不删除不利危机窗口。
+   NDX缺价在新输入已修，平台主数据迁移仍待完整验收，旧563受影响账户不能解读为无缺陷。
+2. 数据准入通过后，接入版本化准入记录、公司行动及实际渠道执行模型；当前正式入口固定暂停，不能仅修改配置就当作已验收。
+3. 完成PE两种退出、替代温度、恐慌/企稳、红利低波与风格组合的正式同窗口比较和最终样本外检验，再形成分标的操作规则。
+4. 影子监控按实际更新继续累计；价格尚停在10月19日，启动日为10月20日，因此当前有效前瞻交易日计数为0。不得回填20日或把暂停当卖出。
+5. 继续旧成果原版本复现、异地备份、来源变更及恢复演练；不把工程测试通过解释为完整研究验收。
+
+2026-10-20补充复核产物：`DATA_ROOT/audits/strategy-review-20261020T154413687909Z/`。
+31组共同窗口结果，4项美国KDJ因缺OHLC暂停。新增6项手算/诊断测试和已有核心合计24项通过；
+lint/doctor通过。未改变旧engine/features/ledger/metrics，未启动新的衍生品收益实验，未购买数据。
+新增诊断工具代码提交为`68d75f0`，原研究源码引用仍保持上述`66df912`。
+最终复放`DATA_ROOT/audits/strategy-review-20261020T154936837145Z/replay.json`
+确认190个产物文件字节一致、97个登记源码文件与`68d75f0`相符。
+以上为15:49时的历史交接。此后现金池、压力代理和修订估值的接线已经实施；
+当前状态以上方重启阶段表为准，正式PE/PB仍因数据准入不足暂停。
+
+## 旧任务存档
+
+以下保留当时任务结论以便追溯。TASK-030/034中旧投资绩效口径已由本轮审计标为失效，
+旧“防御价值”叙述不能代替重算后的投资结论；详见[审计报告](../restart/AUDIT.md)。
 
 | ID | 标题 | 里程碑 | 状态 | 分支 | 依赖 | 备注 |
 |---|---|---|---|---|---|---|
@@ -35,12 +96,27 @@
 | TASK-068 | R1 协议一致性修复（入场严格 t+1 + 065 ashare） | R1 | done | merged | 067 | review PASS；审查者独立红灯复核（旧码 3 failed→新码全绿）+ 三卡 IS 同配置复跑数字与 findings 增补表逐项吻合；无结论翻转；OOS 勘误核对见 TASK-068-review.md |
 | TASK-030 | qlib TopkDropout 基线 + mlflow | M3 | done | merged | 026 | review PASS（管线）；审查者双跑 67s 确定性逐位复核；**基线 metrics 判定无效**（universe 混入 258 个非股票代码，回撤 −116% 物理不可能）→ 根因在 TASK-011 分类兜底，修复卡 TASK-070；070 后重跑基线 |
 | TASK-031 | bt costs/feed/constraints | M3 | done | merged | 014 | review PASS；审查者按 §3 独立复算全部费用字面量（5.01/5.51/26/76/6.01）+ cerebro 期末现金复算一致；-1 哨兵仅限 is_suspended、limit 缺失走 NaN→跳过（分层干净）；`set_trade_date` 提醒已写入 032 卡 |
-| TASK-032 | DualTrend bt 移植 + parity | M3 | changes_requested | task/TASK-032-dualtrend-bt-parity | 031 | **第二轮返工项见 TASK-032-review.md 末节**：黄金参照已由审查者更换（2 月黄金在冻结 PG 上不可复现，223 条除权重算所致）——新黄金 `dualtrend_breath_full_20260710_124211_summary.csv`（v1 原码×冻结 PG，2015-01-01~2026-03-11，5305 只存活/97672 信号）；RSV 裁定=v1 字面 bt.If + engine 级 try/except 跳过（跳过语义即 v1 语义）；轴 B 维持；判据不变 |
+| TASK-032 | DualTrend bt 移植 + parity | M3 | changes_requested | task/TASK-032-dualtrend-bt-parity | 031 | **第三轮返工项见 TASK-032-review.md 末节 + 卡面修订节**：二轮交付合格（审查者逐位复现 −1069），根因三分=①v1 旗标空转（−371，审查者 run2 实证）②输入流逐 bar 不同（qfq 减法/乘法 + PG volume 复权，sh603019 零根相同）③920 段 PG 缺改码前历史（+87）；裁定按 M2 判例：PG 同源输入 parity（count 全等）+ qlib 输入差异量化归档；判据数字不变 |
 | TASK-033 | PG 归档退役 | M3 | backlog | — | 016,025,032+gate | 016/025/032 三报告全绿 + 规划者写 M3-gate-report 后才置 ready（ADR-0002） |
 | TASK-069 | 工程债：ruff format 全绿 | M3 | done | merged | 067,068 | review PASS；审查者逐字节验证 diff ≡ ruff format 输出（v2 原文件 format 后 cmp 全 IDENTICAL）；**质量门首次全绿**（88 files formatted） |
 | TASK-070 | 数据卫生：证券分类兜底修复 | M3 | done | merged | 030 | review PASS；审查者红灯复核 + 独立复验 AC2/AC3；universe 5723→5465（恰 −258）；030 基线重跑有效（review 附录）；R1 敏感性复跑完毕→勘误 2（washout 单调性留档理由降级，零候选结论不变） |
 | TASK-034 | AMV 组合级仓位开关（Tier2 overlay 预检） | M3 | done | merged | 030,070 | review PASS；审查者独立双跑 14 项 metrics 逐位一致 + regime 独立重建（exposure 0.4637/switches 96 逐位相同）+ base 与 030 附录逐位回归；**防御价值组合层复现**（mdd −2.25→−0.92、年化 −16.6%→+0.6%），系风险控制而非 alpha，Tier3 排位不变 |
 | TASK-071 | 工程债：研究计算层向量化（IC/分层/top-event） | M3 | changes_requested | task/TASK-071-research-compute-vectorize | 067,068 | 第一轮裁定（TASK-071-review.md）：审查者独立双侧对照——**AC1 失败**（5/10 行 ic_mean/icir ULP 尾差=求和顺序漂移，须保序实现）；**AC2 基线误测**（88.73s 实为 cProfile 局部，审查者实测 v2≈12m）；分支侧 1m12s 测量正确，**真实加速 ≥7×**。修两项即过 |
 | TASK-072 | 数据卫生：分类器号段补漏（302/201/395） | M3 | done | merged | 070 | review PASS；红灯复核 + 审查者独立复验 AC2/AC3（行数 12169、五板 3473/1433/608/560/166、universe 5466、302132 在内）；连带发现 turnover_cost w60 新样本翻 effective → R1 勘误 3（M6 留档优先级上调） |
+| TASK-073 | 快照冻结 manifest + PG 归档 dump | M3 | changes_requested | task/TASK-073-snapshot-freeze | — | 第一轮裁定（TASK-073-review.md）：阻塞根因=worktree 缺 `.env`（tdx_home 落默认 /tdx），代码无错、协议执行正确；返工两项：①补 .env 重跑 AC2 freeze/verify；②verify 的 `_new_files` 全链重复 hash ~6 遍→只收集路径。dump 286M 已归档合格 |
+| TASK-074 | 研究语义 LabelSpec（Tier1/IC 标签统一） | M3.5 | backlog | — | 071 | 白名单与 071 同碰 ic/forward_returns——071 合并后由规划者置 ready |
+| TASK-075 | 稳定哈希抽样（universe 无关采样） | M3.5 | review | task/TASK-075-stable-hash-sampling | — | **review PASS（TASK-075-review.md），合并排队等 071 先合**——分支勿动；审查者已验：变形测试/均匀界/跨 PYTHONHASHSEED 逐位一致 |
+| TASK-076 | trade_pairs 退出语义统一 + MAE/MFE 顺延 | M3.5 | done | merged ee18af8 | — | review PASS；审查者独立手算 AC1 全部期望值 + 红灯复核（旧码 4 failed→新码 15 passed）；退出语义与 Tier3 同构；R1 双线/短线存档自此不可复现（冻结）；审查中发现 editable install 跨 worktree 串扰风险→TASK-077 |
+| TASK-077 | 工程债：worktree 测试隔离 + cli `__main__` 守卫 | M3.5 | ready | — | — | 源自 076 审查（editable 串扰假绿）与 F-7（`python -m quant.cli` 静默空跑）；白名单与在途卡零交集，可并行 |
+| TASK-078 | 日度 PIT EligibilityPanel + UniverseProfile | M3.5 | ready | — | — | 用户需求落地（非ST/250交易日/ADV20 两档 3000万·1亿/close≥1）；**"未来收益完整"被裁定为前视，改标签层处理**；新模块零冲突可并行 |
+| TASK-079 | UniverseProfile 接线（研究/Topk 入口） | M3.5 | backlog | — | 078,071,074,075 | 白名单与 071/075 在途分支同碰——依赖全合后由规划者置 ready 并复核 AC |
 
-推荐认领顺序：**032 二轮返工（等审查者新黄金）∥ 071 返工（原分支）**；033 由规划者在 032 过 gate + 三报告全绿后置 ready。032 对照目标变更：2 月黄金 CSV 经审查者证实在冻结 PG（2026-03-11，其后 223 条除权）上不可复现（连 v1 自身都无法复现），审查者正用 v1 原码在冻结快照重生成黄金（start=2015-01-01, end=2026-03-11），生成后更新 docs/parity/ 与 032 卡。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
+**以下为重启前的历史认领顺序，不作为当前排程：**
+
+推荐认领顺序：**032 二轮返工 ∥ 071 返工（均在原分支）优先**；073/075/076 三卡白名单互斥可并行认领（多卡并行时每张卡独立 worktree，见 TASK-072-review 备注）；074 等 071 合并后置 ready；033 由规划者在 032 过 + 三报告全绿 + 073 恢复演练通过后置 ready。**M3.5 已立项（ADR-0005）**：研究有效性加固，M4 可并行、M6 被其 gate 阻塞；R1 存档冻结，074/075/076 合并后旧研究数字不可复现属预期。M4–M6 的卡由规划者在对应里程碑开启时补写（标题级清单见 `docs/roadmap.md`）；R1 研究协议见 `docs/research/PLAN.md`（**开发代理只准碰 IS 段 2015–2021**）。
+
+## 当前授权任务
+
+| ID | 状态 | 说明 |
+|---|---|---|
+| TASK-080 | draft_review / formal_open | [草稿PR #1](https://github.com/yang-C23/my_quant_project/pull/1)；探索交付已上传，正式数据/渠道与20真实交易日仍开放；下一阶段优先级见PHASE_CLOSEOUT.md |

@@ -28,7 +28,7 @@ def _event(symbol: str, date: str, c1: float, c2: float, c3: float, c4: float) -
     [
         ("sh600001", _event("sh600001", "2024-01-02", 1.0, 0.0, 0.0, 0.0), 10.0 / 9.9),
         ("sh600002", _event("sh600002", "2024-01-02", 0.0, 0.0, 10.0, 0.0), 2.0),
-        ("sh600003", _event("sh600003", "2024-01-02", 0.0, 5.0, 0.0, 4.0), 1.25),
+        ("sh600003", _event("sh600003", "2024-01-02", 0.0, 4.0, 0.0, 5.0), 1.25),
         (
             "sh600004",
             _event("sh600004", "2024-01-02", 2.0, 0.0, 5.0, 0.0),
@@ -86,14 +86,14 @@ def test_compute_adjust_no_xdxr_hfq_one_and_qfq_latest_one() -> None:
     assert got["qfq_factor"].iloc[-1] == 1.0
 
 
-def test_compute_adjust_matches_pg_sz000001_fixture() -> None:
+def test_legacy_mapping_replays_old_pg_fixture_only() -> None:
     daily_close = pd.read_csv(FIXTURES / "pg_sz000001_daily_close.csv", parse_dates=["date"])
     daily = daily_close.assign(symbol="sz000001")
     gbbq = pd.read_csv(FIXTURES / "pg_sz000001_gbbq_xdxr.csv", parse_dates=["date"])
     gbbq = gbbq.assign(symbol="sz000001", category=1)
     expected = pd.read_csv(FIXTURES / "pg_sz000001_adjust.csv", parse_dates=["date"])
 
-    got = compute_adjust(daily, gbbq)
+    got = compute_adjust(daily, gbbq, mapping="legacy_swapped_rights")
     got["date"] = pd.to_datetime(got["date"])
     merged = expected.merge(got, on="date", how="inner", suffixes=("_pg", "_got"))
 
@@ -101,3 +101,22 @@ def test_compute_adjust_matches_pg_sz000001_fixture() -> None:
     np.testing.assert_allclose(
         merged["hfq_factor_got"], merged["hfq_factor_pg"], rtol=1e-9, atol=1e-12
     )
+
+
+@pytest.mark.parametrize("ratio", [2.0, 5.0, 0.5])
+def test_category11_share_split_is_exact_and_does_not_create_loss(ratio):
+    daily = pd.DataFrame(
+        {
+            "symbol": ["sh512890"] * 3,
+            "date": pd.to_datetime(["2021-10-21", "2021-10-25", "2021-10-26"]),
+            "close": [1.5001, 1.5001 / ratio, 1.5001 / ratio],
+        }
+    )
+    event = _event("sh512890", "2021-10-25", 0, 0, ratio, 0)
+    event["category"] = 11
+    result = compute_adjust(daily, pd.DataFrame([event]))
+    assert result.hfq_factor.tolist() == [1.0, ratio, ratio]
+    assert np.allclose(daily.close * result.hfq_factor, 1.5001)
+    event["category"] = 12  # Nontradable-share changes do not split public float holdings.
+    result = compute_adjust(daily, pd.DataFrame([event]))
+    assert result.hfq_factor.tolist() == [1.0, 1.0, 1.0]

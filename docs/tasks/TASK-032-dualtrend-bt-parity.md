@@ -60,3 +60,22 @@ def run_dualtrend_backtest(config_path: str | Path) -> dict[str, Path]:
 - 黄金 CSV 的 `signals=42637, count(h1)=42568` 差值来自 horizon 尾部截断——对照时按 horizon 逐行比。
 - 本卡是 M3 gate 的三报告之一（016/025/032），PASS 后才轮到 TASK-033。
 - **费用口径提醒（TASK-031 review）**：parity 为无费用口径，不挂佣金桥；但若任何调试性带费运行落在 2023-08-28 之前，`AShareCommission` 默认新税率，必须逐 bar `set_trade_date`，否则每笔卖出差 0.05%。
+
+## 卡面修订（第三轮，2026-07-11，规划者）
+
+根因分解与判例依据见 `docs/reviews/TASK-032-review.md` 第三轮裁定。本节覆盖原文对应条款：
+
+- **Files to touch 增补**：`scripts/dualtrend_pg_parity.py`（新建）。
+- **AC3 变更**（判据数字不变，对照输入源修正为 v1 同源——M2 gate 判例）：
+  1. `python scripts/dualtrend_pg_parity.py configs/backtest/dualtrend_parity.yaml` 全量跑通
+     （5305 黄金符号 × PG v_qfq，v1 加载路径，旗标零值）；
+  2. `scripts/compare_parity.py backtest_results/backtest/dualtrend_pg_parity_summary.csv
+     docs/parity/dualtrend_breath_full_20260710_124211_summary.csv` →
+     **signals/count 完全一致、win ≤0.1pp、avg ≤5bps，结论 PASS**；超差不许放宽，
+     逐项差异写 STATUS 置 review；
+  3. 原 qlib 输入 run（`myquant backtest dualtrend …`）仍执行一次，其与黄金的差异数字
+     作为 qfq/volume 定义差量化记录写入 STATUS 归档（不作为 PASS 判据）。
+- **Scope 增补**：`run_dualtrend_from_frames(...)` 公共入口；parity feed 旗标清零
+  （复刻 v1 `build_data_feed` 填 0 语义）+ 对应单测。
+- **反作弊增补**：pg parity 脚本不许在比较前对 PG 数据做任何过滤/重采样/舍入——审查者将
+  抽样对照 `v_qfq_daily` 原始行；`compare_parity.py` 阈值仍为硬编码卡面数字。

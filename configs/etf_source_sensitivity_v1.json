@@ -1,0 +1,384 @@
+{
+  "cutoff": "2026-10-19",
+  "funding": {
+    "initial": 100000,
+    "monthly": 1000,
+    "tranches": 12
+  },
+  "execution": {
+    "commission_rate": 0.0003,
+    "minimum_commission": 0,
+    "slippage_bps": 5
+  },
+  "stage": {
+    "drawdown": 0.2,
+    "sigma": 2,
+    "confirmation": 5,
+    "quiet_sessions": 20,
+    "volatility_lag": 5
+  },
+  "horizons_years": [
+    5,
+    10
+  ],
+  "core_fractions": [
+    0,
+    0.5
+  ],
+  "price_exits": [
+    "none",
+    "recovery_time"
+  ],
+  "value_exits": [
+    "none",
+    "valuation_time",
+    "valuation_tiers"
+  ],
+  "waiting_months": [
+    6,
+    12,
+    24
+  ],
+  "tolerances": {
+    "account_replay": "exact_all_financial_payloads",
+    "signal_and_journal_prefix": "exact",
+    "price_overlap_abs": 0.0001,
+    "independent_ledger": "existing_frozen_oracle_cent_and_NAV_limits_unchanged"
+  },
+  "protocol": "etf-declared-source-uncertainty-v1",
+  "input_kind": "etf_cash_actions",
+  "input_parent": "entry-horizons-v2-20261021",
+  "source_directory": "source_probes/us-etf-20261021",
+  "calendar_file": "audits/entry-horizons-20261021/xnys-sessions.json",
+  "ssga_distribution_file": "source_probes/sp500-long-20261021/ssga_distributions.raw",
+  "vintage_settings": {
+    "years": 10,
+    "maximum_age_days": 185
+  },
+  "assets": [
+    "spy",
+    "qqq"
+  ],
+  "origin_not_before": {},
+  "formal_accepted": false,
+  "asset_settings": {
+    "spy": {
+      "symbol": "SPY",
+      "kind": "us_etf",
+      "lot": "1",
+      "chart": "yahoo_spy.raw",
+      "dividends": "ssga",
+      "signal_asset": "sp500"
+    },
+    "qqq": {
+      "symbol": "QQQ",
+      "kind": "us_etf",
+      "lot": "1",
+      "chart": "yahoo_qqq.raw",
+      "dividends": "issuer_and_nasdaq",
+      "signal_asset": "nasdaq100",
+      "dividend_file": "qqq_nasdaq_div.raw",
+      "issuer_table": "qqq_issuer_search_evidence.txt",
+      "actions_from": "1999-03-10",
+      "expected_dividends": 89,
+      "split_proof": "qqq_split_corroboration.json"
+    },
+    "csi300_etf": {
+      "symbol": "sh510300",
+      "kind": "parent_etf",
+      "lot": "100"
+    },
+    "dividend_lowvol": {
+      "symbol": "sh512890",
+      "kind": "parent_etf",
+      "lot": "100"
+    },
+    "dividend_lowvol100": {
+      "symbol": "sh515100",
+      "kind": "parent_etf",
+      "lot": "100"
+    }
+  },
+  "registered_rules": {
+    "spy": [
+      {
+        "id": "unconditional",
+        "entry": "unconditional",
+        "expiry": 20,
+        "lag": 0,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "pressure",
+        "entry": "pressure",
+        "expiry": 20,
+        "lag": 0,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "stabilized_20",
+        "entry": "stabilized",
+        "expiry": 20,
+        "lag": 0,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "stabilized_60",
+        "entry": "stabilized",
+        "expiry": 60,
+        "lag": 0,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "valuation_archive",
+        "entry": "valuation",
+        "expiry": 20,
+        "lag": 1,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "value_pressure_archive",
+        "entry": "value_pressure",
+        "expiry": 20,
+        "lag": 1,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "value_stabilized_20_archive",
+        "entry": "value_stabilized",
+        "expiry": 20,
+        "lag": 1,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "value_stabilized_60_archive",
+        "entry": "value_stabilized",
+        "expiry": 60,
+        "lag": 1,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      }
+    ],
+    "qqq": [
+      {
+        "id": "unconditional",
+        "entry": "unconditional",
+        "expiry": 20,
+        "lag": 0,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "pressure",
+        "entry": "pressure",
+        "expiry": 20,
+        "lag": 0,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "stabilized_20",
+        "entry": "stabilized",
+        "expiry": 20,
+        "lag": 0,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      },
+      {
+        "id": "stabilized_60",
+        "entry": "stabilized",
+        "expiry": 60,
+        "lag": 0,
+        "buy": 0.4,
+        "drawdown": 0.2,
+        "scope": "primary"
+      }
+    ]
+  },
+  "blocked_evidence": {
+    "formal": "licence_and_complete_cross_source_quality_not_passed",
+    "QQQ_early_actions": "issuer_table_retained_from_search_archive_not_original_HTTP_response; two_vendor_ghost_events_rejected_and_2020_dividend_missing_in_chart_restored",
+    "valuation": "archived_Shiller_only; not_official_daily_PIT; sparse_releases_and_interpolation",
+    "nasdaq_PE_PB": "no_verified_complete_index_specific_PIT_history",
+    "SPHD": "issuer_payment_history_incomplete; raw_vendor_events_not_accepted",
+    "QDII": "FX_premium_discount_channel_execution_not_yet_validated",
+    "derivatives": "no_Gamma_or_forced_liquidation_fact_inferred_from_prices"
+  },
+  "calendar_adjudication_file": "configs/us_calendar_adjudication_v2.json",
+  "frozen_etf_parent": "etf-total-return-v2-20261021",
+  "input_overrides": [
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "open",
+      "date": "2016-11-09",
+      "expected": 212.369995,
+      "value": 212.37,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "high",
+      "date": "2016-11-09",
+      "expected": 217.100006,
+      "value": 217.1,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "low",
+      "date": "2016-11-09",
+      "expected": 212.339996,
+      "value": 212.34,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "close",
+      "date": "2016-11-09",
+      "expected": 216.380005,
+      "value": 216.3792,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "open",
+      "date": "2019-07-16",
+      "expected": 300.649994,
+      "value": 300.65,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "high",
+      "date": "2019-07-16",
+      "expected": 300.880005,
+      "value": 300.88,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "low",
+      "date": "2019-07-16",
+      "expected": 299.440002,
+      "value": 299.44,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "close",
+      "date": "2019-07-16",
+      "expected": 299.779999,
+      "value": 299.71,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "open",
+      "date": "2026-04-20",
+      "expected": 708.780029,
+      "value": 710.14,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "high",
+      "date": "2026-04-20",
+      "expected": 709.909973,
+      "value": 710.14,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "low",
+      "date": "2026-04-20",
+      "expected": 706.140015,
+      "value": 710.14,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "bars",
+      "column": "close",
+      "date": "2026-04-20",
+      "expected": 708.719971,
+      "value": 710.14,
+      "evidence": "source_probes/us-etf-20261021/nasdaq_spy_price_check.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "actions",
+      "column": "per_share",
+      "date": "1993-12-17",
+      "expected": 0.287239,
+      "value": 0.317,
+      "evidence": "source_probes/us-etf-20261021/yahoo_spy.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "actions",
+      "column": "per_share",
+      "date": "1995-12-15",
+      "expected": 0.372,
+      "value": 0.382,
+      "evidence": "source_probes/us-etf-20261021/yahoo_spy.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "actions",
+      "column": "per_share",
+      "date": "1996-12-20",
+      "expected": 0.40681,
+      "value": 0.367,
+      "evidence": "source_probes/us-etf-20261021/yahoo_spy.raw"
+    },
+    {
+      "asset": "spy",
+      "table": "actions",
+      "column": "per_share",
+      "date": "2021-12-17",
+      "expected": 1.636431,
+      "value": 1.633,
+      "evidence": "source_probes/us-etf-20261021/yahoo_spy.raw"
+    },
+    {
+      "asset": "qqq",
+      "table": "actions",
+      "column": "pay_date",
+      "date": "2008-09-19",
+      "expected": "2008-09-30",
+      "value": "2008-10-31",
+      "evidence": "hypothetical_delayed_payment_stress_not_a_verified_correction"
+    }
+  ],
+  "require_value_at_origin": true,
+  "calendar_close_file": "audits/us-etf-20261021/xnys-closes.json"
+}

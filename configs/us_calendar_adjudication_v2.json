@@ -1,0 +1,52 @@
+{
+  "version": "us-calendar-adjudication-v2",
+  "calendar_file": "audits/entry-horizons-20261021/xnys-sessions.json",
+  "calendar_sha256": "0a212c77530ca6dd1bb845bc00d40fa3b2cbf47c2b0e5b19abfaab791a039b26",
+  "calendar_library": "exchange_calendars==4.13.2",
+  "removed_non_sessions": {
+    "sp500": [
+      "1985-09-27"
+    ],
+    "nasdaq100": [
+      "1998-07-03",
+      "2001-01-01",
+      "2019-04-19"
+    ]
+  },
+  "inserted_closes": {
+    "sp500": {
+      "1999-12-31": 1469.25
+    },
+    "nasdaq100": {
+      "2002-01-29": 1519.33
+    }
+  },
+  "unresolved_missing_sessions": {
+    "sp500": [],
+    "nasdaq100": []
+  },
+  "evidence": {
+    "calendar": "https://github.com/gerrymanoim/exchange_calendars/blob/v4.13.2/exchange_calendars/exchange_calendar_xnys.py",
+    "1999_session": "https://www.sec.gov/newsroom/press-releases/99-177-foreign-markets-experience-millennium-change-its-business-usual-us-securities-markets",
+    "1999_price": "https://www.sec.gov/Archives/edgar/data/831001/000119312507124389/d424b2.htm",
+    "price_transcription": {
+      "publisher": "Citigroup Funding Inc. filing on SEC EDGAR",
+      "published": "2007-05-24",
+      "table": "Year-End Closing Values; last index business day of each December as published by S&P",
+      "year": 1999,
+      "closing_value": 1469.25,
+      "access": "verified via web tool; direct HTTP 403 preserved; not SEC endorsement"
+    },
+    "nasdaq_missing": "https://fred.stlouisfed.org/data/NASDAQ100",
+    "nasdaq_repair": {
+      "close": 1519.33,
+      "exact_secondary_quote_file": "source_probes/us-etf-20261021/yahoo_ndx_gap.raw",
+      "exact_quote_sha256": "c7fa0c3324c93cee07f8737b8f9d0379365088908604f68fd6c19ebfd688420a",
+      "nasdaq_integer_precision_check_file": "source_probes/us-etf-20261021/ndx_nasdaq_iso.raw",
+      "nasdaq_integer_precision_close": 1519,
+      "boundary": "Nasdaq API integer precision corroborates date/order of magnitude, not 0.01 precision; exploratory repair"
+    }
+  },
+  "selection": "data_correction_not_strategy_parameter_change",
+  "formal_accepted": false
+}

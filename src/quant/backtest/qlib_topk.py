@@ -424,29 +424,31 @@ def _run_qlib_backtest(config: TopkConfig, score: pd.Series) -> pd.DataFrame:
 
 
 def extract_metrics(report: pd.DataFrame) -> dict[str, float]:
-    """Extract qlib-native risk and turnover metrics from the daily report."""
+    """Extract geometric portfolio metrics; excess returns remain arithmetic."""
     required = {"return", "bench", "cost", "turnover"}
     missing = sorted(required - set(report.columns))
     if missing:
         raise ValueError(f"qlib report missing columns: {missing}")
 
-    from qlib.contrib.evaluate import risk_analysis
+    from quant.backtest.metrics import geometric_metrics
 
     net_return = report["return"].astype(float) - report["cost"].astype(float)
     excess_wo_cost = report["return"].astype(float) - report["bench"].astype(float)
     excess_with_cost = excess_wo_cost - report["cost"].astype(float)
 
-    portfolio_risk = risk_analysis(net_return.dropna(), freq="day")["risk"]
-    excess_wo_risk = risk_analysis(excess_wo_cost.dropna(), freq="day")["risk"]
-    excess_with_risk = risk_analysis(excess_with_cost.dropna(), freq="day")["risk"]
+    portfolio_risk = geometric_metrics(net_return)
+    excess_std = float(excess_with_cost.std(ddof=1))
+    information_ratio = (
+        float(excess_with_cost.mean()) / excess_std * np.sqrt(252) if excess_std > 0 else 0.0
+    )
 
     return {
         "annualized_return": float(portfolio_risk["annualized_return"]),
-        "information_ratio": float(excess_with_risk["information_ratio"]),
+        "information_ratio": information_ratio,
         "max_drawdown": float(portfolio_risk["max_drawdown"]),
         "turnover_mean": float(report["turnover"].astype(float).mean()),
-        "excess_return_wo_cost": float(excess_wo_risk["annualized_return"]),
-        "excess_return_with_cost": float(excess_with_risk["annualized_return"]),
+        "excess_return_wo_cost": float(excess_wo_cost.mean() * 252),
+        "excess_return_with_cost": float(excess_with_cost.mean() * 252),
     }
 
 

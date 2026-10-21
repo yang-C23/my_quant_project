@@ -122,3 +122,21 @@ def test_no_new_rows_does_not_touch_adjust(tmp_path: Path) -> None:
 
     assert stats.new_rows == 0
     assert before == after
+
+
+def test_existing_date_correction_replaces_bar_without_duplicate(tmp_path: Path) -> None:
+    staging = _copy_staging(tmp_path)
+    before = pd.read_parquet(staging / "daily")
+    replacement = before.iloc[[0]].copy()
+    replacement["close"] = replacement["close"] * 1.01
+    result = apply_update(staging, tmp_path / "qlib", replacement)
+    after = pd.read_parquet(staging / "daily")
+    assert len(after) == len(before)
+    assert not after.duplicated(["symbol", "date"]).any()
+    key = replacement.iloc[0]
+    actual = after[
+        (after["symbol"] == key["symbol"])
+        & (pd.to_datetime(after["date"]) == pd.Timestamp(key["date"]))
+    ]
+    assert actual.iloc[0]["close"] == key["close"]
+    assert result.new_rows == 1  # changed/upserted rows, including corrections

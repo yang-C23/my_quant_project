@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -115,7 +116,13 @@ def _recompute_derived_for_symbols(
 
 
 def apply_update(staging_dir: Path, qlib_dir: Path, new_rows: pd.DataFrame) -> UpdateStats:
-    """Append new daily rows, recompute affected symbols, and rebuild qlib when needed."""
+    """Upsert an unsealed working staging tree, including corrected historical bars.
+
+    Production publication is handled by ``quant.etl.restart``. Never mutate an
+    immutable published snapshot through this legacy compatibility function.
+    """
+    if (staging_dir.parent / "manifest.json").exists():
+        raise ValueError("sealed snapshot: build a new snapshot to update data")
     t0 = time.monotonic()
     incoming = new_rows.copy()
     if incoming.empty:
@@ -124,20 +131,34 @@ def apply_update(staging_dir: Path, qlib_dir: Path, new_rows: pd.DataFrame) -> U
     incoming["date"] = pd.to_datetime(incoming["date"])
     daily = _read_staging_table(staging_dir, "daily").copy()
     daily["date"] = pd.to_datetime(daily["date"])
-    existing_keys = pd.MultiIndex.from_frame(daily[["symbol", "date"]])
-    incoming_keys = pd.MultiIndex.from_frame(incoming[["symbol", "date"]])
-    incoming = incoming[~incoming_keys.isin(existing_keys)].copy()
+    columns = ["open", "high", "low", "close", "volume", "amount"]
+    incoming = incoming.drop_duplicates(["symbol", "date"], keep="last")
+    previous = daily.set_index(["symbol", "date"])[columns]
+    candidate = incoming.set_index(["symbol", "date"])[columns]
+    aligned = previous.reindex(candidate.index)
+    unchanged = candidate.eq(aligned) | (candidate.isna() & aligned.isna())
+    incoming = incoming.loc[~unchanged.all(axis=1).to_numpy()].copy()
     if incoming.empty:
         return UpdateStats(new_rows=0, symbols=0, qlib_rebuilt=False, seconds=time.monotonic() - t0)
 
     symbols = set(incoming["symbol"].astype(str))
-    _append_daily(staging_dir, incoming.assign(date=incoming["date"].dt.date))
     combined = (
         pd.concat([daily, incoming], ignore_index=True)
         .drop_duplicates(["symbol", "date"], keep="last")
         .sort_values(["symbol", "date"])
         .reset_index(drop=True)
     )
+    # Replace the working table rather than append overlapping keys. The active
+    # pointer never references this tree until the enclosing publisher seals it.
+    daily_dir = staging_dir / "daily"
+    temporary = staging_dir / "daily.upserting"
+    temporary.mkdir(exist_ok=False)
+    _write_table(
+        temporary / "part-000.parquet",
+        combined.assign(date=combined["date"].dt.date).drop(columns=["exchange"], errors="ignore"),
+    )
+    shutil.rmtree(daily_dir)
+    temporary.rename(daily_dir)
     _recompute_derived_for_symbols(staging_dir, combined, symbols)
     dump_cn_daily(staging_dir, qlib_dir)
     return UpdateStats(

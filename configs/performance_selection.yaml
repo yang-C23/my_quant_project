@@ -1,0 +1,12 @@
+schema_version: 1
+recorded_at_utc: "2026-10-20T22:08:07.491082Z"
+timing: before_inspecting_high_worker_results_not_before_all_benchmark_execution
+financial_selection: none
+workload: unchanged_52_accounts
+repetitions_per_optimized_worker_count: 3
+rule: smallest_worker_count_with_median_wall_time_within_5_percent_of_fastest
+additional_constraints:
+  reserve_logical_cpus: 2
+  no_other_heavy_research_during_high_worker_ladder: true
+  require_all_financial_payloads_exact: true
+note: Performance scheduling selection only; no strategy or market parameter selection.

@@ -22,10 +22,12 @@ jobs:
         with:
           python-version: "3.10"
           cache: pip
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-lock.txt
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -c requirements-lock.txt -e ".[dev,data]"
 
       - name: Lint and format check
         run: ruff check . && ruff format --check .
@@ -34,10 +36,10 @@ jobs:
         run: python scripts/check_no_hardcoded_paths.py
 
       - name: qlib import smoke
-        run: python -c "import qlib, quant"
+        run: scripts/quant doctor
 
       - name: Run unit tests
-        run: pytest -q -m "not integration" --cov=quant --cov-report=term
+        run: scripts/quant test --cov=quant --cov-report=term
 
   whitelist:
     # File-whitelist gate: task branches must not touch files outside their

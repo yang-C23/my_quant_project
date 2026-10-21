@@ -174,6 +174,9 @@ def _dump_feature_group(
 
 def dump_cn_daily(staging_dir: Path, qlib_dir: Path, symbols: list[str] | None = None) -> DumpStats:
     """Rebuild a qlib cn_daily directory from staging parquet tables."""
+    from quant.data.snapshots import assert_unsealed
+
+    assert_unsealed(qlib_dir)
     t0 = time.monotonic()
     if qlib_dir.exists():
         shutil.rmtree(qlib_dir)

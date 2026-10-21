@@ -25,11 +25,11 @@ def _last_positive(values: pd.Series) -> float:
     return float(positive.iloc[-1]) if not positive.empty else 0.0
 
 
-def xdxr_events(gbbq: pd.DataFrame) -> pd.DataFrame:
+def xdxr_events(gbbq: pd.DataFrame, *, mapping: str = "tdx") -> pd.DataFrame:
     """Map raw category=1 GBBQ c1..c4 columns to ex-right fields.
 
-    v1 ``scripts/calc_basic.py`` defines the order as:
-    c1→fenhong, c2→peigu, c3→songzhuangu, c4→peigujia.
+    Physical order: c1 cash per 10, c2 subscription price, c3 bonus per 10,
+    c4 rights per 10. ``legacy_swapped_rights`` exists only for old result replay.
     """
     if gbbq.empty:
         return pd.DataFrame(columns=["symbol", "date", *_XDXR_COLUMNS])
@@ -38,18 +38,35 @@ def xdxr_events(gbbq: pd.DataFrame) -> pd.DataFrame:
     if events.empty:
         return pd.DataFrame(columns=["symbol", "date", *_XDXR_COLUMNS])
     events["date"] = pd.to_datetime(events["date"])
+    if mapping not in {"tdx", "legacy_swapped_rights"}:
+        raise ValueError("unknown corporate-action mapping")
+    quantity_col, price_col = ("c4", "c2") if mapping == "tdx" else ("c2", "c4")
     grouped = (
         events.sort_values(["symbol", "date"])
         .groupby(["symbol", "date"], sort=True)
         .agg(
             fenhong=("c1", "sum"),
-            peigu=("c2", "sum"),
+            peigu=(quantity_col, "sum"),
             songzhuangu=("c3", "sum"),
-            peigujia=("c4", _last_positive),
+            peigujia=(price_col, _last_positive),
         )
         .reset_index()
     )
     return grouped
+
+
+def split_events(gbbq: pd.DataFrame) -> pd.DataFrame:
+    """Category 11 stores post/pre share ratio in c3; category 12 is nontradable shares."""
+    if gbbq.empty:
+        return pd.DataFrame(columns=["symbol", "date", "split_ratio"])
+    splits = gbbq.loc[gbbq["category"].eq(11), ["symbol", "date", "c3"]].copy()
+    splits = splits.rename(columns={"c3": "split_ratio"})
+    splits["date"] = pd.to_datetime(splits["date"])
+    if splits.duplicated(["symbol", "date"]).any():
+        raise ValueError("duplicate split events require source reconciliation")
+    if not (np.isfinite(splits["split_ratio"]) & splits["split_ratio"].gt(0)).all():
+        raise ValueError("invalid share split ratio")
+    return splits
 
 
 def theoretical_preclose(prev_close: pd.Series, ev: pd.DataFrame) -> pd.Series:
@@ -70,7 +87,9 @@ def theoretical_preclose(prev_close: pd.Series, ev: pd.DataFrame) -> pd.Series:
     return (numer / denom).where(denom != 0, prev_close.astype(float))
 
 
-def daily_with_preclose(daily: pd.DataFrame, gbbq: pd.DataFrame) -> pd.DataFrame:
+def daily_with_preclose(
+    daily: pd.DataFrame, gbbq: pd.DataFrame, *, mapping: str = "tdx"
+) -> pd.DataFrame:
     """Attach v1-compatible theoretical ``preclose`` and XDXR marker columns."""
     required = {"symbol", "date", "close"}
     missing = required - set(daily.columns)
@@ -82,29 +101,41 @@ def daily_with_preclose(daily: pd.DataFrame, gbbq: pd.DataFrame) -> pd.DataFrame
     frame = frame.sort_values(["symbol", "date"]).reset_index(drop=True)
     frame["prev_close"] = frame.groupby("symbol", sort=False)["close"].shift(1)
 
-    events = xdxr_events(gbbq)
+    events = xdxr_events(gbbq, mapping=mapping)
     frame = frame.merge(events, on=["symbol", "date"], how="left")
     frame["has_xdxr"] = frame[_XDXR_COLUMNS].notna().any(axis=1)
+    frame = frame.merge(split_events(gbbq), on=["symbol", "date"], how="left")
+    frame["split_ratio"] = pd.to_numeric(frame["split_ratio"], errors="raise").astype(float)
+    if (frame["has_xdxr"] & frame["split_ratio"].notna()).any():
+        raise ValueError("simultaneous rights/cash and split need a verified event ordering")
     event_cols = frame[_XDXR_COLUMNS].apply(pd.to_numeric, errors="coerce").fillna(0.0)
     frame["preclose"] = theoretical_preclose(frame["prev_close"], event_cols)
+    frame["preclose"] /= frame["split_ratio"].fillna(1.0)
+    frame["has_xdxr"] |= frame["split_ratio"].notna()
     first_bar = frame["prev_close"].isna()
     frame.loc[first_bar, "preclose"] = frame.loc[first_bar, "close"].astype(float)
     frame["preclose"] = frame["preclose"].round(4)
     return frame
 
 
-def compute_adjust(daily: pd.DataFrame, gbbq: pd.DataFrame) -> pd.DataFrame:
+def compute_adjust(
+    daily: pd.DataFrame, gbbq: pd.DataFrame, *, mapping: str = "tdx"
+) -> pd.DataFrame:
     """Compute multiplicative HFQ and derived QFQ factors.
 
     On ex-right rows, v1 multiplies the running HFQ factor by
     ``prev_close_actual / preclose_theoretical``. ``qfq_factor`` is the
     multiplicative normalized factor with the latest row equal to 1.
     """
-    frame = daily_with_preclose(daily[["symbol", "date", "close"]], gbbq)
+    frame = daily_with_preclose(daily[["symbol", "date", "close"]], gbbq, mapping=mapping)
     ratio = np.where(
         frame["has_xdxr"] & frame["preclose"].gt(0) & frame["prev_close"].notna(),
         frame["prev_close"].astype(float) / frame["preclose"].astype(float),
         1.0,
+    )
+    # Split ratios are exact inputs, not reconstructed from a rounded theoretical price.
+    ratio = np.where(
+        frame["split_ratio"].notna() & frame["prev_close"].notna(), frame["split_ratio"], ratio
     )
     frame["hfq_factor"] = pd.Series(ratio, index=frame.index).groupby(frame["symbol"]).cumprod()
     frame["hfq_factor"] = frame["hfq_factor"].round(8)
@@ -116,6 +147,9 @@ def compute_adjust(daily: pd.DataFrame, gbbq: pd.DataFrame) -> pd.DataFrame:
 
 def build_adjust_staging(staging_dir: Path) -> int:
     """Build ``staging/adjust.parquet`` from daily and gbbq staging tables."""
+    from quant.data.snapshots import assert_unsealed
+
+    assert_unsealed(staging_dir)
     daily = _read_staging_table(staging_dir, "daily")
     gbbq = _read_staging_table(staging_dir, "gbbq")
     adjust = compute_adjust(daily, gbbq)

@@ -1,4 +1,8 @@
-# backtest_platform.md — 回测/研究平台规范
+# backtest_platform.md — 旧个股研究兼容接口
+
+> 2026-10-20：本页仅描述旧Tier1/2/3股票研究。宽基与ETF以[长期研究协议](restart/RESEARCH_PROTOCOL.md)为准。
+> 本页股票印花税/过户费不适用于ETF新账本；几何绩效口径由`quant.backtest.metrics`定义。
+> 旧结果须按[审计记录](restart/AUDIT.md)重新核验，原有“有效”结论不自动继承。
 
 > 对应 ADR-0001。相关任务卡：TASK-025/026（Tier1）、TASK-030（Tier2）、TASK-031/032（Tier3）。
 
